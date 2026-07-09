@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wavr Floral Visual Builder</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body { margin: 0; display: flex; height: 100vh; background: #050507; color: white; font-family: 'Inter', sans-serif; overflow: hidden; }
+        #canvas-pane { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; border-right: 1px solid rgba(255,255,255,0.1); }
+        #control-pane { width: 400px; padding: 20px; overflow-y: auto; background: rgba(0,0,0,0.5); }
+        h2 { margin-top: 0; font-size: 1.2rem; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 10px; }
+        
+        .branch-card { background: rgba(255,255,255,0.05); padding: 15px; margin-bottom: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
+        .branch-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-weight: bold; }
+        .del-btn { background: #ff4444; color: white; border: none; border-radius: 4px; cursor: pointer; padding: 4px 8px; }
+        
+        .control-group { margin-bottom: 10px; }
+        .control-group label { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px; opacity: 0.8; }
+        .control-group input[type=range] { width: 100%; cursor: pointer; }
+        
+        .action-btns { display: flex; gap: 10px; margin-top: 20px; }
+        .btn { flex: 1; padding: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: white; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn:hover { background: rgba(255,255,255,0.2); }
+        .btn-primary { background: #3b82f6; border-color: #60a5fa; }
+        .btn-primary:hover { background: #2563eb; }
+        
+        #code-output { width: 100%; height: 100px; background: #000; color: #0f0; padding: 10px; border: none; border-radius: 6px; font-family: monospace; resize: vertical; margin-top: 20px; box-sizing: border-box; }
+        
+        select { width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; margin-bottom: 20px; font-size: 1rem; }
+        option { background: #222; }
+        
+        /* Viewer SVG */
+        svg { overflow: visible; }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-pane">
+        <!-- Re-use Wavr gradients -->
+        <svg id="preview-svg" width="800" height="800" viewBox="-400 -400 800 800">
+            <defs>
+                <linearGradient id="glossyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
+                    <stop offset="40%" stop-color="currentColor" stop-opacity="0.9" />
+                    <stop offset="100%" stop-color="currentColor" stop-opacity="0.4" />
+                </linearGradient>
+            </defs>
+            <!-- Center Root Crosshair -->
+            <circle cx="0" cy="0" r="4" fill="rgba(255,0,0,0.5)" />
+            <line x1="-10" y1="0" x2="10" y2="0" stroke="rgba(255,0,0,0.5)" />
+            <line x1="0" y1="-10" x2="0" y2="10" stroke="rgba(255,0,0,0.5)" />
+            
+            <g id="render-target" transform="rotate(-90)"></g> <!-- -90 is growing UP by default -->
+        </svg>
+    </div>
+
+    <div id="control-pane">
+        <h2>Floral Visual Builder</h2>
+        
+        <select id="template-select"></select>
+        
+        <div id="branches-list"></div>
+        
+        <div class="action-btns">
+            <button class="btn" onclick="addBranch()">+ Add Branch</button>
+            <button class="btn" onclick="reRender()">Re-roll Randoms</button>
+        </div>
+        
+        <button class="btn btn-primary" style="width: 100%; margin-top: 20px;" onclick="generateCode()">Generate Code</button>
+        <textarea id="code-output" readonly placeholder="Exported code will appear here..."></textarea>
+    </div>
+
+    <!-- Scripts -->
+    <script src="floral_templates.js"></script>
+    <script>
+        // State
+        let currentTemplateIndex = 0;
+        let workingTemplate = null;
+
+        const selectEl = document.getElementById('template-select');
+        const listEl = document.getElementById('branches-list');
+        const renderTarget = document.getElementById('render-target');
+        const codeOutput = document.getElementById('code-output');
+
+        // Init
+        window.WavrFloral.templates.forEach((tpl, i) => {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = tpl.name;
+            selectEl.appendChild(opt);
+        });
+
+        selectEl.addEventListener('change', (e) => {
+            currentTemplateIndex = parseInt(e.target.value);
+            loadTemplate();
+        });
+
+        function loadTemplate() {
+            // Deep copy to allow editing
+            workingTemplate = JSON.parse(JSON.stringify(window.WavrFloral.templates[currentTemplateIndex]));
+            renderUI();
+            reRender();
+        }
+
+        function renderUI() {
+            listEl.innerHTML = '';
+            workingTemplate.branches.forEach((b, idx) => {
+                const card = document.createElement('div');
+                card.className = 'branch-card';
+                card.innerHTML = `
+                    <div class="branch-header">
+                        <span>Branch ${idx + 1}</span>
+                        <button class="del-btn" onclick="deleteBranch(${idx})">X</button>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Angle Offset (${b.angle}°) <span id="val-ang-${idx}">${b.angle}</span></label>
+                        <input type="range" min="-180" max="180" value="${b.angle}" oninput="updateBranch(${idx}, 'angle', this.value)">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Scale (${b.scale}x) <span id="val-scl-${idx}">${b.scale}</span></label>
+                        <input type="range" min="0.2" max="3.0" step="0.1" value="${b.scale}" oninput="updateBranch(${idx}, 'scale', this.value)">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Curve Direction (${b.cy}) <span id="val-cy-${idx}">${b.cy}</span></label>
+                        <input type="range" min="-1" max="1" step="2" value="${b.cy}" oninput="updateBranch(${idx}, 'cy', this.value)">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Flower <input type="checkbox" ${b.flower ? 'checked' : ''} onchange="updateBranch(${idx}, 'flower', this.checked)"></label>
+                    </div>
+                `;
+                listEl.appendChild(card);
+            });
+        }
+
+        window.updateBranch = function(idx, key, value) {
+            if (key === 'angle') workingTemplate.branches[idx].angle = parseFloat(value);
+            if (key === 'scale') workingTemplate.branches[idx].scale = parseFloat(value);
+            if (key === 'cy') workingTemplate.branches[idx].cy = parseFloat(value);
+            if (key === 'flower') workingTemplate.branches[idx].flower = value;
+            
+            const valEl = document.getElementById(`val-${key.substring(0,3)}-${idx}`);
+            if (valEl) valEl.textContent = value;
+            
+            reRender();
+        };
+
+        window.deleteBranch = function(idx) {
+            workingTemplate.branches.splice(idx, 1);
+            renderUI();
+            reRender();
+        };
+
+        window.addBranch = function() {
+            workingTemplate.branches.push({ angle: 0, scale: 1.0, cy: 1, flower: true });
+            renderUI();
+            reRender();
+        };
+
+        window.reRender = function() {
+            let svgContent = '';
+            // Render with a simulated t=0.5 and maxScale=50 (like a medium-sized hitbox)
+            workingTemplate.branches.forEach((b, idx) => {
+                // Ensure branch animations don't replay infinitely by removing the animation strings?
+                // Actually they just play once on load, so we need to force re-render by clearing innerHTML
+                const branchHtml = window.WavrFloral.createBranch(b, idx, 50, 0.5);
+                // Strip animations for the viewer so they render instantly and fully grown
+                // Wait, stroke-dasharray animation is CSS class based!
+                svgContent += branchHtml;
+            });
+            renderTarget.innerHTML = svgContent;
+        };
+
+        window.generateCode = function() {
+            const code = JSON.stringify({
+                name: workingTemplate.name + " (Custom)",
+                branches: workingTemplate.branches
+            }, null, 4);
+            codeOutput.value = code + ",";
+        };
+
+        // Load initial
+        loadTemplate();
+    </script>
+</body>
+</html>

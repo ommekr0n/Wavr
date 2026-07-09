@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wavr — Music Player</title>
+    <meta name="description" content="Wavr — A premium dark music player with cinematic visualizer mode.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500;700&family=Inter:wght@300;400;500;600;700;800;900&family=Chakra+Petch:wght@700&family=Dela+Gothic+One&family=DotGothic16&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:,">
+</head>
+<body class="theme-default">
+
+    <!-- Global SVG Filters -->
+    <svg width="0" height="0" style="position: absolute; pointer-events: none;">
+        <defs>
+            <filter id="fireFilter" x="-10%" y="-10%" width="120%" height="120%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.03 0.08" numOctaves="1" result="noise">
+                    <animate attributeName="baseFrequency" values="0.03 0.08; 0.03 0.16; 0.03 0.08" dur="1.5s" repeatCount="indefinite"/>
+                </feTurbulence>
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="20" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+        </defs>
+    </svg>
+
+    <!-- Aurora Background Blobs -->
+    <div id="aurora-bg" class="hidden">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+        <div class="blob blob-4"></div>
+    </div>
+
+    <!-- 1. Home / Library View -->
+    <div id="home-view" class="view-container">
+        <header class="home-header">
+            <div class="home-header-content">
+                <div class="home-brand">
+                    <span class="brand-logo">W</span>
+                    <h1>Library</h1>
+                </div>
+                <button id="btn-add-song" class="add-btn" title="Add new track">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
+            </div>
+        </header>
+        
+        <div class="song-grid" id="home-song-grid">
+            <!-- Song items populated via JS -->
+        </div>
+    </div>
+
+    <!-- 2. Upload Modal -->
+    <div id="upload-modal" class="modal hidden">
+        <div class="modal-content">
+            <button id="btn-close-modal" class="close-btn" title="Close">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+            <h2>Add New Track</h2>
+            <p class="modal-subtitle">Upload all 3 files to continue — Audio, Lyrics, and Cover Art.</p>
+            
+            <form id="upload-form">
+                <div class="form-group">
+                    <label for="upload-audio">Audio File (.mp3, .m4a)</label>
+                    <input type="file" id="upload-audio" accept="audio/*" required>
+                </div>
+                <div class="form-group">
+                    <label for="upload-lrc">Lyrics File (.lrc)</label>
+                    <input type="file" id="upload-lrc" accept=".lrc" required>
+                </div>
+                <div class="form-group">
+                    <label for="upload-cover">Cover Art (Image)</label>
+                    <input type="file" id="upload-cover" accept="image/*" required>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label for="upload-title">Track Title</label>
+                        <input type="text" id="upload-title" placeholder="Enter track title" required>
+                    </div>
+                    <div class="form-group half">
+                        <label for="upload-artist">Artist</label>
+                        <input type="text" id="upload-artist" placeholder="Enter artist name" required>
+                    </div>
+                </div>
+                
+                <button type="submit" class="submit-btn">Upload & Save to Library</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. Player View -->
+    <div id="player-view" class="view-container hidden">
+        
+        <!-- Player Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <button id="btn-back-home" class="icon-btn" title="Back to Library">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </button>
+                <span class="header-brand">Wavr</span>
+            </div>
+            <div class="header-right">
+                <button id="fullscreen-btn" class="icon-btn" title="Fullscreen">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content am-layout">
+            
+            <!-- Left: Album Art & Controls -->
+            <section class="am-player-left">
+                <div class="am-controls-section">
+                    <div class="am-art-container">
+                        <img id="cover-art" src="cover.png" alt="Album Cover">
+                        <div class="am-art-glow"></div>
+                    </div>
+                    
+                    <div class="am-song-meta">
+                        <h2 id="song-title">Track Title</h2>
+                        <p id="song-artist">Artist Name</p>
+                    </div>
+
+                    <div class="am-timeline-container">
+                        <span id="current-time" class="time-label">0:00</span>
+                        <div class="progress-bar-wrapper">
+                            <input type="range" id="progress-slider" min="0" max="100" value="0">
+                            <div class="progress-bar-fill"></div>
+                        </div>
+                        <span id="total-time" class="time-label">0:00</span>
+                    </div>
+
+                    <div class="am-controls-container">
+                        <button id="btn-shuffle" class="control-btn toggle-btn" title="Shuffle">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="16 3 21 3 21 8"></polyline>
+                                <line x1="4" y1="20" x2="21" y2="3"></line>
+                                <polyline points="21 16 21 21 16 21"></polyline>
+                                <line x1="15" y1="15" x2="21" y2="21"></line>
+                                <line x1="4" y1="4" x2="9" y2="9"></line>
+                            </svg>
+                        </button>
+                        
+                        <button id="btn-prev" class="control-btn am-skip-btn" title="Previous">
+                            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                                <path d="M6 6h2v12H6zm3.5 6L18 6v12z"/>
+                            </svg>
+                        </button>
+                        
+                        <button id="btn-play" class="control-btn am-play-btn" title="Play / Pause">
+                            <div class="play-icon">
+                                <svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor">
+                                    <path d="M8 5v14l11-7z"/>
+                                </svg>
+                            </div>
+                            <div class="pause-icon hidden">
+                                <svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor">
+                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                                </svg>
+                            </div>
+                        </button>
+                        
+                        <button id="btn-next" class="control-btn am-skip-btn" title="Next">
+                            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                                <path d="M6 18V6l8.5 6zm9-12h2v12h-2z"/>
+                            </svg>
+                        </button>
+                        
+                        <button id="btn-repeat" class="control-btn toggle-btn" title="Repeat">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="17 1 21 5 17 9"></polyline>
+                                <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                                <polyline points="7 23 3 19 7 15"></polyline>
+                                <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                            </svg>
+                            <span id="repeat-badge" class="badge hidden">1</span>
+                        </button>
+
+                        <button id="btn-cinematic" class="control-btn toggle-btn" title="Cinematic Mode">
+                            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                                <line x1="7" y1="2" x2="7" y2="22"></line>
+                                <line x1="17" y1="2" x2="17" y2="22"></line>
+                                <line x1="2" y1="12" x2="22" y2="12"></line>
+                                <line x1="2" y1="7" x2="7" y2="7"></line>
+                                <line x1="2" y1="17" x2="7" y2="17"></line>
+                                <line x1="17" y1="17" x2="22" y2="17"></line>
+                                <line x1="17" y1="7" x2="22" y2="7"></line>
+                            </svg>
+                        </button>
+                        <button id="btn-angelic" class="control-btn toggle-btn" title="Angelic Mode">
+                            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Volume Panel -->
+                    <div class="am-volume-container">
+                        <button id="btn-toggle-drift" class="icon-btn" title="Lyrics Sync">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                        </button>
+                        <button id="btn-mute" class="icon-btn">
+                            <svg id="volume-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                            </svg>
+                        </button>
+                        <input type="range" id="volume-slider" min="0" max="100" value="80">
+                    </div>
+
+                    <!-- Drift Sync Panel -->
+                    <div class="am-drift-container hidden" id="drift-container">
+                        <span class="drift-label">Sync speed:</span>
+                        <input type="range" id="drift-slider" min="0.85" max="1.15" step="0.005" value="1">
+                        <span id="drift-val">1.00x</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right: Synced Lyrics -->
+            <section class="am-lyrics-section">
+                <div class="am-lyrics-container" id="lyrics-container">
+                    <div class="lyrics-spacer-top"></div>
+                    <div class="am-lyrics-list" id="lyrics-list">
+                        <div class="am-lyric-line placeholder-line">Loading lyrics...</div>
+                    </div>
+                    <div class="lyrics-spacer-bottom"></div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Hidden Audio Element -->
+    <audio id="audio-player" crossorigin="anonymous"></audio>
+
+    <!-- 4. Cinematic View (Isolated Canvas + 3D Text) -->
+    <div id="cinematic-view" class="view-container hidden">
+        <canvas id="cinematic-canvas"></canvas>
+        <img id="cine-fire-left" class="cine-fire-column" src="fire.gif" alt="Fire" />
+        <img id="cine-fire-right" class="cine-fire-column right" src="fire.gif" alt="Fire" />
+        <div id="reactive-dim"></div>
+        <div id="cinematic-text-container"></div>
+        <button id="btn-exit-cinematic" class="auto-hide-btn" title="Exit Cinematic">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+        </button>
+    </div>
+
+    <!-- 5. Angelic View (Vinyl + Cursive Lyrics) -->
+    <div id="angelic-view" class="view-container hidden">
+        <div id="angelic-bg" class="angelic-full-bg"></div>
+        <div id="angelic-vinyl-container">
+            <div class="vinyl-record">
+                <img id="angelic-vinyl-art" src="cover.png" alt="Vinyl Art">
+                <div class="vinyl-hole"></div>
+            </div>
+        </div>
+        <div id="angelic-particle-container"></div>
+        <div id="angelic-text-container"></div>
+        
+        <button id="btn-exit-angelic" class="auto-hide-btn" title="Exit Angelic Mode">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Global SVG Assets for Performance -->
+    <svg style="position: absolute; width: 0; height: 0; overflow: hidden;" aria-hidden="true">
+        <defs>
+            <linearGradient id="glossyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
+                <stop offset="40%" stop-color="#ffffff" stop-opacity="0.3" />
+                <stop offset="100%" stop-color="#ffffff" stop-opacity="0.0" />
+            </linearGradient>
+            
+            <symbol id="icon-music-note" viewBox="0 0 24 24">
+                <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+            </symbol>
+            <symbol id="icon-star" viewBox="0 0 24 24">
+                <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2z"/>
+            </symbol>
+            <symbol id="icon-heart" viewBox="0 0 24 24">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+            </symbol>
+        </defs>
+    </svg>
+
+    <!-- 7. Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+    <script src="floral_templates.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
