@@ -574,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
         driftVal.textContent = driftRatio.toFixed(3) + 'x';
         
         // Parse and render Lyrics
-        parseLyrics(track.lyrics);
+        currentLyrics = parseLyrics(track.lyrics);
         renderLyrics();
         
         // Pre-build the first two lines immediately to prevent first-play lag
