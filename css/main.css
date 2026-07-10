@@ -29,6 +29,10 @@ body {
     height: 100vh;
     width: 100vw;
     -webkit-font-smoothing: antialiased;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 /* Background Aurora */
@@ -158,8 +162,12 @@ body {
     border-radius: 8px; color: #fff; cursor: pointer; font-size: 0.85rem;
 }
 .form-group input[type="text"] {
-    width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px; color: #fff; outline: none; font-family: var(--font-primary);
+    width: 100%; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);
+    color: #fff; border-radius: 8px; outline: none; transition: border 0.3s;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
 }
 .form-group input[type="text"]:focus { border-color: var(--accent-color); }
 .submit-btn {

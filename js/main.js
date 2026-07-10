@@ -1,4 +1,16 @@
 document.addEventListener('DOMContentLoaded', () => {
+    
+    // Prevent copy/cut globally unless inside an input/textarea
+    document.addEventListener('copy', (e) => {
+        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+        }
+    });
+    document.addEventListener('cut', (e) => {
+        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+        }
+    });
 
     // --- DOM Elements ---
     const homeView = document.getElementById('home-view');
