@@ -1710,9 +1710,10 @@ import { DOM } from './modules/dom.js';
         
         if (isShuffle) {
             let qIdx = shuffledQueue.indexOf(currentTrackIndex);
-            if (qIdx === -1 || qIdx === shuffledQueue.length - 1) {
-                // Generate new shuffle queue or loop back
-                if (shuffledQueue.length !== playlist.length) generateShuffleQueue();
+            if (qIdx === -1 || qIdx === shuffledQueue.length - 1 || shuffledQueue.length !== playlist.length) {
+                // Generate a new shuffle queue when reaching the end or if the playlist changed.
+                // If we were already playing a track, exclude it from the first position of the new queue to prevent immediate replay.
+                generateShuffleQueue(qIdx !== -1);
                 qIdx = 0;
             } else {
                 qIdx++;
@@ -1732,7 +1733,7 @@ import { DOM } from './modules/dom.js';
         updateMiniPlayerUI();
     }
     
-    function generateShuffleQueue() {
+    function generateShuffleQueue(excludeCurrent = false) {
         shuffledQueue = [];
         for (let i = 0; i < playlist.length; i++) shuffledQueue.push(i);
         // Fisher-Yates
@@ -1740,12 +1741,18 @@ import { DOM } from './modules/dom.js';
             const j = Math.floor(Math.random() * (i + 1));
             [shuffledQueue[i], shuffledQueue[j]] = [shuffledQueue[j], shuffledQueue[i]];
         }
-        // Ensure current track is first in new queue to avoid immediate repeat
-        if (currentTrackIndex !== -1) {
+        // Handle current track placement to avoid immediate repeat on loop/reshuffle
+        if (currentTrackIndex !== -1 && playlist.length > 1) {
             const currentQIdx = shuffledQueue.indexOf(currentTrackIndex);
             if (currentQIdx !== -1) {
                 shuffledQueue.splice(currentQIdx, 1);
-                shuffledQueue.unshift(currentTrackIndex);
+                if (excludeCurrent) {
+                    // Put the current track at the end so it plays last in the new queue
+                    shuffledQueue.push(currentTrackIndex);
+                } else {
+                    // Put the current track at the beginning (e.g. when shuffle is first toggled on)
+                    shuffledQueue.unshift(currentTrackIndex);
+                }
             }
         }
     }
