@@ -323,6 +323,19 @@
 
                     <!-- Volume Panel -->
                     <div class="am-volume-container">
+                        <button id="btn-eq" class="icon-btn" title="Equalizer">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="4" y1="21" x2="4" y2="14"></line>
+                                <line x1="4" y1="10" x2="4" y2="3"></line>
+                                <line x1="12" y1="21" x2="12" y2="12"></line>
+                                <line x1="12" y1="8" x2="12" y2="3"></line>
+                                <line x1="20" y1="21" x2="20" y2="16"></line>
+                                <line x1="20" y1="12" x2="20" y2="3"></line>
+                                <line x1="1" y1="14" x2="7" y2="14"></line>
+                                <line x1="9" y1="8" x2="15" y2="8"></line>
+                                <line x1="17" y1="16" x2="23" y2="16"></line>
+                            </svg>
+                        </button>
                         <button id="btn-toggle-drift" class="icon-btn" title="Lyrics Sync">
                             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="12" r="10"></circle>
@@ -431,5 +444,54 @@
     <script src="js/floral-templates.js"></script>
     <script src="js/data.js"></script>
     <script type="module" src="js/main.js"></script>
+    <!-- EQ Modal -->
+    <div id="eq-modal" class="modal-backdrop hidden">
+        <div class="eq-panel">
+            <button id="btn-close-eq" class="close-btn">&times;</button>
+            <h2>Equalizer</h2>
+            
+            <div class="eq-preset-wrapper">
+                <label for="eq-presets">Preset:</label>
+                <select id="eq-presets">
+                    <option value="default">Default</option>
+                    <option value="hiphop">Hip Hop</option>
+                    <option value="pop">Pop</option>
+                    <option value="classical">Classical</option>
+                    <option value="bassboost">Bass Boosted</option>
+                    <option value="electronic">Electronic</option>
+                    <option value="acoustic">Acoustic</option>
+                </select>
+            </div>
+
+            <div class="eq-sliders">
+                <div class="eq-band">
+                    <span class="eq-val">+0dB</span>
+                    <input type="range" class="eq-slider" id="eq-60" min="-12" max="12" value="0" step="0.5" orient="vertical">
+                    <span class="eq-label">60Hz</span>
+                </div>
+                <div class="eq-band">
+                    <span class="eq-val">+0dB</span>
+                    <input type="range" class="eq-slider" id="eq-230" min="-12" max="12" value="0" step="0.5" orient="vertical">
+                    <span class="eq-label">230Hz</span>
+                </div>
+                <div class="eq-band">
+                    <span class="eq-val">+0dB</span>
+                    <input type="range" class="eq-slider" id="eq-910" min="-12" max="12" value="0" step="0.5" orient="vertical">
+                    <span class="eq-label">910Hz</span>
+                </div>
+                <div class="eq-band">
+                    <span class="eq-val">+0dB</span>
+                    <input type="range" class="eq-slider" id="eq-3k" min="-12" max="12" value="0" step="0.5" orient="vertical">
+                    <span class="eq-label">3.6kHz</span>
+                </div>
+                <div class="eq-band">
+                    <span class="eq-val">+0dB</span>
+                    <input type="range" class="eq-slider" id="eq-14k" min="-12" max="12" value="0" step="0.5" orient="vertical">
+                    <span class="eq-label">14kHz</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>

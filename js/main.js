@@ -51,6 +51,7 @@ import { DOM } from './modules/dom.js';
     const prevBtn = document.getElementById('btn-prev');
     const nextBtn = document.getElementById('btn-next');
     const volumeSlider = document.getElementById('volume-slider');
+    const btnMute = document.getElementById('btn-mute');
     
     const btnToggleDrift = document.getElementById('btn-toggle-drift');
     const driftContainer = document.getElementById('drift-container');
@@ -82,6 +83,8 @@ import { DOM } from './modules/dom.js';
     let isDraggingSlider = false;
     let animationFrameId = null; // For 60-FPS Sync Engine
     let driftRatio = 1.0; // For Progressive Drift Fix
+    let lastVolume = 0.8;
+    let isMuted = false;
     let isCinematicMode = false;
     let isAngelicMode = false;
     let angelicParticleTimer = 0;
@@ -98,6 +101,7 @@ import { DOM } from './modules/dom.js';
     let audioCtx = null;
     let analyser = null;
     let dataArray = null;
+    let eqNodes = [];
     const glassOverlay = document.getElementById('glass-overlay'); // Can be removed later
     
     // Cinematic Mode Elements
@@ -185,7 +189,26 @@ import { DOM } from './modules/dom.js';
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             analyser = audioCtx.createAnalyser();
             const source = audioCtx.createMediaElementSource(audio);
-            source.connect(analyser);
+            
+            // Create 5-band EQ
+            const freqs = [60, 230, 910, 3600, 14000];
+            const sliders = document.querySelectorAll('.eq-slider');
+            eqNodes = freqs.map((freq, idx) => {
+                const node = audioCtx.createBiquadFilter();
+                node.type = 'peaking';
+                node.frequency.value = freq;
+                node.Q.value = 1;
+                const initialGain = sliders[idx] ? parseFloat(sliders[idx].value) : 0;
+                node.gain.value = initialGain;
+                return node;
+            });
+            
+            // Connect: source -> eq0 -> eq1 -> eq2 -> eq3 -> eq4 -> analyser -> destination
+            source.connect(eqNodes[0]);
+            for (let i = 0; i < eqNodes.length - 1; i++) {
+                eqNodes[i].connect(eqNodes[i+1]);
+            }
+            eqNodes[eqNodes.length - 1].connect(analyser);
             analyser.connect(audioCtx.destination);
             
             analyser.fftSize = 256;
@@ -197,9 +220,37 @@ import { DOM } from './modules/dom.js';
         }
     }
 
+    function updateVolumeIcon(volume) {
+        if (!btnMute) return;
+        if (volume === 0) {
+            btnMute.innerHTML = `
+                <svg id="volume-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <line x1="23" y1="9" x2="17" y2="15"></line>
+                    <line x1="17" y1="9" x2="23" y2="15"></line>
+                </svg>
+            `;
+        } else if (volume < 0.5) {
+            btnMute.innerHTML = `
+                <svg id="volume-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                </svg>
+            `;
+        } else {
+            btnMute.innerHTML = `
+                <svg id="volume-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                </svg>
+            `;
+        }
+    }
+
     // --- Core Functions ---
 
     async function initHome() {
+        audio.volume = 0.8; // Initialize volume to match the slider default (80%)
         try {
             const savedPlaylist = await localforage.getItem('playlist');
             if (savedPlaylist) {
@@ -245,6 +296,7 @@ import { DOM } from './modules/dom.js';
         playlist.forEach((song, index) => {
             const card = document.createElement('div');
             card.className = 'song-card';
+            card.setAttribute('data-index', index);
             card.innerHTML = `
                 <div class="song-card-inner">
                     <img src="${song.cover}" alt="Cover">
@@ -263,46 +315,7 @@ import { DOM } from './modules/dom.js';
                 <div class="song-card-title">${song.title}</div>
                 <div class="song-card-artist">${song.artist}</div>
             `;
-            card.addEventListener('click', (e) => {
-                // If clicked on options, edit, or delete, don't open player
-                if (e.target.closest('.song-options-btn') || e.target.closest('.context-menu')) return;
-                openPlayer(index);
-            });
             homeSongGrid.appendChild(card);
-        });
-
-        // Setup options buttons
-        document.querySelectorAll('.song-options-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation(); // prevent opening player
-                const idx = e.currentTarget.getAttribute('data-index');
-                const menu = document.getElementById(`context-menu-${idx}`);
-                
-                // Close all other menus
-                document.querySelectorAll('.context-menu.active').forEach(m => {
-                    if (m !== menu) m.classList.remove('active');
-                });
-                
-                menu.classList.toggle('active');
-            });
-        });
-        
-        // Setup delete buttons
-        document.querySelectorAll('.delete-song-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const idx = e.currentTarget.getAttribute('data-index');
-                showDeleteModal(idx);
-            });
-        });
-        
-        // Setup edit buttons
-        document.querySelectorAll('.edit-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const idx = e.currentTarget.getAttribute('data-index');
-                showEditModal(idx);
-            });
         });
     }
 
@@ -318,33 +331,45 @@ import { DOM } from './modules/dom.js';
     });
     
     document.getElementById('btn-confirm-delete').addEventListener('click', async () => {
-        if (trackToDeleteIndex !== null) {
-            const idx = parseInt(trackToDeleteIndex);
-            
-            // Cleanup blob URLs if created
-            if (playlist[idx].url && playlist[idx].url.startsWith('blob:')) URL.revokeObjectURL(playlist[idx].url);
-            if (playlist[idx].cover && playlist[idx].cover.startsWith('blob:')) URL.revokeObjectURL(playlist[idx].cover);
-            
-            playlist.splice(idx, 1);
-            
-            if (currentTrackIndex === idx) {
-                pauseAudio();
-                if (playlist.length > 0) {
-                    currentTrackIndex = 0;
-                    loadTrack(0);
+        try {
+            if (trackToDeleteIndex !== null) {
+                const idx = parseInt(trackToDeleteIndex);
+                
+                // Clean up Blob URLs if necessary
+                if (playlist[idx].url && playlist[idx].url.startsWith('blob:')) URL.revokeObjectURL(playlist[idx].url);
+                if (playlist[idx].cover && playlist[idx].cover.startsWith('blob:')) URL.revokeObjectURL(playlist[idx].cover);
+                
+                // If the song being deleted is currently playing, pause it BEFORE splicing
+                // so that the pause event listener doesn't read from an undefined index.
+                if (currentTrackIndex === idx) {
+                    pauseAudio();
+                    playlist.splice(idx, 1);
+                    
+                    if (playlist.length > 0) {
+                        currentTrackIndex = 0;
+                        loadTrack(0);
+                        updateMiniPlayerUI(); // Update UI to new track
+                    } else {
+                        currentTrackIndex = -1;
+                        audio.src = '';
+                        updateMiniPlayerUI();
+                    }
                 } else {
-                    currentTrackIndex = -1;
-                    audio.src = '';
-                    updateMiniPlayerUI();
+                    playlist.splice(idx, 1);
+                    if (currentTrackIndex > idx) {
+                        currentTrackIndex--;
+                    }
                 }
-            } else if (currentTrackIndex > idx) {
-                currentTrackIndex--;
+                
+                renderSongGrid();
+                await saveLibraryToDB();
+                
+                document.getElementById('delete-modal').classList.add('hidden');
+                trackToDeleteIndex = null;
             }
-            
-            renderSongGrid();
-            await saveLibraryToDB();
-            document.getElementById('delete-modal').classList.add('hidden');
-            trackToDeleteIndex = null;
+        } catch (error) {
+            console.error("Delete error: ", error);
+            alert("Lỗi khi xóa bài hát: " + error.message);
         }
     });
 
@@ -1813,6 +1838,46 @@ import { DOM } from './modules/dom.js';
     // --- Advanced Vibrant Color Extractor ---
     // --- Event Listeners ---
     function setupEventListeners() {
+        // Song grid event delegation (optimizes memory and render speed)
+        homeSongGrid.addEventListener('click', (e) => {
+            const optionBtn = e.target.closest('.song-options-btn');
+            const contextItem = e.target.closest('.context-item');
+            const card = e.target.closest('.song-card');
+
+            if (optionBtn) {
+                e.stopPropagation();
+                const idx = optionBtn.getAttribute('data-index');
+                const menu = document.getElementById(`context-menu-${idx}`);
+                
+                // Close other menus
+                document.querySelectorAll('.context-menu.active').forEach(m => {
+                    if (m !== menu) m.classList.remove('active');
+                });
+                
+                if (menu) menu.classList.toggle('active');
+                return;
+            }
+
+            if (contextItem) {
+                e.stopPropagation();
+                const idx = contextItem.getAttribute('data-index');
+                if (contextItem.classList.contains('delete-song-btn')) {
+                    showDeleteModal(idx);
+                } else if (contextItem.classList.contains('edit-btn')) {
+                    showEditModal(idx);
+                }
+                
+                // Close active menus
+                document.querySelectorAll('.context-menu.active').forEach(m => m.classList.remove('active'));
+                return;
+            }
+
+            if (card) {
+                const idx = parseInt(card.getAttribute('data-index'));
+                openPlayer(idx);
+            }
+        });
+
         btnAddSong.addEventListener('click', () => {
             uploadForm.reset();
             uploadModal.classList.remove('hidden');
@@ -1943,8 +2008,27 @@ import { DOM } from './modules/dom.js';
         });
         
         volumeSlider.addEventListener('input', (e) => {
-            audio.volume = e.target.value / 100;
+            const val = e.target.value / 100;
+            audio.volume = val;
+            isMuted = (val === 0);
+            updateVolumeIcon(val);
         });
+        
+        if (btnMute) {
+            btnMute.addEventListener('click', () => {
+                isMuted = !isMuted;
+                if (isMuted) {
+                    lastVolume = audio.volume > 0 ? audio.volume : 0.8;
+                    audio.volume = 0;
+                    volumeSlider.value = 0;
+                    updateVolumeIcon(0);
+                } else {
+                    audio.volume = lastVolume;
+                    volumeSlider.value = lastVolume * 100;
+                    updateVolumeIcon(lastVolume);
+                }
+            });
+        }
         
         btnToggleDrift.addEventListener('click', () => {
             driftContainer.classList.toggle('hidden');
@@ -2087,11 +2171,19 @@ import { DOM } from './modules/dom.js';
                 // ── Arrow Up / Down: Volume ±5% ──────────────
                 case 'ArrowUp':
                     e.preventDefault();
-                    audio.volume = Math.min(1, audio.volume + 0.05);
+                    const newVolUp = Math.min(1, audio.volume + 0.05);
+                    audio.volume = newVolUp;
+                    volumeSlider.value = newVolUp * 100;
+                    isMuted = (newVolUp === 0);
+                    updateVolumeIcon(newVolUp);
                     break;
                 case 'ArrowDown':
                     e.preventDefault();
-                    audio.volume = Math.max(0, audio.volume - 0.05);
+                    const newVolDown = Math.max(0, audio.volume - 0.05);
+                    audio.volume = newVolDown;
+                    volumeSlider.value = newVolDown * 100;
+                    isMuted = (newVolDown === 0);
+                    updateVolumeIcon(newVolDown);
                     break;
             }
         });
@@ -2147,3 +2239,59 @@ import { DOM } from './modules/dom.js';
     
     // Start the engine immediately for idle rendering (e.g. paused cinematic mode)
     requestAnimationFrame(syncLoop);
+
+    // --- EQ Modal Logic ---
+    const btnEq = document.getElementById('btn-eq');
+    const eqModal = document.getElementById('eq-modal');
+    const btnCloseEq = document.getElementById('btn-close-eq');
+    const eqSliders = document.querySelectorAll('.eq-slider');
+    const eqPresets = document.getElementById('eq-presets');
+    const eqVals = document.querySelectorAll('.eq-val');
+    
+    if (btnEq && eqModal && btnCloseEq) {
+        btnEq.addEventListener('click', () => {
+            eqModal.classList.remove('hidden');
+        });
+        
+        btnCloseEq.addEventListener('click', () => {
+            eqModal.classList.add('hidden');
+        });
+        
+        eqModal.addEventListener('click', (e) => {
+            if (e.target === eqModal) {
+                eqModal.classList.add('hidden');
+            }
+        });
+    }
+    
+    const PRESETS = {
+        default: [0, 0, 0, 0, 0],
+        hiphop: [5, 3, 0, 2, 4],
+        pop: [-2, 1, 4, 3, -1],
+        classical: [0, 0, 0, 0, 0],
+        bassboost: [8, 5, 0, 0, 0],
+        electronic: [4, -1, -2, 3, 5],
+        acoustic: [-2, -1, 3, 4, 2]
+    };
+    
+    if (eqPresets) {
+        eqPresets.addEventListener('change', (e) => {
+            const preset = PRESETS[e.target.value] || PRESETS.default;
+            eqSliders.forEach((slider, i) => {
+                slider.value = preset[i];
+                if (eqNodes[i]) eqNodes[i].gain.value = preset[i];
+                eqVals[i].textContent = (preset[i] > 0 ? '+' : '') + preset[i] + 'dB';
+            });
+        });
+    }
+    
+    eqSliders.forEach((slider, i) => {
+        slider.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            if (eqNodes[i]) eqNodes[i].gain.value = val;
+            eqVals[i].textContent = (val > 0 ? '+' : '') + val + 'dB';
+            
+            // Custom change means it's no longer a predefined preset
+            if (eqPresets) eqPresets.value = 'default';
+        });
+    });
