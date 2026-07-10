@@ -273,16 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const idx = e.currentTarget.getAttribute('data-index');
-                const song = playlist[idx];
-                const newTitle = prompt("New Title:", song.title);
-                const newArtist = prompt("New Artist:", song.artist);
-                if (newTitle !== null && newArtist !== null) {
-                    song.title = newTitle;
-                    song.artist = newArtist;
-                    renderSongGrid();
-                    updateMiniPlayerUI();
-                    saveLibraryToDB();
-                }
+                showEditModal(idx);
             });
         });
     }
@@ -326,6 +317,45 @@ document.addEventListener('DOMContentLoaded', () => {
             await saveLibraryToDB();
             document.getElementById('delete-modal').classList.add('hidden');
             trackToDeleteIndex = null;
+        }
+    });
+
+    let trackToEditIndex = null;
+    function showEditModal(index) {
+        trackToEditIndex = index;
+        const song = playlist[index];
+        document.getElementById('edit-title').value = song.title || '';
+        document.getElementById('edit-artist').value = song.artist || '';
+        document.getElementById('edit-modal').classList.remove('hidden');
+        
+        // Hide context menu just in case
+        document.querySelectorAll('.context-menu.active').forEach(m => m.classList.remove('active'));
+    }
+    
+    document.getElementById('btn-cancel-edit').addEventListener('click', () => {
+        document.getElementById('edit-modal').classList.add('hidden');
+        trackToEditIndex = null;
+    });
+    
+    document.getElementById('btn-confirm-edit').addEventListener('click', async () => {
+        if (trackToEditIndex !== null) {
+            const idx = parseInt(trackToEditIndex);
+            const newTitle = document.getElementById('edit-title').value.trim();
+            const newArtist = document.getElementById('edit-artist').value.trim();
+            
+            if (newTitle && newArtist) {
+                playlist[idx].title = newTitle;
+                playlist[idx].artist = newArtist;
+                
+                renderSongGrid();
+                updateMiniPlayerUI();
+                await saveLibraryToDB();
+                
+                document.getElementById('edit-modal').classList.add('hidden');
+                trackToEditIndex = null;
+            } else {
+                alert('Vui lòng điền đầy đủ Tiêu đề và Tên nghệ sĩ.');
+            }
         }
     });
 
