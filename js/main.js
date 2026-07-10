@@ -459,20 +459,24 @@ document.addEventListener('DOMContentLoaded', () => {
         // Sync Repeat & Shuffle buttons visually
         const btnMiniRepeat = document.getElementById('btn-mini-repeat');
         const btnMiniShuffle = document.getElementById('btn-mini-shuffle');
-        const miniRepeatBadge = document.getElementById('mini-repeat-badge');
+        const miniIconRepeat = btnMiniRepeat.querySelector('.icon-repeat');
+        const miniIconRepeat1 = btnMiniRepeat.querySelector('.icon-repeat-1');
         
         if (isShuffle) btnMiniShuffle.classList.add('active-state');
         else btnMiniShuffle.classList.remove('active-state');
         
         if (repeatMode === 0) {
             btnMiniRepeat.classList.remove('active-state');
-            miniRepeatBadge.classList.add('hidden');
+            miniIconRepeat.classList.remove('hidden');
+            miniIconRepeat1.classList.add('hidden');
         } else if (repeatMode === 1) {
             btnMiniRepeat.classList.add('active-state');
-            miniRepeatBadge.classList.add('hidden');
+            miniIconRepeat.classList.remove('hidden');
+            miniIconRepeat1.classList.add('hidden');
         } else if (repeatMode === 2) {
             btnMiniRepeat.classList.add('active-state');
-            miniRepeatBadge.classList.remove('hidden');
+            miniIconRepeat.classList.add('hidden');
+            miniIconRepeat1.classList.remove('hidden');
         }
     }
     
@@ -1963,18 +1967,22 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Repeat Button Logic
         const btnRepeat = document.getElementById('btn-repeat');
-        const repeatBadge = document.getElementById('repeat-badge');
+        const iconRepeat = btnRepeat.querySelector('.icon-repeat');
+        const iconRepeat1 = btnRepeat.querySelector('.icon-repeat-1');
         btnRepeat.addEventListener('click', () => {
             repeatMode = (repeatMode + 1) % 3;
             if (repeatMode === 0) {
                 btnRepeat.classList.remove('active-state');
-                repeatBadge.classList.add('hidden');
+                iconRepeat.classList.remove('hidden');
+                iconRepeat1.classList.add('hidden');
             } else if (repeatMode === 1) {
                 btnRepeat.classList.add('active-state');
-                repeatBadge.classList.add('hidden');
+                iconRepeat.classList.remove('hidden');
+                iconRepeat1.classList.add('hidden');
             } else if (repeatMode === 2) {
                 btnRepeat.classList.add('active-state');
-                repeatBadge.classList.remove('hidden');
+                iconRepeat.classList.add('hidden');
+                iconRepeat1.classList.remove('hidden');
             }
         });
         

@@ -1330,34 +1330,3 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     color: var(--accent-color);
     opacity: 1;
 }
-#repeat-badge {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    font-size: 0.65rem;
-    font-weight: 800;
-    background: var(--accent-color);
-    color: #000;
-    width: 15px;
-    height: 15px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-#mini-repeat-badge {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    font-size: 0.55rem;
-    font-weight: 800;
-    background: var(--accent-color);
-    color: #000;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
