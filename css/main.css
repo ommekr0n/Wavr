@@ -121,8 +121,8 @@ body {
     cursor: pointer; opacity: 0; transition: all 0.2s; z-index: 10;
 }
 .song-card:hover .song-options-btn { opacity: 1; }
-.song-options-btn.active { opacity: 1; background: rgba(255,255,255,0.2); }
-.song-options-btn:hover { background: rgba(255,255,255,0.2); transform: scale(1.1); }
+.song-options-btn.active { opacity: 1; background: var(--accent-color); }
+.song-options-btn:hover { background: var(--accent-color); transform: scale(1.1); opacity: 1 !important; }
 .song-card-title { font-size: 1.05rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
 .song-card-artist { font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
