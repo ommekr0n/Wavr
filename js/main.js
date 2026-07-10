@@ -1640,6 +1640,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         loadTrack(currentTrackIndex);
         playAudio();
+        updateMiniPlayerUI();
     }
 
     function nextTrack(isAutoNext = false) {
@@ -1679,6 +1680,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         loadTrack(currentTrackIndex);
         playAudio();
+        updateMiniPlayerUI();
     }
     
     function generateShuffleQueue() {
