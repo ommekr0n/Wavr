@@ -379,11 +379,11 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     0% { transform: translateZ(800px) rotateX(-90deg); opacity: 0; }
     100% { transform: translateZ(0) rotateX(0); opacity: 1; }
 }
-.cine-exit { animation: cine-exit-wrapper 0.35s linear forwards; }
+.cine-exit { animation: cine-exit-wrapper 0.8s linear forwards; }
 .cine-exit .cinematic-line {
     color: #666666;
     text-shadow: 4px 4px 0px rgba(0,0,0,0.6);
-    animation: cine-exit-text 0.35s linear forwards; 
+    animation: cine-exit-text 0.8s linear forwards; 
 }
 
 @keyframes cine-exit-wrapper {
