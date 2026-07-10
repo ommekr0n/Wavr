@@ -108,7 +108,9 @@ window.WavrFloral = {
         const branchDelay = t * 1.5 + orderIdx * 0.08; 
         const branchDuration = 0.3 + Math.random() * 0.3; 
         const bloomDelay = branchDelay + branchDuration - 0.1;
-        const branchLen = scale * 3.5; 
+        const chord = Math.hypot(p3x, p3y);
+        const poly = Math.hypot(p1x, p1y) + Math.hypot(p2x - p1x, p2y - p1y) + Math.hypot(p3x - p2x, p3y - p2y);
+        const branchLen = ((chord + poly) / 2) * 1.15; // 15% safety margin
         const branchWidth = 1.5 + Math.random();
         
         const branchStr = `<path d="M 0,0 C ${p1x},${p1y} ${p2x},${p2y} ${p3x},${p3y}" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="${branchWidth}" stroke-linecap="round" class="angelic-branch" style="--blen: ${branchLen}; animation-delay: ${branchDelay}s; animation-duration: ${branchDuration}s;" />`;
