@@ -547,15 +547,15 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Extract Color for Aurora
         const applyColors = (uiColors, spotlightColors) => {
-            document.documentElement.style.setProperty('--blob-1-color', gb(\, \, \)\);
-            document.documentElement.style.setProperty('--blob-2-color', gb(\, \, \)\);
-            document.documentElement.style.setProperty('--blob-3-color', gb(\, \, \)\);
-            document.documentElement.style.setProperty('--blob-4-color', gb(\, \, \)\);
+            document.documentElement.style.setProperty('--blob-1-color', `rgb(${uiColors[0].r}, ${uiColors[0].g}, ${uiColors[0].b})`);
+            document.documentElement.style.setProperty('--blob-2-color', `rgb(${uiColors[1].r}, ${uiColors[1].g}, ${uiColors[1].b})`);
+            document.documentElement.style.setProperty('--blob-3-color', `rgb(${uiColors[2].r}, ${uiColors[2].g}, ${uiColors[2].b})`);
+            document.documentElement.style.setProperty('--blob-4-color', `rgb(${uiColors[3].r}, ${uiColors[3].g}, ${uiColors[3].b})`);
             
-            document.documentElement.style.setProperty('--blob-1-size', \vw\); 
-            document.documentElement.style.setProperty('--blob-2-size', \vw\); 
-            document.documentElement.style.setProperty('--blob-3-size', \vw\); 
-            document.documentElement.style.setProperty('--blob-4-size', \vw\); 
+            document.documentElement.style.setProperty('--blob-1-size', `${Math.floor(Math.random() * 20 + 30)}vw`); 
+            document.documentElement.style.setProperty('--blob-2-size', `${Math.floor(Math.random() * 20 + 30)}vw`); 
+            document.documentElement.style.setProperty('--blob-3-size', `${Math.floor(Math.random() * 20 + 30)}vw`); 
+            document.documentElement.style.setProperty('--blob-4-size', `${Math.floor(Math.random() * 20 + 30)}vw`); 
 
             CONCERT_COLORS = spotlightColors.map(c => [c.r, c.g, c.b]);
             spotlights.forEach(sp => {
