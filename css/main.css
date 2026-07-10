@@ -1093,7 +1093,7 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     margin-top: 2rem;
 }
 
-.secondary-btn, .danger-btn {
+.secondary-btn, .danger-btn, .primary-btn {
     padding: 0.75rem 1.5rem;
     border-radius: 8px;
     font-weight: 600;
@@ -1115,7 +1115,19 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     color: #fff;
 }
 .danger-btn:hover {
-    background: #f04754;
+    background: #ff4d5a;
+}
+
+.primary-btn {
+    background: #fff;
+    color: #000;
+}
+.primary-btn:hover {
+    background: #e6e6e6;
+    transform: scale(1.05);
+}
+
+.danger-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 15px rgba(230, 57, 70, 0.4);
 }
