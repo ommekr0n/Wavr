@@ -580,7 +580,6 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     top: 50%; left: 0;
     transform: translateY(-50%);
     transform-style: preserve-3d;
-    position: relative;
     z-index: 100;
     will-change: transform, opacity;
 }
