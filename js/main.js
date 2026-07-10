@@ -1181,6 +1181,7 @@ import { DOM } from './modules/dom.js';
 
     // --- 60-FPS Sync Engine & Visualizer ---
     function syncLoop() {
+        let intensity = 0;
         if (isPlaying) {
             updateProgress(); // Replaces the old timeupdate event completely
             
@@ -1191,7 +1192,7 @@ import { DOM } from './modules/dom.js';
                 // Calculate bass (average of lowest 10 frequencies)
                 for (let i = 0; i < 10; i++) sum += dataArray[i];
                 let bassAvg = sum / 10;
-                let intensity = bassAvg / 255;
+                intensity = bassAvg / 255;
                 
                 // Update global CSS variable for smooth, elegant reactivity
                 document.documentElement.style.setProperty('--beat-intensity', intensity.toFixed(3));
@@ -1209,8 +1210,10 @@ import { DOM } from './modules/dom.js';
                         spawnGiantButterfly();
                     }
                 }
-                
-                // --- CINEMATIC 3.0: MASSIVE 3D PILLARS (PERFORMANCE OPTIMIZED) ---
+            } // end if analyser
+        } // end if isPlaying
+        
+        // --- CINEMATIC 3.0: MASSIVE 3D PILLARS (PERFORMANCE OPTIMIZED) ---
                 if (isCinematicMode && cinematicCanvas) {
                     const ctx = cinematicCanvas.getContext('2d');
                     
@@ -1232,7 +1235,7 @@ import { DOM } from './modules/dom.js';
 
                     // 1. Reactive Dimming
                     if (reactiveDim) {
-                        const targetOpacity = Math.max(0.1, 0.95 - (Math.pow(intensity, 2) * 1.5));
+                        const targetOpacity = Math.max(0.1, 0.8 - (Math.pow(intensity, 2) * 1.5));
                         reactiveDim.style.opacity = targetOpacity.toFixed(2);
                     }
                     
@@ -1326,7 +1329,8 @@ import { DOM } from './modules/dom.js';
                     const totalBlocksPerPillar = Math.ceil(height * 0.95 / blockTotalHeight);
                     const visibleBlocks = totalBlocksPerPillar;
 
-                    const bucketSize = Math.floor((dataArray.length * 0.75) / NUM_PILLARS);
+                    const _data = dataArray || new Uint8Array(256);
+                    const bucketSize = Math.floor((_data.length * 0.75) / NUM_PILLARS);
                     const useRoundRect = typeof ctx.roundRect === 'function';
 
                     const cs = getComputedStyle(document.documentElement);
@@ -1339,7 +1343,7 @@ import { DOM } from './modules/dom.js';
 
                     for (let i = 0; i < NUM_PILLARS; i++) {
                         let bucketSum = 0;
-                        for (let j = 0; j < bucketSize; j++) bucketSum += dataArray[i * bucketSize + j];
+                        for (let j = 0; j < bucketSize; j++) bucketSum += _data[i * bucketSize + j];
                         const raw = (bucketSum / bucketSize) / 255;
 
                         const lerpSpeed = raw > smoothedBars[i] ? 0.4 : 0.12;
@@ -1591,10 +1595,9 @@ import { DOM } from './modules/dom.js';
                     ctx.globalCompositeOperation = 'source-over';
                     ctx.restore();
                 }
-            }
-            
+
+            // Keep the loop running to ensure canvas draws properly
             animationFrameId = requestAnimationFrame(syncLoop);
-        }
     }
 
     function playAudio() {
