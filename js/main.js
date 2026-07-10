@@ -16,6 +16,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const uploadTitle = document.getElementById('upload-title');
     const uploadArtist = document.getElementById('upload-artist');
     
+    const editForm = document.getElementById('edit-form');
+    const editAudio = document.getElementById('edit-audio');
+    const editLrc = document.getElementById('edit-lrc');
+    const editCover = document.getElementById('edit-cover');
+    
     const btnBackHome = document.getElementById('btn-back-home');
     const audio = document.getElementById('audio-player');
     const coverArt = document.getElementById('cover-art');
@@ -324,6 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function showEditModal(index) {
         trackToEditIndex = index;
         const song = playlist[index];
+        editForm.reset();
         document.getElementById('edit-title').value = song.title || '';
         document.getElementById('edit-artist').value = song.artist || '';
         document.getElementById('edit-modal').classList.remove('hidden');
@@ -337,27 +343,68 @@ document.addEventListener('DOMContentLoaded', () => {
         trackToEditIndex = null;
     });
     
-    document.getElementById('btn-confirm-edit').addEventListener('click', async () => {
-        if (trackToEditIndex !== null) {
-            const idx = parseInt(trackToEditIndex);
-            const newTitle = document.getElementById('edit-title').value.trim();
-            const newArtist = document.getElementById('edit-artist').value.trim();
-            
-            if (newTitle && newArtist) {
-                playlist[idx].title = newTitle;
-                playlist[idx].artist = newArtist;
+    if (editForm) {
+        editForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (trackToEditIndex !== null) {
+                const idx = parseInt(trackToEditIndex);
+                const newTitle = document.getElementById('edit-title').value.trim();
+                const newArtist = document.getElementById('edit-artist').value.trim();
+                const audioFile = editAudio.files[0];
+                const lrcFile = editLrc.files[0];
+                const coverFile = editCover.files[0];
                 
-                renderSongGrid();
-                updateMiniPlayerUI();
-                await saveLibraryToDB();
-                
-                document.getElementById('edit-modal').classList.add('hidden');
-                trackToEditIndex = null;
-            } else {
-                alert('Vui lòng điền đầy đủ Tiêu đề và Tên nghệ sĩ.');
+                if (newTitle && newArtist) {
+                    const song = playlist[idx];
+                    song.title = newTitle;
+                    song.artist = newArtist;
+                    
+                    // Update audio
+                    if (audioFile) {
+                        if (song.url && song.url.startsWith('blob:')) URL.revokeObjectURL(song.url);
+                        song.audioBlob = audioFile;
+                        song.url = URL.createObjectURL(audioFile);
+                        // If it's the currently playing track, reload it
+                        if (currentTrackIndex === idx) {
+                            const wasPlaying = isPlaying;
+                            loadTrack(idx);
+                            if (wasPlaying) playAudio();
+                        }
+                    }
+                    // Update cover
+                    if (coverFile) {
+                        if (song.cover && song.cover.startsWith('blob:')) URL.revokeObjectURL(song.cover);
+                        song.coverBlob = coverFile;
+                        song.cover = URL.createObjectURL(coverFile);
+                    }
+                    
+                    const finishEdit = async () => {
+                        renderSongGrid();
+                        updateMiniPlayerUI();
+                        await saveLibraryToDB();
+                        document.getElementById('edit-modal').classList.add('hidden');
+                        trackToEditIndex = null;
+                    };
+                    
+                    // Update LRC
+                    if (lrcFile) {
+                        const reader = new FileReader();
+                        reader.onload = function(event) {
+                            song.lyrics = event.target.result;
+                            if (currentTrackIndex === idx) parseLyrics(song.lyrics);
+                            finishEdit();
+                        };
+                        reader.readAsText(lrcFile);
+                    } else {
+                        finishEdit();
+                    }
+                    
+                } else {
+                    alert('Vui lòng điền đầy đủ Tiêu đề và Tên nghệ sĩ.');
+                }
             }
-        }
-    });
+        });
+    }
 
     // Close menus when clicking outside
     document.addEventListener('click', (e) => {
@@ -408,6 +455,25 @@ document.addEventListener('DOMContentLoaded', () => {
             btnMiniPlay.classList.remove('hidden');
             btnMiniPause.classList.add('hidden');
         }
+        
+        // Sync Repeat & Shuffle buttons visually
+        const btnMiniRepeat = document.getElementById('btn-mini-repeat');
+        const btnMiniShuffle = document.getElementById('btn-mini-shuffle');
+        const miniRepeatBadge = document.getElementById('mini-repeat-badge');
+        
+        if (isShuffle) btnMiniShuffle.classList.add('active-state');
+        else btnMiniShuffle.classList.remove('active-state');
+        
+        if (repeatMode === 0) {
+            btnMiniRepeat.classList.remove('active-state');
+            miniRepeatBadge.classList.add('hidden');
+        } else if (repeatMode === 1) {
+            btnMiniRepeat.classList.add('active-state');
+            miniRepeatBadge.classList.add('hidden');
+        } else if (repeatMode === 2) {
+            btnMiniRepeat.classList.add('active-state');
+            miniRepeatBadge.classList.remove('hidden');
+        }
     }
     
     // Setup Mini Player Click Events
@@ -427,6 +493,20 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('btn-mini-play').addEventListener('click', () => togglePlay());
     document.getElementById('btn-mini-pause').addEventListener('click', () => togglePlay());
+    document.getElementById('btn-mini-next').addEventListener('click', () => nextTrack(false));
+    document.getElementById('btn-mini-prev').addEventListener('click', prevTrack);
+    
+    document.getElementById('btn-mini-repeat').addEventListener('click', () => {
+        const btnRepeat = document.getElementById('btn-repeat');
+        if (btnRepeat) btnRepeat.click();
+        updateMiniPlayerUI();
+    });
+    
+    document.getElementById('btn-mini-shuffle').addEventListener('click', () => {
+        const btnShuffle = document.getElementById('btn-shuffle');
+        if (btnShuffle) btnShuffle.click();
+        updateMiniPlayerUI();
+    });
 
     function loadTrack(index) {
         const track = playlist[index];
@@ -1838,6 +1918,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
         });
+        
+        if (editAudio) {
+            editAudio.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                if (window.jsmediatags) {
+                    window.jsmediatags.read(file, {
+                        onSuccess: function(tag) {
+                            const tags = tag.tags;
+                            if (tags.title) document.getElementById('edit-title').value = tags.title;
+                            if (tags.artist) document.getElementById('edit-artist').value = tags.artist;
+                            if (tags.picture) {
+                                try {
+                                    const { data, format } = tags.picture;
+                                    const blob = new Blob([new Uint8Array(data)], { type: format });
+                                    const imgFile = new File([blob], "cover.jpg", { type: format });
+                                    const dt = new DataTransfer();
+                                    dt.items.add(imgFile);
+                                    editCover.files = dt.files;
+                                } catch (err) {
+                                    console.log("Could not attach cover art", err);
+                                }
+                            }
+                        },
+                        onError: function(error) {
+                            console.log('Error reading tags', error);
+                        }
+                    });
+                }
+            });
+        }
         
         btnBackHome.addEventListener('click', closePlayer);
         

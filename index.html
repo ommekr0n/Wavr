@@ -64,6 +64,20 @@
                 </div>
             </div>
             <div class="mini-right">
+                <button id="btn-mini-shuffle" class="icon-btn mini-btn toggle-btn" title="Shuffle">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="16 3 21 3 21 8"></polyline>
+                        <line x1="4" y1="20" x2="21" y2="3"></line>
+                        <polyline points="21 16 21 21 16 21"></polyline>
+                        <line x1="15" y1="15" x2="21" y2="21"></line>
+                        <line x1="4" y1="4" x2="9" y2="9"></line>
+                    </svg>
+                </button>
+                <button id="btn-mini-prev" class="icon-btn mini-btn" title="Previous">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                        <path d="M6 6h2v12H6zm3.5 6L18 6v12z"/>
+                    </svg>
+                </button>
                 <button id="btn-mini-play" class="icon-btn mini-btn">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
                         <path d="M8 5v14l11-7z"/>
@@ -73,6 +87,20 @@
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
                         <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
                     </svg>
+                </button>
+                <button id="btn-mini-next" class="icon-btn mini-btn" title="Next">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                        <path d="M6 18V6l8.5 6zm9-12h2v12h-2z"/>
+                    </svg>
+                </button>
+                <button id="btn-mini-repeat" class="icon-btn mini-btn toggle-btn" title="Repeat">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="17 1 21 5 17 9"></polyline>
+                        <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                        <polyline points="7 23 3 19 7 15"></polyline>
+                        <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                    </svg>
+                    <span id="mini-repeat-badge" class="badge hidden">1</span>
                 </button>
             </div>
         </div>
@@ -94,18 +122,35 @@
     <div id="edit-modal" class="modal hidden">
         <div class="modal-content">
             <h2>Edit Track Info</h2>
-            <div class="form-group">
-                <label for="edit-title">Track Title</label>
-                <input type="text" id="edit-title" required>
-            </div>
-            <div class="form-group">
-                <label for="edit-artist">Artist</label>
-                <input type="text" id="edit-artist" required>
-            </div>
-            <div class="modal-actions">
-                <button id="btn-cancel-edit" class="secondary-btn">Cancel</button>
-                <button id="btn-confirm-edit" class="submit-btn" style="width: auto;">Save Changes</button>
-            </div>
+            <form id="edit-form">
+                <div class="form-group">
+                    <label for="edit-audio">Update Audio File (.mp3, .m4a) - Optional</label>
+                    <input type="file" id="edit-audio" accept="audio/*">
+                </div>
+                <div class="form-group">
+                    <label for="edit-lrc">Update Lyrics File (.lrc) - Optional</label>
+                    <input type="file" id="edit-lrc" accept=".lrc">
+                </div>
+                <div class="form-group">
+                    <label for="edit-cover">Update Cover Art (Image) - Optional</label>
+                    <input type="file" id="edit-cover" accept="image/*">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label for="edit-title">Track Title</label>
+                        <input type="text" id="edit-title" required>
+                    </div>
+                    <div class="form-group half">
+                        <label for="edit-artist">Artist</label>
+                        <input type="text" id="edit-artist" required>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="btn-cancel-edit" class="secondary-btn">Cancel</button>
+                    <button type="submit" id="btn-confirm-edit" class="submit-btn" style="width: auto;">Save Changes</button>
+                </div>
+            </form>
         </div>
     </div>
 
