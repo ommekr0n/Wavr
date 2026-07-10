@@ -6,7 +6,7 @@ window.playlistData = [
     artist: 'Bloodring & Nosiah',
     album: 'Single (prod. DJ Đại Vương)',
     url: 'Bloodring - 𓌹DJ Đại Vương__𓌺 Qá Khích w_ Nosiah.m4a',
-    cover: 'cover.png',
+    cover: 'assets/images/cover.png',
     lyrics: `[00:00.00] (Intro - batgang)
 [00:02.00] batgang, anh tiệc tùng phải gọi là xuyên đêm
 [00:05.50] alo em call nhưng thuê bao vì đại vương lại phê

@@ -54,6 +54,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let playlist = []; // No longer using songs.js
     let currentTrackIndex = 0;
     let isPlaying = false;
+    let isShuffle = false;
+    let repeatMode = 0; // 0: None, 1: All, 2: One
+    let shuffledQueue = []; // Holds indices for shuffle mode
     let currentLyrics = [];
     let activeLyricIndex = -1;
     let isDraggingSlider = false;
@@ -115,10 +118,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let fireBurstTime = 0;
     let isFireBursting = false;
     let fireGifBlob = null;
-    let fireGifBlobUrl = 'fire.gif'; // Default fallback
+    let fireGifBlobUrl = 'assets/images/fire.gif'; // Default fallback
     
     // Preload GIF to allow instant frame-0 restarts from RAM
-    fetch('fire.gif').then(r => r.blob()).then(blob => {
+    fetch('assets/images/fire.gif').then(r => r.blob()).then(blob => {
         fireGifBlob = blob;
     }).catch(e => console.log('No fire.gif found for preloading'));
     
@@ -217,31 +220,121 @@ document.addEventListener('DOMContentLoaded', () => {
             card.innerHTML = `
                 <div class="song-card-inner">
                     <img src="${song.cover}" alt="Cover">
-                    <button class="delete-song-btn" data-index="${index}" title="Xóa bài hát">&times;</button>
+                    <button class="song-options-btn" data-index="${index}" title="Options">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                            <circle cx="12" cy="5" r="2"></circle>
+                            <circle cx="12" cy="12" r="2"></circle>
+                            <circle cx="12" cy="19" r="2"></circle>
+                        </svg>
+                    </button>
+                    <div class="context-menu" id="context-menu-${index}">
+                        <button class="context-item edit-btn" data-index="${index}">Edit Info</button>
+                        <button class="context-item danger delete-song-btn" data-index="${index}">Delete</button>
+                    </div>
                 </div>
                 <div class="song-card-title">${song.title}</div>
                 <div class="song-card-artist">${song.artist}</div>
             `;
             card.addEventListener('click', (e) => {
-                if (e.target.classList.contains('delete-song-btn')) return;
+                // If clicked on options, edit, or delete, don't open player
+                if (e.target.closest('.song-options-btn') || e.target.closest('.context-menu')) return;
                 openPlayer(index);
             });
             homeSongGrid.appendChild(card);
         });
 
+        // Setup options buttons
+        document.querySelectorAll('.song-options-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation(); // prevent opening player
+                const idx = e.currentTarget.getAttribute('data-index');
+                const menu = document.getElementById(`context-menu-${idx}`);
+                
+                // Close all other menus
+                document.querySelectorAll('.context-menu.active').forEach(m => {
+                    if (m !== menu) m.classList.remove('active');
+                });
+                
+                menu.classList.toggle('active');
+            });
+        });
+        
         // Setup delete buttons
         document.querySelectorAll('.delete-song-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
+            btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const idx = parseInt(e.target.getAttribute('data-index'));
-                if (confirm('Bạn có chắc chắn muốn xóa bài hát này khỏi thư viện vĩnh viễn?')) {
-                    playlist.splice(idx, 1);
+                const idx = e.currentTarget.getAttribute('data-index');
+                showDeleteModal(idx);
+            });
+        });
+        
+        // Setup edit buttons
+        document.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const idx = e.currentTarget.getAttribute('data-index');
+                const song = playlist[idx];
+                const newTitle = prompt("New Title:", song.title);
+                const newArtist = prompt("New Artist:", song.artist);
+                if (newTitle !== null && newArtist !== null) {
+                    song.title = newTitle;
+                    song.artist = newArtist;
                     renderSongGrid();
-                    await saveLibraryToDB(); // Update IndexedDB instantly
+                    updateMiniPlayerUI();
+                    saveLibraryToDB();
                 }
             });
         });
     }
+
+    let trackToDeleteIndex = null;
+    function showDeleteModal(index) {
+        trackToDeleteIndex = index;
+        document.getElementById('delete-modal').classList.remove('hidden');
+    }
+    
+    document.getElementById('btn-cancel-delete').addEventListener('click', () => {
+        document.getElementById('delete-modal').classList.add('hidden');
+        trackToDeleteIndex = null;
+    });
+    
+    document.getElementById('btn-confirm-delete').addEventListener('click', async () => {
+        if (trackToDeleteIndex !== null) {
+            const idx = parseInt(trackToDeleteIndex);
+            
+            // Cleanup blob URLs if created
+            if (playlist[idx].url && playlist[idx].url.startsWith('blob:')) URL.revokeObjectURL(playlist[idx].url);
+            if (playlist[idx].cover && playlist[idx].cover.startsWith('blob:')) URL.revokeObjectURL(playlist[idx].cover);
+            
+            playlist.splice(idx, 1);
+            
+            if (currentTrackIndex === idx) {
+                pauseAudio();
+                if (playlist.length > 0) {
+                    currentTrackIndex = 0;
+                    loadTrack(0);
+                } else {
+                    currentTrackIndex = -1;
+                    audio.src = '';
+                    updateMiniPlayerUI();
+                }
+            } else if (currentTrackIndex > idx) {
+                currentTrackIndex--;
+            }
+            
+            renderSongGrid();
+            await saveLibraryToDB();
+            document.getElementById('delete-modal').classList.add('hidden');
+            trackToDeleteIndex = null;
+        }
+    });
+
+    // Close menus when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.song-options-btn') && !e.target.closest('.context-menu')) {
+            document.querySelectorAll('.context-menu.active').forEach(m => m.classList.remove('active'));
+        }
+    });
 
     function openPlayer(index) {
         currentTrackIndex = index;
@@ -254,12 +347,56 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function closePlayer() {
-        pauseAudio();
         playerView.classList.add('hidden');
         homeView.classList.remove('hidden');
         const auroraBg = document.getElementById('aurora-bg');
         if (auroraBg) auroraBg.classList.add('hidden');
+        
+        // Show mini player if a track is selected
+        if (currentTrackIndex !== -1 && playlist[currentTrackIndex]) {
+            document.getElementById('mini-player').classList.remove('hidden');
+            updateMiniPlayerUI();
+        }
     }
+    
+    function updateMiniPlayerUI() {
+        if (currentTrackIndex === -1) {
+            document.getElementById('mini-player').classList.add('hidden');
+            return;
+        }
+        const song = playlist[currentTrackIndex];
+        document.getElementById('mini-cover').src = song.cover || 'assets/images/cover.png';
+        document.getElementById('mini-title').textContent = song.title || 'Unknown Title';
+        document.getElementById('mini-artist').textContent = song.artist || 'Unknown Artist';
+        
+        const btnMiniPlay = document.getElementById('btn-mini-play');
+        const btnMiniPause = document.getElementById('btn-mini-pause');
+        if (isPlaying) {
+            btnMiniPlay.classList.add('hidden');
+            btnMiniPause.classList.remove('hidden');
+        } else {
+            btnMiniPlay.classList.remove('hidden');
+            btnMiniPause.classList.add('hidden');
+        }
+    }
+    
+    // Setup Mini Player Click Events
+    document.getElementById('mini-player').addEventListener('click', (e) => {
+        // Prevent opening full player if clicking buttons
+        if (e.target.closest('.mini-btn')) return;
+        
+        if (currentTrackIndex !== -1) {
+            // Re-open player
+            document.getElementById('mini-player').classList.add('hidden');
+            playerView.classList.remove('hidden');
+            homeView.classList.add('hidden');
+            const auroraBg = document.getElementById('aurora-bg');
+            if (auroraBg) auroraBg.classList.remove('hidden');
+        }
+    });
+    
+    document.getElementById('btn-mini-play').addEventListener('click', () => togglePlay());
+    document.getElementById('btn-mini-pause').addEventListener('click', () => togglePlay());
 
     function loadTrack(index) {
         const track = playlist[index];
@@ -988,7 +1125,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             
                             // Restart GIF from frame 0 instantly using a fresh RAM Blob instance
                             if (fireGifBlob) {
-                                if (fireGifBlobUrl !== 'fire.gif') URL.revokeObjectURL(fireGifBlobUrl);
+                                if (fireGifBlobUrl !== 'assets/images/fire.gif') URL.revokeObjectURL(fireGifBlobUrl);
                                 fireGifBlobUrl = URL.createObjectURL(new Blob([fireGifBlob], {type: 'image/gif'}));
                                 if (cineFireLeft) cineFireLeft.src = fireGifBlobUrl;
                                 if (cineFireRight) cineFireRight.src = fireGifBlobUrl;
@@ -1370,22 +1507,86 @@ document.addEventListener('DOMContentLoaded', () => {
     function togglePlay() {
         if (isPlaying) pauseAudio();
         else playAudio();
+        updateMiniPlayerUI();
     }
 
     function prevTrack() {
-        let index = currentTrackIndex - 1;
-        if (index < 0) index = playlist.length - 1;
-        currentTrackIndex = index;
-        loadTrack(index);
+        if (playlist.length === 0) return;
+        if (audio.currentTime > 3) {
+            audio.currentTime = 0;
+            return;
+        }
+        
+        if (isShuffle) {
+            let qIdx = shuffledQueue.indexOf(currentTrackIndex);
+            if (qIdx <= 0) qIdx = shuffledQueue.length - 1;
+            else qIdx--;
+            currentTrackIndex = shuffledQueue[qIdx];
+        } else {
+            let index = currentTrackIndex - 1;
+            if (index < 0) index = playlist.length - 1;
+            currentTrackIndex = index;
+        }
+        
+        loadTrack(currentTrackIndex);
         playAudio();
     }
 
-    function nextTrack() {
-        let index = currentTrackIndex + 1;
-        if (index >= playlist.length) index = 0;
-        currentTrackIndex = index;
-        loadTrack(index);
+    function nextTrack(isAutoNext = false) {
+        if (playlist.length === 0) return;
+        
+        if (isAutoNext && repeatMode === 2) {
+            audio.currentTime = 0;
+            playAudio();
+            return;
+        }
+        
+        if (isAutoNext && repeatMode === 0 && !isShuffle) {
+            if (currentTrackIndex === playlist.length - 1) {
+                pauseAudio();
+                return;
+            }
+        }
+        
+        if (isShuffle) {
+            let qIdx = shuffledQueue.indexOf(currentTrackIndex);
+            if (qIdx === -1 || qIdx === shuffledQueue.length - 1) {
+                // Generate new shuffle queue or loop back
+                if (shuffledQueue.length !== playlist.length) generateShuffleQueue();
+                qIdx = 0;
+            } else {
+                qIdx++;
+            }
+            currentTrackIndex = shuffledQueue[qIdx];
+        } else {
+            let index = currentTrackIndex + 1;
+            if (index >= playlist.length) {
+                if (isAutoNext && repeatMode === 0) return; // Stop at end of list
+                index = 0;
+            }
+            currentTrackIndex = index;
+        }
+        
+        loadTrack(currentTrackIndex);
         playAudio();
+    }
+    
+    function generateShuffleQueue() {
+        shuffledQueue = [];
+        for (let i = 0; i < playlist.length; i++) shuffledQueue.push(i);
+        // Fisher-Yates
+        for (let i = shuffledQueue.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffledQueue[i], shuffledQueue[j]] = [shuffledQueue[j], shuffledQueue[i]];
+        }
+        // Ensure current track is first in new queue to avoid immediate repeat
+        if (currentTrackIndex !== -1) {
+            const currentQIdx = shuffledQueue.indexOf(currentTrackIndex);
+            if (currentQIdx !== -1) {
+                shuffledQueue.splice(currentQIdx, 1);
+                shuffledQueue.unshift(currentTrackIndex);
+            }
+        }
     }
 
     function updateProgress() {
@@ -1418,47 +1619,59 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const audioFile = uploadAudio.files[0];
         const lrcFile = uploadLrc.files[0];
-        const coverFile = uploadCover.files[0];
-        const title = uploadTitle.value.trim();
-        const artist = uploadArtist.value.trim();
+        let coverFile = uploadCover.files[0];
+        const title = uploadTitle.value.trim() || `Song #${playlist.length + 1}`;
+        const artist = uploadArtist.value.trim() || "Unknown Artist";
         
-        if (!audioFile || !lrcFile || !coverFile || !title || !artist) {
-            alert("Vui lòng điền đủ thông tin và tải lên đủ 3 tệp.");
+        if (!audioFile || !lrcFile) {
+            alert("Vui lòng tải lên ít nhất tệp Audio và Lyrics.");
             return;
         }
 
         const audioUrl = URL.createObjectURL(audioFile);
-        const coverUrl = URL.createObjectURL(coverFile);
         
-        // Read LRC file
-        const reader = new FileReader();
-        reader.onload = async function(event) {
-            const lrcText = event.target.result;
-            
-            // Create new song object
-            const newSong = {
-                title: title,
-                artist: artist,
-                url: audioUrl,
-                cover: coverUrl,
-                lyrics: lrcText,
-                drift: 1.0,
-                audioBlob: audioFile,
-                coverBlob: coverFile
+        const processUpload = async (coverBlob, coverUrl) => {
+            // Read LRC file
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                const lrcText = event.target.result;
+                
+                // Create new song object
+                const newSong = {
+                    title: title,
+                    artist: artist,
+                    url: audioUrl,
+                    cover: coverUrl,
+                    lyrics: lrcText,
+                    drift: 1.0,
+                    audioBlob: audioFile,
+                    coverBlob: coverBlob
+                };
+                
+                // Add to playlist
+                playlist.push(newSong);
+                renderSongGrid();
+                
+                // Save persistently to IndexedDB
+                await saveLibraryToDB();
+                
+                // Reset form and close modal
+                uploadForm.reset();
+                uploadModal.classList.add('hidden');
             };
-            
-            // Add to playlist
-            playlist.push(newSong);
-            renderSongGrid();
-            
-            // Save persistently to IndexedDB
-            await saveLibraryToDB();
-            
-            // Reset form and close modal
-            uploadForm.reset();
-            uploadModal.classList.add('hidden');
+            reader.readAsText(lrcFile);
         };
-        reader.readAsText(lrcFile);
+
+        if (coverFile) {
+            processUpload(coverFile, URL.createObjectURL(coverFile));
+        } else {
+            fetch('assets/images/cover.png').then(r => r.blob()).then(blob => {
+                processUpload(blob, URL.createObjectURL(blob));
+            }).catch(e => {
+                // Ultimate fallback
+                processUpload(null, 'assets/images/cover.png');
+            });
+        }
     }
 
     // --- Advanced Vibrant Color Extractor ---
@@ -1560,17 +1773,79 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Event Listeners ---
     function setupEventListeners() {
-        btnAddSong.addEventListener('click', () => uploadModal.classList.remove('hidden'));
+        btnAddSong.addEventListener('click', () => {
+            uploadForm.reset();
+            uploadModal.classList.remove('hidden');
+        });
         btnCloseModal.addEventListener('click', () => uploadModal.classList.add('hidden'));
         uploadForm.addEventListener('submit', handleUploadForm);
+        
+        uploadAudio.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (window.jsmediatags) {
+                window.jsmediatags.read(file, {
+                    onSuccess: function(tag) {
+                        const tags = tag.tags;
+                        if (tags.title) uploadTitle.value = tags.title;
+                        if (tags.artist) uploadArtist.value = tags.artist;
+                        if (tags.picture) {
+                            try {
+                                const { data, format } = tags.picture;
+                                const blob = new Blob([new Uint8Array(data)], { type: format });
+                                const imgFile = new File([blob], "cover.jpg", { type: format });
+                                const dt = new DataTransfer();
+                                dt.items.add(imgFile);
+                                uploadCover.files = dt.files;
+                            } catch (err) {
+                                console.log("Could not attach cover art", err);
+                            }
+                        }
+                    },
+                    onError: function(error) {
+                        console.log('Error reading tags', error);
+                    }
+                });
+            }
+        });
+        
         btnBackHome.addEventListener('click', closePlayer);
         
         // No longer using timeupdate for progress! using requestAnimationFrame 60-FPS loop instead!
-        audio.addEventListener('ended', nextTrack);
+        audio.addEventListener('ended', () => nextTrack(true));
         
         playBtn.addEventListener('click', togglePlay);
         prevBtn.addEventListener('click', prevTrack);
-        nextBtn.addEventListener('click', nextTrack);
+        nextBtn.addEventListener('click', () => nextTrack(false));
+        
+        // Repeat Button Logic
+        const btnRepeat = document.getElementById('btn-repeat');
+        const repeatBadge = document.getElementById('repeat-badge');
+        btnRepeat.addEventListener('click', () => {
+            repeatMode = (repeatMode + 1) % 3;
+            if (repeatMode === 0) {
+                btnRepeat.classList.remove('active-state');
+                repeatBadge.classList.add('hidden');
+            } else if (repeatMode === 1) {
+                btnRepeat.classList.add('active-state');
+                repeatBadge.classList.add('hidden');
+            } else if (repeatMode === 2) {
+                btnRepeat.classList.add('active-state');
+                repeatBadge.classList.remove('hidden');
+            }
+        });
+        
+        // Shuffle Button Logic
+        const btnShuffle = document.getElementById('btn-shuffle');
+        btnShuffle.addEventListener('click', () => {
+            isShuffle = !isShuffle;
+            if (isShuffle) {
+                btnShuffle.classList.add('active-state');
+                generateShuffleQueue();
+            } else {
+                btnShuffle.classList.remove('active-state');
+            }
+        });
         
         progressSlider.addEventListener('input', (e) => {
             isDraggingSlider = true;
