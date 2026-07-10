@@ -526,13 +526,13 @@ import { DOM } from './modules/dom.js';
     document.getElementById('btn-mini-repeat').addEventListener('click', () => {
         const btnRepeat = document.getElementById('btn-repeat');
         if (btnRepeat) btnRepeat.click();
-        /* updateMiniPlayerUI(); */
+        updateMiniPlayerUI();
     });
     
     document.getElementById('btn-mini-shuffle').addEventListener('click', () => {
         const btnShuffle = document.getElementById('btn-shuffle');
         if (btnShuffle) btnShuffle.click();
-        /* updateMiniPlayerUI(); */
+        updateMiniPlayerUI();
     });
 
     function loadTrack(index) {
@@ -1641,7 +1641,7 @@ import { DOM } from './modules/dom.js';
     function togglePlay() {
         if (isPlaying) pauseAudio();
         else playAudio();
-        /* updateMiniPlayerUI(); */
+        updateMiniPlayerUI();
     }
 
     function prevTrack() {
@@ -1664,7 +1664,7 @@ import { DOM } from './modules/dom.js';
         
         loadTrack(currentTrackIndex);
         playAudio();
-        /* updateMiniPlayerUI(); */
+        updateMiniPlayerUI();
     }
 
     function nextTrack(isAutoNext = false) {
@@ -1704,7 +1704,7 @@ import { DOM } from './modules/dom.js';
         
         loadTrack(currentTrackIndex);
         playAudio();
-        /* updateMiniPlayerUI(); */
+        updateMiniPlayerUI();
     }
     
     function generateShuffleQueue() {
