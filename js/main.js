@@ -86,6 +86,14 @@ import { DOM } from './modules/dom.js';
     let isAngelicMode = false;
     let angelicParticleTimer = 0;
     
+    // Window Dimension Caching
+    let winWidth = window.innerWidth;
+    let winHeight = window.innerHeight;
+    window.addEventListener('resize', () => {
+        winWidth = window.innerWidth;
+        winHeight = window.innerHeight;
+    });
+    
     // Web Audio API Variables
     let audioCtx = null;
     let analyser = null;
@@ -1235,7 +1243,7 @@ import { DOM } from './modules/dom.js';
 
                     // 1. Reactive Dimming
                     if (reactiveDim) {
-                        const targetOpacity = Math.max(0.1, 0.8 - (Math.pow(intensity, 2) * 1.5));
+                        const targetOpacity = isPlaying ? Math.max(0.1, 0.8 - (Math.pow(intensity, 2) * 1.5)) : 0.0;
                         reactiveDim.style.opacity = targetOpacity.toFixed(2);
                     }
                     
