@@ -1331,8 +1331,8 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 }
 #repeat-badge {
     position: absolute;
-    top: 6px;
-    right: 6px;
+    top: -5px;
+    right: -5px;
     font-size: 0.65rem;
     font-weight: 800;
     background: var(--accent-color);
