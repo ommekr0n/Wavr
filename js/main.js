@@ -2136,3 +2136,6 @@ import { DOM } from './modules/dom.js';
     preloadAngelicAssets();
     preloadCinematicAssets();
     initHome();
+    
+    // Start the engine immediately for idle rendering (e.g. paused cinematic mode)
+    requestAnimationFrame(syncLoop);
