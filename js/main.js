@@ -1,3 +1,7 @@
+import { parseLyrics } from './modules/lyric-parser.js';
+import { extractColorsFromImage } from './modules/color-extractor.js';
+import { DOM } from './modules/dom.js';
+
 document.addEventListener('DOMContentLoaded', () => {
     
     // Prevent copy/cut globally unless inside an input/textarea
@@ -542,10 +546,27 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('angelic-bg').style.backgroundImage = `url("${track.cover}")`;
         
         // Extract Color for Aurora
+        const applyColors = (uiColors, spotlightColors) => {
+            document.documentElement.style.setProperty('--blob-1-color', gb(\, \, \)\);
+            document.documentElement.style.setProperty('--blob-2-color', gb(\, \, \)\);
+            document.documentElement.style.setProperty('--blob-3-color', gb(\, \, \)\);
+            document.documentElement.style.setProperty('--blob-4-color', gb(\, \, \)\);
+            
+            document.documentElement.style.setProperty('--blob-1-size', \vw\); 
+            document.documentElement.style.setProperty('--blob-2-size', \vw\); 
+            document.documentElement.style.setProperty('--blob-3-size', \vw\); 
+            document.documentElement.style.setProperty('--blob-4-size', \vw\); 
+
+            CONCERT_COLORS = spotlightColors.map(c => [c.r, c.g, c.b]);
+            spotlights.forEach(sp => {
+                sp.colorIdx = sp.colorIdx % CONCERT_COLORS.length;
+                sp.nextColorIdx = sp.nextColorIdx % CONCERT_COLORS.length;
+            });
+        };
         if (coverArt.complete) {
-            extractColorsFromImage(coverArt);
+            extractColorsFromImage(coverArt, applyColors);
         } else {
-            coverArt.onload = () => extractColorsFromImage(coverArt);
+            coverArt.onload = () => extractColorsFromImage(coverArt, applyColors);
         }
         
         driftRatio = track.drift || 1.0;
@@ -609,25 +630,6 @@ document.addEventListener('DOMContentLoaded', () => {
     audio.addEventListener('play',  () => { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
     audio.addEventListener('pause', () => { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; });
 
-    function parseLyrics(lrcString) {
-        currentLyrics = [];
-        if (!lrcString) return;
-        
-        const lines = lrcString.split('\n');
-        const timeRegex = /\[(\d{2}):(\d{2}(?:\.\d{2,3})?)\]/g;
-        
-        lines.forEach(line => {
-            let match;
-            let timeFound = false;
-            while ((match = timeRegex.exec(line)) !== null) {
-                const minutes = parseInt(match[1]);
-                const seconds = parseFloat(match[2]);
-                const totalSeconds = (minutes * 60) + seconds;
-                
-                const text = line.replace(/\[\d{2}:\d{2}(?:\.\d{2,3})?\]/g, '').trim();
-                if (text) {
-                    currentLyrics.push({ time: totalSeconds, text: text });
-                }
                 timeFound = true;
             }
         });
@@ -1803,102 +1805,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Advanced Vibrant Color Extractor ---
-    function extractColorsFromImage(imgEl) {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        
-        const grid = 10; // Sample 100 pixels
-        canvas.width = grid;
-        canvas.height = grid;
-        
-        try {
-            ctx.drawImage(imgEl, 0, 0, grid, grid);
-            const data = ctx.getImageData(0, 0, grid, grid).data;
-            let pixels = [];
-            
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i], g = data[i+1], b = data[i+2];
-                const brightness = (r + g + b) / 3;
-                
-                // Lọc bỏ màu đen thui hoặc trắng toát/xám xịt
-                if (brightness > 30 && brightness < 230) {
-                    // Tính độ rực rỡ (saturation heuristic)
-                    const max = Math.max(r, g, b);
-                    const min = Math.min(r, g, b);
-                    const saturation = max - min;
-                    
-                    pixels.push({ r, g, b, saturation });
-                }
-            }
-            
-            // Ưu tiên các màu sắc rực rỡ nhất
-            pixels.sort((a, b) => b.saturation - a.saturation);
-            
-            // Chọn ra 8 màu KHÁC BIỆT nhau rõ rệt
-            let selectedColors = [];
-            for (let p of pixels) {
-                if (selectedColors.length >= 8) break;
-                
-                let isDistinct = true;
-                for (let sc of selectedColors) {
-                    const dist = Math.abs(p.r - sc.r) + Math.abs(p.g - sc.g) + Math.abs(p.b - sc.b);
-                    if (dist < 60) { // Nếu khoảng cách màu < 60 -> Quá giống nhau, bỏ qua
-                        isDistinct = false;
-                        break;
-                    }
-                }
-                if (isDistinct) selectedColors.push(p);
-            }
-            
-            // Nếu ảnh quá ít màu, bốc ngẫu nhiên bù vào cho đủ 8
-            while (selectedColors.length < 8) {
-                if (pixels.length > 0) {
-                    selectedColors.push(pixels[Math.floor(Math.random() * pixels.length)]);
-                } else {
-                    selectedColors.push({r: Math.floor(Math.random()*255), g: Math.floor(Math.random()*255), b: Math.floor(Math.random()*255)});
-                }
-            }
-            
-            // Chia làm 2 nhóm: 4 màu cho UI Blobs/Pillars, 4 màu cho Spotlights
-            const uiColors = selectedColors.slice(0, 4);
-            const spotlightColors = selectedColors.slice(4, 8);
-
-            // Xáo trộn ngẫu nhiên để các quả cầu thay đổi vị trí màu sắc
-            uiColors.sort(() => Math.random() - 0.5);
-            
-            document.documentElement.style.setProperty('--blob-1-color', `rgb(${uiColors[0].r}, ${uiColors[0].g}, ${uiColors[0].b})`);
-            document.documentElement.style.setProperty('--blob-2-color', `rgb(${uiColors[1].r}, ${uiColors[1].g}, ${uiColors[1].b})`);
-            document.documentElement.style.setProperty('--blob-3-color', `rgb(${uiColors[2].r}, ${uiColors[2].g}, ${uiColors[2].b})`);
-            document.documentElement.style.setProperty('--blob-4-color', `rgb(${uiColors[3].r}, ${uiColors[3].g}, ${uiColors[3].b})`);
-            
-            // Generate True Random Sizes for each blob
-            document.documentElement.style.setProperty('--blob-1-size', `${Math.floor(Math.random() * 20 + 30)}vw`); 
-            document.documentElement.style.setProperty('--blob-2-size', `${Math.floor(Math.random() * 20 + 30)}vw`); 
-            document.documentElement.style.setProperty('--blob-3-size', `${Math.floor(Math.random() * 20 + 30)}vw`); 
-            document.documentElement.style.setProperty('--blob-4-size', `${Math.floor(Math.random() * 20 + 30)}vw`); 
-
-            // Cập nhật mảng CONCERT_COLORS cho đèn spotlight
-            CONCERT_COLORS = spotlightColors.map(c => [c.r, c.g, c.b]);
-            
-            // Reset spotlight indices to prevent crash
-            spotlights.forEach(sp => {
-                sp.colorIdx = sp.colorIdx % CONCERT_COLORS.length;
-                sp.nextColorIdx = sp.nextColorIdx % CONCERT_COLORS.length;
-            });
-        } catch (e) {
-            console.log("CORS block on image color extraction, using defaults.");
-        }
-    }
-
-    // Window Dimension Caching
-    let winWidth = window.innerWidth;
-    let winHeight = window.innerHeight;
-    window.addEventListener('resize', () => {
-        // Debounce or just update immediately for requestAnimationFrame usage
-        winWidth = window.innerWidth;
-        winHeight = window.innerHeight;
-    });
-
     // --- Event Listeners ---
     function setupEventListeners() {
         btnAddSong.addEventListener('click', () => {
