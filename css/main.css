@@ -7,8 +7,8 @@
     --text-primary: #ffffff;
     --text-secondary: rgba(255, 255, 255, 0.6);
     --text-muted: rgba(255, 255, 255, 0.25);
-    --accent-color: #292CD6;
-    --accent-glow: rgba(41, 44, 214, 0.35);
+    --accent-color: #00E5FF;
+    --accent-glow: rgba(0, 229, 255, 0.35);
     --glass-bg: rgba(12, 12, 24, 0.7);
     --glass-border: rgba(255, 255, 255, 0.08);
     --transition-speed: 0.3s;
