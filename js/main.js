@@ -811,7 +811,7 @@ import { DOM } from './modules/dom.js';
         const sparkContainer = document.createElement('div');
         sparkContainer.className = 'sparkle-container';
         // Smart Distribution Algorithm: 2-3 sparks per word, strictly capped at 15 to guarantee zero lag, minimum 5.
-        const wordCount = (preventOrphanWords(text).match(/\S+/g) || []).length;
+        const wordCount = (preventOrphanWords(text).match(/[^\t ]+/g) || []).length;
         const numSparks = Math.min(Math.max(wordCount * 3, 5), 15);
         for (let i = 0; i < numSparks; i++) {
             const spark = document.createElement('div');
@@ -1012,7 +1012,7 @@ import { DOM } from './modules/dom.js';
         newLine.className = 'angelic-line';
         
         const safeText = preventOrphanWords(text);
-        const words = safeText.match(/\S+/g) || [];
+        const words = safeText.match(/[^\t ]+/g) || [];
         
         let wordsHTML = '';
         words.forEach((word, wordIdx) => {
