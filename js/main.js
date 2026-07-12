@@ -759,10 +759,19 @@ import { DOM } from './modules/dom.js';
     // ─── Smart Word-Wrap: Ngăn chữ "mồ côi" ───────────────
     // Nối 2-3 từ cuối câu bằng khoảng trắng không ngắt dòng (non-breaking space).
     // Giúp cho khi màn hình hẹp, trình duyệt sẽ rớt cả cụm 3 từ xuống dòng thay vì 1 từ chơ vơ.
+    function preserveParentheticalGroups(text) {
+        if (!text) return "";
+        return text.replace(/\(([^()]*)\)/g, (match, inner) => {
+            const protectedInner = inner.replace(/[ \t]+/g, '\u00A0');
+            return `\u00A0(${protectedInner})\u00A0`;
+        });
+    }
+
     function preventOrphanWords(text) {
         if (!text) return "";
-        const words = text.trim().split(/\s+/);
-        if (words.length <= 3) return text;
+        const protectedText = preserveParentheticalGroups(text);
+        const words = protectedText.trim().split(/[ \t]+/);
+        if (words.length <= 3) return protectedText;
         
         // Lấy 3 từ cuối và nối bằng non-breaking space (\u00A0)
         const lastWords = words.splice(-3).join('\u00A0');
@@ -802,7 +811,7 @@ import { DOM } from './modules/dom.js';
         const sparkContainer = document.createElement('div');
         sparkContainer.className = 'sparkle-container';
         // Smart Distribution Algorithm: 2-3 sparks per word, strictly capped at 15 to guarantee zero lag, minimum 5.
-        const wordCount = text.split(' ').length;
+        const wordCount = (preventOrphanWords(text).match(/\S+/g) || []).length;
         const numSparks = Math.min(Math.max(wordCount * 3, 5), 15);
         for (let i = 0; i < numSparks; i++) {
             const spark = document.createElement('div');
@@ -1003,7 +1012,7 @@ import { DOM } from './modules/dom.js';
         newLine.className = 'angelic-line';
         
         const safeText = preventOrphanWords(text);
-        const words = safeText.split(' ');
+        const words = safeText.match(/\S+/g) || [];
         
         let wordsHTML = '';
         words.forEach((word, wordIdx) => {
