@@ -763,7 +763,7 @@ import { DOM } from './modules/dom.js';
     function preserveParentheticalGroups(text) {
         if (!text) return "";
         const maxGroupLength = 24;
-        const maxGroupWords = 3;
+        const maxGroupWords = 6;
 
         return text.replace(/\(([^()]*)\)/g, (match, inner) => {
             const trimmedInner = inner.trim();
