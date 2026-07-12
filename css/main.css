@@ -529,7 +529,9 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
+    /* Allow decorative elements (branches/flowers) to overflow the view bounds
+       so they aren't clipped when animated outside the staff SVG area. */
+    overflow: visible;
     background: transparent; /* aurora-bg is behind */
     z-index: 20;
 }
@@ -617,6 +619,8 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     backdrop-filter: none;
     padding: 0;
     will-change: transform, opacity;
+    /* Allow children (SVG branches, blooms) to render outside wrapper bounds */
+    overflow: visible;
 }
 
 .angelic-line-wrapper.angelic-prebuilt {
@@ -632,6 +636,9 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     transform-style: preserve-3d;
     z-index: 4;
     will-change: transform, opacity;
+    /* Let decorative SVG shapes overflow their viewport instead of being clipped */
+    overflow: visible;
+    pointer-events: none;
 }
 
 .angelic-line {
