@@ -414,22 +414,25 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 }
 
 /* Animations */
-.cine-enter { animation: cine-enter 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+/* Slightly slower/softer entrance to avoid pop; tuned easing for natural motion */
+.cine-enter { animation: cine-enter 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 @keyframes cine-enter {
-    0% { transform: translateZ(800px) rotateX(-90deg); opacity: 0; }
-    100% { transform: translateZ(0) rotateX(0); opacity: 1; }
+    0% { transform: translateZ(600px) rotateX(-85deg) scale(0.98); opacity: 0; }
+    60% { transform: translateZ(40px) rotateX(-10deg) scale(1.02); opacity: 1; }
+    100% { transform: translateZ(0) rotateX(0) scale(1); opacity: 1; }
 }
-.cine-exit { animation: cine-exit-wrapper 0.8s linear forwards; }
+/* Exit is a bit longer to allow a graceful falloff but still quick enough to keep sync */
+.cine-exit { animation: cine-exit-wrapper 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 .cine-exit .cinematic-line {
     color: #666666;
     text-shadow: 4px 4px 0px rgba(0,0,0,0.6);
-    animation: cine-exit-text 0.8s linear forwards; 
+    animation: cine-exit-text 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards; 
 }
 
 @keyframes cine-exit-wrapper {
     0% { transform: translate(0, 0) rotateZ(0); }
-    20% { transform: translate(0, 0) rotateZ(0); animation-timing-function: cubic-bezier(0.7, 0, 1, 1); }
-    100% { transform: translate(var(--exit-tx, 0vw), 100vh) rotateZ(var(--exit-rot, 15deg)); }
+    30% { transform: translate(0, 6vh) rotateZ(0); }
+    100% { transform: translate(var(--exit-tx, 0vw), 110vh) rotateZ(var(--exit-rot, 15deg)); }
 }
 
 @keyframes cine-exit-text {
@@ -437,20 +440,20 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
         transform: scale(1);
         opacity: 1;
     }
-    1% { 
-        transform: scale(1.05) skewX(-10deg);
+    10% { 
+        transform: scale(1.04) skewX(-6deg);
+        opacity: 0.95;
+    }
+    45% {
+        transform: scale(1.01) skewX(2deg);
         opacity: 0.8;
     }
-    20% {
-        transform: scale(1.02) skewX(5deg);
-        opacity: 0.8;
-        animation-timing-function: cubic-bezier(0.7, 0, 1, 1);
-    }
-    75% {
-        opacity: 0;
+    85% {
+        opacity: 0.15;
+        transform: scale(0.92) skewX(0deg);
     }
     100% {
-        transform: scale(0.8);
+        transform: scale(0.88);
         opacity: 0;
     }
 }

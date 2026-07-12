@@ -800,7 +800,8 @@ import { DOM } from './modules/dom.js';
             line.style.setProperty('--exit-rot', `${rot}deg`);
             line.style.setProperty('--exit-tx', `${tx}vw`);
             
-            setTimeout(() => { if (line.parentNode) line.remove(); }, 1200);
+            // Match JS removal timeout to CSS exit duration (~900ms) with small buffer
+            setTimeout(() => { if (line.parentNode) line.remove(); }, 1000);
         });
         
         // Create new line flying in
