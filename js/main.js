@@ -758,6 +758,7 @@ import { DOM } from './modules/dom.js';
     
     // ─── Smart Word-Wrap: Ngăn chữ "mồ côi" ───────────────
     // Nối 2-3 từ cuối câu bằng khoảng trắng không ngắt dòng (non-breaking space).
+    // Vercel redeploy trigger
     // Giúp cho khi màn hình hẹp, trình duyệt sẽ rớt cả cụm 3 từ xuống dòng thay vì 1 từ chơ vơ.
     function preserveParentheticalGroups(text) {
         if (!text) return "";
