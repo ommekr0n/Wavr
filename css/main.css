@@ -69,6 +69,7 @@ body {
 .view-container {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     display: flex; flex-direction: column;
+    z-index: 0;
     transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .view-container.hidden {
@@ -530,6 +531,7 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     justify-content: center;
     overflow: hidden;
     background: transparent; /* aurora-bg is behind */
+    z-index: 20;
 }
 
 #angelic-vinyl-container {
@@ -582,7 +584,7 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 #angelic-text-container {
     position: absolute;
     top: 0; left: 0;
-    z-index: 2;
+    z-index: 3;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -628,13 +630,13 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     top: 50%; left: 0;
     transform: translateY(-50%);
     transform-style: preserve-3d;
-    z-index: 100;
+    z-index: 4;
     will-change: transform, opacity;
 }
 
 .angelic-line {
     position: relative;
-    z-index: 2;
+    z-index: 5;
     font-family: 'Dancing Script', cursive;
     font-size: 5.5rem;
     font-weight: 700;
@@ -895,7 +897,7 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 #angelic-particle-container {
     position: absolute;
     top: 0; left: 0; width: 100%; height: 100%;
-    z-index: 1;
+    z-index: 2;
     pointer-events: none;
     overflow: hidden;
 }
