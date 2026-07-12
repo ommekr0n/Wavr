@@ -762,8 +762,19 @@ import { DOM } from './modules/dom.js';
     // Giúp cho khi màn hình hẹp, trình duyệt sẽ rớt cả cụm 3 từ xuống dòng thay vì 1 từ chơ vơ.
     function preserveParentheticalGroups(text) {
         if (!text) return "";
+        const maxGroupLength = 24;
+        const maxGroupWords = 3;
+
         return text.replace(/\(([^()]*)\)/g, (match, inner) => {
-            const protectedInner = inner.replace(/[ \t]+/g, '\u00A0');
+            const trimmedInner = inner.trim();
+            const wordCount = trimmedInner ? trimmedInner.split(/\s+/).length : 0;
+
+            // Only keep short parenthetical groups together; long ones fall back to normal wrapping.
+            if (trimmedInner.length > maxGroupLength || wordCount > maxGroupWords) {
+                return match;
+            }
+
+            const protectedInner = trimmedInner.replace(/[ \t]+/g, '\u00A0');
             return `\u00A0(${protectedInner})\u00A0`;
         });
     }
