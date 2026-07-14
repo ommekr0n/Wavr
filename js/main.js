@@ -269,6 +269,9 @@ import { initSettings, initEditLibrary } from './modules/edit-library.js';
                         if (song.audioBlob instanceof Blob) url = URL.createObjectURL(song.audioBlob);
                         if (song.coverBlob instanceof Blob) cover = URL.createObjectURL(song.coverBlob);
                     } catch(blobErr) { console.warn('Blob URL error', blobErr); }
+                    if (!song.id) {
+                        needsSave = true;
+                    }
                     return {
                         id: song.id || 'song-' + Date.now() + '-' + idx + '-' + Math.floor(Math.random() * 1000),
                         title: song.title,
@@ -299,13 +302,17 @@ import { initSettings, initEditLibrary } from './modules/edit-library.js';
             try {
                 const savedPlaylist = await localforage.getItem('playlist');
                 if (savedPlaylist) {
-                playlist = savedPlaylist.map((song, idx) => {
+                    let needsSave = false;
+                    playlist = savedPlaylist.map((song, idx) => {
                         let url = song.url || '';
                         let cover = song.cover || 'assets/images/cover.png';
                         try {
                             if (song.audioBlob instanceof Blob) url = URL.createObjectURL(song.audioBlob);
                             if (song.coverBlob instanceof Blob) cover = URL.createObjectURL(song.coverBlob);
                         } catch(blobErr) { console.warn('Blob URL error', blobErr); }
+                        if (!song.id) {
+                            needsSave = true;
+                        }
                         return {
                             id: song.id || 'song-' + Date.now() + '-' + idx + '-' + Math.floor(Math.random() * 1000),
                             title: song.title,
@@ -318,6 +325,9 @@ import { initSettings, initEditLibrary } from './modules/edit-library.js';
                             coverBlob: song.coverBlob  // BUG 11 FIX: preserve coverBlob
                         };
                     });
+                    if (needsSave) {
+                        await saveLibraryToDB();
+                    }
                 }
             } catch (e) {
                 console.error("Error reloading library", e);
