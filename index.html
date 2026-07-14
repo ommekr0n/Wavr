@@ -6,7 +6,7 @@
     <title>Wavr - Music Player</title>
     <link rel="icon" type="image/svg+xml" href="assets/images/favicon.svg">
     <meta name="description" content="Wavr — A premium dark music player with cinematic visualizer mode.">
-    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/main.css?v=2">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500;700&family=Inter:wght@300;400;500;600;700;800;900&family=Chakra+Petch:wght@700&family=Dela+Gothic+One&family=DotGothic16&display=swap" rel="stylesheet">
@@ -42,12 +42,29 @@
                     <img src="assets/images/favicon.svg" alt="Wavr Logo" class="brand-logo">
                     <h1>Library</h1>
                 </div>
-                <button id="btn-add-song" class="add-btn" title="Add new track">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                </button>
+                <div class="home-header-actions" style="display: flex; gap: 12px; align-items: center;">
+                    <!-- Settings Button -->
+                    <button id="btn-settings" class="add-btn" title="Grid Settings" style="border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                    </button>
+                    <!-- Edit Library Button -->
+                    <button id="btn-edit-library" class="add-btn" title="Edit Library" style="border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path>
+                        </svg>
+                    </button>
+                    <!-- Add Song Button -->
+                    <button id="btn-add-song" class="add-btn" title="Add new track">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </header>
         
@@ -113,6 +130,37 @@
         </div>
     </div>
 
+    <!-- 1.5. Edit Library View -->
+    <div id="edit-library-view" class="view-container hidden">
+        <header class="home-header">
+            <div class="home-header-content">
+                <div class="home-brand">
+                    <img src="assets/images/favicon.svg" alt="Wavr Logo" class="brand-logo">
+                    <h1>Edit Library</h1>
+                </div>
+                <div class="home-header-actions">
+                    <button id="btn-edit-done" class="add-btn" title="Save & Done" style="border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <div class="edit-help-banner">
+            <span>Left-click & drag on empty space to select multiple songs. Drag songs to reorder them, or drag onto a Vinyl Box below to group them.</span>
+        </div>
+
+        <div class="edit-grid-container">
+            <div class="edit-grid" id="edit-song-grid">
+                <!-- Song items populated via JS -->
+            </div>
+        </div>
+
+
+    </div>
+
     <!-- 2.5 Delete Confirmation Modal -->
     <div id="delete-modal" class="modal hidden">
         <div class="modal-content delete-modal-content">
@@ -124,6 +172,29 @@
             </div>
         </div>
     </div>
+
+    <!-- 2.55 Delete Box Confirmation Modal -->
+    <div id="delete-box-modal" class="modal hidden">
+        <div class="modal-content delete-box-modal-content">
+            <div class="delete-box-icon">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                </svg>
+            </div>
+            <h2>Delete Box?</h2>
+            <p id="delete-box-modal-msg" class="modal-subtitle">The songs inside will remain in your library.</p>
+            <div class="modal-actions">
+                <button id="btn-cancel-delete-box" class="secondary-btn">Cancel</button>
+                <button id="btn-confirm-delete-box" class="danger-btn">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right:6px">
+                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                    </svg>
+                    Delete Box
+                </button>
+            </div>
+        </div>
+    </div>
+
 
     <!-- 2.6 Edit Info Modal -->
     <div id="edit-modal" class="modal hidden">
@@ -232,7 +303,7 @@
             <section class="am-player-left">
                 <div class="am-controls-section">
                     <div class="am-art-container">
-                        <img id="cover-art" src="cover.png" alt="Album Cover">
+                        <img id="cover-art" src="assets/images/cover.png" alt="Album Cover">
                         <div class="am-art-glow"></div>
                     </div>
                     
@@ -380,8 +451,8 @@
     <!-- 4. Cinematic View (Isolated Canvas + 3D Text) -->
     <div id="cinematic-view" class="view-container hidden">
         <canvas id="cinematic-canvas"></canvas>
-        <img id="cine-fire-left" class="cine-fire-column" src="fire.gif" alt="Fire" />
-        <img id="cine-fire-right" class="cine-fire-column right" src="fire.gif" alt="Fire" />
+        <img id="cine-fire-left" class="cine-fire-column" src="assets/images/fire.gif" alt="Fire" />
+        <img id="cine-fire-right" class="cine-fire-column right" src="assets/images/fire.gif" alt="Fire" />
         <div id="reactive-dim"></div>
         <div id="cinematic-text-container"></div>
         <button id="btn-exit-cinematic" class="auto-hide-btn" title="Exit Cinematic">
@@ -397,7 +468,7 @@
         <div id="angelic-bg" class="angelic-full-bg"></div>
         <div id="angelic-vinyl-container">
             <div class="vinyl-record">
-                <img id="angelic-vinyl-art" src="cover.png" alt="Vinyl Art">
+                <img id="angelic-vinyl-art" src="assets/images/cover.png" alt="Vinyl Art">
                 <div class="vinyl-hole"></div>
             </div>
         </div>
@@ -442,7 +513,6 @@
     <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
     <script src="js/floral-templates.js"></script>
-    <script src="js/data.js"></script>
     <script type="module" src="js/main.js"></script>
     <!-- EQ Modal -->
     <div id="eq-modal" class="modal-backdrop hidden">
@@ -489,6 +559,58 @@
                     <input type="range" class="eq-slider" id="eq-14k" min="-12" max="12" value="0" step="0.5" orient="vertical">
                     <span class="eq-label">14kHz</span>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Grid Settings</h2>
+            <p class="modal-subtitle" style="margin-bottom: 20px; font-size: 0.85rem; color: var(--text-secondary);">Customize your library layout.</p>
+            <div class="settings-group" style="margin: 20px 0;">
+                <label for="settings-columns-range" style="display: block; margin-bottom: 15px; font-size: 0.95rem; color: var(--text-secondary);">
+                    Columns per row: <span id="settings-columns-val" style="color: var(--accent-color); font-weight: 600;">6</span>
+                </label>
+                <input type="range" id="settings-columns-range" min="6" max="12" step="1" value="6" style="width: 100%; height: 4px; -webkit-appearance: none; background: rgba(255,255,255,0.1); border-radius: 2px; outline: none;">
+            </div>
+            <div class="modal-actions" style="margin-top: 25px;">
+                <button id="btn-close-settings" class="primary-btn" style="width: 100%;">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Playlist Naming Modal -->
+    <div id="playlist-name-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 id="playlist-modal-title">New Vinyl Box</h2>
+            <p class="modal-subtitle" style="margin-bottom: 20px; font-size: 0.85rem; color: var(--text-secondary);">Enter a name for this record collection.</p>
+            <form id="playlist-name-form">
+                <div class="form-group" style="margin: 20px 0;">
+                    <input type="text" id="playlist-name-input" placeholder="e.g. Chill Vibes, Rock Classics" required style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: #fff; outline: none; box-sizing: border-box;">
+                </div>
+                <div class="form-group" style="margin: 20px 0; display: flex; align-items: center; gap: 12px;">
+                    <label for="playlist-color-input" style="color: var(--text-secondary); font-size: 0.9rem;">Box Color</label>
+                    <input type="color" id="playlist-color-input" value="#5a4232" style="width: 40px; height: 32px; padding: 0; border: none; border-radius: 4px; cursor: pointer; background: transparent; outline: none;">
+                </div>
+                <div class="modal-actions" style="display: flex; gap: 10px; margin-top: 25px;">
+                    <button type="button" id="btn-cancel-playlist-name" class="secondary-btn" style="flex: 1;">Cancel</button>
+                    <button type="submit" id="btn-submit-playlist-name" class="primary-btn" style="flex: 1;">Create Box</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Songs to Box Modal -->
+    <div id="add-songs-to-box-modal" class="modal hidden">
+        <div class="modal-content" style="max-height: 80vh; display: flex; flex-direction: column;">
+            <h2>Add Songs to Box</h2>
+            <p class="modal-subtitle" style="margin-bottom: 20px; font-size: 0.85rem; color: var(--text-secondary);">Select the songs you want to group inside this box.</p>
+            <div id="add-songs-list" style="flex: 1; overflow-y: auto; margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; padding-right: 5px;">
+                <!-- Dynamically populated song list with checkboxes -->
+            </div>
+            <div class="modal-actions" style="display: flex; gap: 10px;">
+                <button type="button" id="btn-cancel-add-songs" class="primary-btn" style="flex: 1;">Done</button>
             </div>
         </div>
     </div>

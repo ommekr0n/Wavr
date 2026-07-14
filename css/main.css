@@ -19,7 +19,28 @@
     --blob-4-color: #ff2d55;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+/* Reset and Base */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+*::-webkit-scrollbar {
+    width: 2px;
+    height: 2px;
+}
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 1px;
+}
+*::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
 
 body {
     font-family: var(--font-primary);
@@ -69,7 +90,6 @@ body {
 .view-container {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     display: flex; flex-direction: column;
-    z-index: 0;
     transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .view-container.hidden {
@@ -126,17 +146,39 @@ body {
 .song-grid {
     position: absolute;
     inset: 0;
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 30px; padding: 112px 60px 120px; overflow-y: auto;
-    z-index: 1; align-content: start;
+    display: grid; 
+    grid-template-columns: repeat(var(--grid-columns, 6), 1fr);
+    grid-auto-rows: max-content;
+    gap: 20px; 
+    padding: 112px 60px 120px; 
+    overflow-y: auto;
+    z-index: 1; 
+    align-content: start;
 }
-.song-grid::-webkit-scrollbar { display: none; }
-.song-grid { scrollbar-width: none; }
+
+.song-grid::-webkit-scrollbar {
+    width: 2px;
+}
+.song-grid::-webkit-scrollbar-track {
+    background: transparent;
+}
+.song-grid::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 1px;
+}
+.song-grid::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+.song-grid {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.05) transparent;
+}
 
 .song-card {
     background: #0a0a0c; border: 1px solid var(--glass-border);
     border-radius: 16px; padding: 14px; cursor: pointer;
     transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s ease, border-color 0.3s ease;
+    min-width: 0; /* Prevents long text from stretching the grid columns */
 }
 .song-card:hover { transform: translateY(-6px) scale(1.02); background: #15151a; border-color: var(--accent-color); box-shadow: 0 10px 30px var(--accent-glow); }
 .song-card-inner { position: relative; }
@@ -152,8 +194,21 @@ body {
 .song-card:hover .song-options-btn { opacity: 1; }
 .song-options-btn.active { opacity: 1; background: var(--accent-color); }
 .song-options-btn:hover { background: var(--accent-color); transform: scale(1.1); opacity: 1 !important; }
-.song-card-title { font-size: 1.05rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
-.song-card-artist { font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.remove-song-btn {
+    position: absolute; top: 8px; right: 8px;
+    background: rgba(255, 60, 60, 0.8); color: #fff;
+    border: none; border-radius: 50%;
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; opacity: 0; transition: all 0.2s; z-index: 10;
+    font-weight: bold; font-size: 0.8rem;
+}
+.inner-editable-song:hover .remove-song-btn { opacity: 1; }
+.remove-song-btn:hover { background: #ff2222; transform: scale(1.1); }
+
+.song-card-title { font-size: clamp(0.75rem, 1.2vw, 1.05rem); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+.song-card-artist { font-size: clamp(0.65rem, 1vw, 0.85rem); color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* 2. UPLOAD MODAL */
 .modal {
@@ -229,7 +284,7 @@ body {
 .am-layout {
     display: flex; flex: 1; height: calc(100% - 70px);
 }
-.am-player-left { flex: 1; display: flex; flex-direction: column; padding: 20px 40px; justify-content: center; align-items: center; max-width: 50%; height: 100%; }
+.am-player-left { flex: 1; display: flex; flex-direction: column; padding: 20px 40px; justify-content: center; align-items: center; max-width: 50%; min-width: 0; height: 100%; }
 .am-art-container { height: 48vh; max-height: 450px; aspect-ratio: 1/1; position: relative; margin: 0 auto 25px auto; }
 .am-art-glow { 
     position: absolute; top: 10%; left: 5%; right: 5%; bottom: -10%; 
@@ -299,7 +354,7 @@ body {
 
 
 /* Lyrics Section */
-.am-lyrics-section { flex: 1; height: 100%; position: relative; display: flex; flex-direction: column; }
+.am-lyrics-section { flex: 1; height: 100%; position: relative; display: flex; flex-direction: column; min-width: 0; /* Quan trọng! Ngăn flex child đẩy parent ra ngoài */ overflow: hidden; }
 .am-lyrics-container { width: 100%; height: 100%; overflow-y: scroll; scrollbar-width: none; scroll-behavior: smooth; padding: 0 60px 0 20px; mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%); }
 .am-lyrics-container::-webkit-scrollbar { display: none; }
 .lyrics-spacer-top { height: 40vh; }
@@ -307,7 +362,7 @@ body {
 .am-lyrics-list { display: flex; flex-direction: column; gap: 45px; }
 
 .am-lyric-line {
-    font-size: 38px;
+    font-size: clamp(20px, 2.4vw, 38px);
     line-height: 1.3;
     font-weight: 800; /* Cố định — không đổi giữa các trạng thái → không reflow */
     color: rgba(255, 255, 255, 0.22);
@@ -322,6 +377,10 @@ body {
     text-align: left;
     letter-spacing: -0.5px;
     will-change: transform, color, filter;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+    white-space: pre-line; /* Cho phép \n từ preventOrphanWords xuống dòng */
 }
 
 .am-lyric-line:hover { color: rgba(255,255,255,0.55); filter: blur(0); }
@@ -417,6 +476,7 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 /* Animations */
 /* Slightly slower/softer entrance to avoid pop; tuned easing for natural motion */
 .cine-enter { animation: cine-enter 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
 @keyframes cine-enter {
     0% { transform: translateZ(600px) rotateX(-85deg) scale(0.98); opacity: 0; }
     60% { transform: translateZ(40px) rotateX(-10deg) scale(1.02); opacity: 1; }
@@ -424,6 +484,7 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 }
 /* Exit is a bit longer to allow a graceful falloff but still quick enough to keep sync */
 .cine-exit { animation: cine-exit-wrapper 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
 .cine-exit .cinematic-line {
     color: #666666;
     text-shadow: 4px 4px 0px rgba(0,0,0,0.6);
@@ -447,14 +508,10 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     }
     45% {
         transform: scale(1.01) skewX(2deg);
-        opacity: 0.8;
-    }
-    85% {
-        opacity: 0.15;
-        transform: scale(0.92) skewX(0deg);
+        opacity: 0.5;
     }
     100% {
-        transform: scale(0.88);
+        transform: scale(0.9) skewX(10deg);
         opacity: 0;
     }
 }
@@ -472,7 +529,7 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     .am-song-meta { margin-bottom: 20px; }
     .am-song-meta h2 { font-size: 1.5rem; }
     .am-controls-container { margin-bottom: 25px; gap: 20px; }
-    .am-lyric-line { font-size: 30px; }
+    /* .am-lyric-line font-size removed — handled by clamp(20px, 2.4vw, 38px) */
     .am-lyrics-list { gap: 30px; }
 }
 
@@ -529,11 +586,8 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    /* Allow decorative elements (branches/flowers) to overflow the view bounds
-       so they aren't clipped when animated outside the staff SVG area. */
-    overflow: visible;
+    overflow: hidden;
     background: transparent; /* aurora-bg is behind */
-    z-index: 20;
 }
 
 #angelic-vinyl-container {
@@ -586,7 +640,7 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 #angelic-text-container {
     position: absolute;
     top: 0; left: 0;
-    z-index: 3;
+    z-index: 2;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -619,8 +673,6 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     backdrop-filter: none;
     padding: 0;
     will-change: transform, opacity;
-    /* Allow children (SVG branches, blooms) to render outside wrapper bounds */
-    overflow: visible;
 }
 
 .angelic-line-wrapper.angelic-prebuilt {
@@ -634,23 +686,28 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     top: 50%; left: 0;
     transform: translateY(-50%);
     transform-style: preserve-3d;
-    z-index: 4;
+    z-index: 100;
     will-change: transform, opacity;
-    /* Let decorative SVG shapes overflow their viewport instead of being clipped */
-    overflow: visible;
-    pointer-events: none;
+    overflow: visible !important;
 }
 
 .angelic-line {
     position: relative;
-    z-index: 5;
+    z-index: 2;
     font-family: 'Dancing Script', cursive;
     font-size: 5.5rem;
     font-weight: 700;
     color: #fff;
-    text-shadow: 0 0 15px var(--blob-2-color, #fff), 0 0 30px var(--blob-3-color, #fff);
+    /* Multi-layer Divine Glow - bright white core + dynamic color aura */
+    text-shadow:
+        0 0 8px rgba(255, 255, 255, 1),
+        0 0 18px rgba(255, 255, 255, 0.8),
+        0 0 35px var(--blob-1-color, #c9a0ff),
+        0 0 65px var(--blob-2-color, #88aaff),
+        0 0 100px var(--blob-3-color, #4466ff);
     line-height: 1.3;
     text-align: center;
+    will-change: opacity, filter;
 }
 
 /* Word Pop & Sway Animations */
@@ -658,6 +715,8 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     display: inline-block;
     position: relative;
     animation: sway-word 4s ease-in-out infinite alternate both;
+    will-change: transform;
+    transform: translateZ(0);
 }
 
 .sprite-butterfly {
@@ -750,17 +809,34 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 .angelic-word-pop {
     display: inline-block;
     opacity: 0;
-    transform: translateY(40px) scale(0.8) rotate(-5deg);
+    transform: translateY(20px) scale(0.9);
+    will-change: transform, opacity;
+    /* Divine Glow inherits from parent .angelic-line, but boosted individually */
+    text-shadow:
+        0 0 10px rgba(255, 255, 255, 0.9),
+        0 0 22px var(--blob-1-color, #c9a0ff);
 }
 
 .angelic-enter-wrapper .angelic-word-pop {
-    animation: pop-word 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    animation: pop-word 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @keyframes pop-word {
-    0% { opacity: 0; transform: translateY(40px) scale(0.8) rotate(-5deg); }
-    50% { opacity: 1; transform: translateY(-10px) scale(1.1) rotate(2deg); }
-    100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+    0% {
+        opacity: 0;
+        transform: translateY(25px) scale(0.85) rotate(-3deg);
+        filter: blur(4px);
+    }
+    60% {
+        opacity: 1;
+        transform: translateY(-5px) scale(1.04) rotate(0.5deg);
+        filter: blur(0px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1) rotate(0);
+        filter: blur(0);
+    }
 }
 
 /* Frutiger Aero Water Ripple & Glass Artist Name */
@@ -855,41 +931,45 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 
 /* Exit Burn Animation */
 .angelic-exit {
-    animation: angelic-burn-exit 0.8s ease-in forwards;
+    /* Heavenly Exit: floats up and fades out cleanly */
+    animation: angelic-heavenly-exit 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    pointer-events: none;
 }
 .angelic-exit .angelic-line {
-    animation: angelic-burn-exit 0.8s ease-in forwards;
+    animation: angelic-line-color-shift 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 .angelic-exit .angelic-word-pop {
-    animation: angelic-burn-text 0.8s ease-in forwards !important;
+    /* Let parent handle translation, but allow word-pop to inherit the color shift */
+    opacity: 0.9;
 }
 .angelic-exit .angelic-staff-svg {
-    animation: fade-out-staff 1s forwards;
+    animation: fade-out-staff 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @keyframes fade-out-staff {
-    to { opacity: 0; transform: translateY(-50%) scale(0.9); }
+    to { opacity: 0; transform: translateY(-50%) scale(0.95); }
 }
 
-@keyframes angelic-burn-exit {
-    0% { transform: translateY(0); opacity: 1; }
-    100% { transform: translateY(-30vh) rotateZ(var(--exit-rot, 5deg)); opacity: 0; }
-}
-
-@keyframes angelic-burn-text {
-    0% { color: #fff; opacity: 1; transform: translateY(0) scale(1); }
-    30% {
-        color: #ffaa00;
-        text-shadow: 0 0 20px #ff5500, 0 0 40px #ff0000;
-        transform: translateY(-5px) scale(1.05);
-        opacity: 1;
+@keyframes angelic-line-color-shift {
+    0% {
+        color: #fff;
+        text-shadow:
+            0 0 8px rgba(255, 255, 255, 1),
+            0 0 18px rgba(255, 255, 255, 0.8),
+            0 0 35px var(--blob-1-color, #c9a0ff);
     }
     100% {
-        color: #000;
-        text-shadow: 0 0 10px #ff0000;
-        transform: translateY(-20px) scale(0.9);
-        opacity: 1;
+        color: var(--blob-2-color, #ffe8b0);
+        text-shadow:
+            0 0 12px var(--blob-2-color, #ffe8b0),
+            0 0 25px var(--blob-3-color, #88aaff);
     }
+}
+
+/* Wrapper floats up as a whole (cheap GPU transform with lightweight blur) */
+@keyframes angelic-heavenly-exit {
+    0%   { transform: translateY(0) scale(1); opacity: 1; filter: blur(0px); }
+    100% { transform: translateY(-35px) scale(0.97) rotateZ(var(--exit-rot, 2deg)); opacity: 0; filter: blur(4px); }
 }
 
 /* Global Staff Animation */
@@ -904,7 +984,7 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 #angelic-particle-container {
     position: absolute;
     top: 0; left: 0; width: 100%; height: 100%;
-    z-index: 2;
+    z-index: 1;
     pointer-events: none;
     overflow: hidden;
 }
@@ -916,6 +996,8 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     opacity: 0;
     filter: drop-shadow(0 0 10px var(--p-color, #fff));
     animation: float-particle var(--p-dur, 6s) ease-in-out forwards;
+    will-change: transform, opacity;
+    transform: translateZ(0);
 }
 
 .angelic-particle svg {
@@ -1322,8 +1404,8 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     background: rgba(255, 255, 255, 0.1);
     border-radius: 3px;
     outline: none;
-    writing-mode: bt-lr; /* IE */
-    -webkit-appearance: slider-vertical; /* WebKit */
+    writing-mode: vertical-lr;
+    direction: rtl;
 }
 
 /* Custom styling for standard input range requires complex transform if not using webkit-appearance: slider-vertical */
@@ -1342,3 +1424,1007 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     transform: scale(1.2);
 }
 
+/* =========================================
+   Edit Library View & Vinyl Storage
+========================================= */
+
+
+
+.vinyl-box-visual {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+    perspective: 800px;
+}
+
+.vinyl-box-visual.drag-over {
+    transform: scale(1.1);
+}
+
+.vinyl-box-name {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-align: center;
+    max-width: 100px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Vinyl Sleeves Container */
+.vinyl-sleeves-container {
+    width: 85%;
+    height: 85%;
+    position: relative;
+    transform-style: preserve-3d;
+    transform: rotateX(20deg) rotateY(-5deg);
+    transition: transform 0.4s ease;
+    pointer-events: none;
+}
+
+.vinyl-box-visual:hover .vinyl-sleeves-container {
+    transform: rotateX(15deg) rotateY(0deg) scale(1.05);
+}
+
+.peeking-sleeve {
+    position: absolute;
+    bottom: 0; left: 0; right: 0; top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #111;
+    background-size: cover;
+    background-position: center;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 4px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transform-origin: bottom center;
+}
+
+/* 3D stack effect */
+.peeking-sleeve.sleeve-0 {
+    transform: translate3d(0, 0, 20px);
+    z-index: 10;
+}
+.peeking-sleeve.sleeve-1 {
+    transform: translate3d(0, -6%, 0px);
+    z-index: 9;
+    filter: brightness(0.85);
+}
+.peeking-sleeve.sleeve-2 {
+    transform: translate3d(0, -12%, -20px);
+    z-index: 8;
+    filter: brightness(0.7);
+}
+.peeking-sleeve.sleeve-3 {
+    transform: translate3d(0, -18%, -40px);
+    z-index: 7;
+    filter: brightness(0.5);
+}
+
+.vinyl-box-visual:hover .peeking-sleeve.sleeve-1 { transform: translate3d(0, -10%, -5px) rotateZ(-2deg); }
+.vinyl-box-visual:hover .peeking-sleeve.sleeve-2 { transform: translate3d(0, -20%, -10px) rotateZ(-4deg); }
+.vinyl-box-visual:hover .peeking-sleeve.sleeve-3 { transform: translate3d(0, -30%, -15px) rotateZ(-6deg); }
+
+.glass-front {
+    position: absolute;
+    bottom: -5%;
+    left: 2%;
+    width: 96%;
+    height: 40%;
+    background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01));
+    border: 1px solid rgba(255,255,255,0.1);
+    border-bottom: 4px solid var(--box-color, #ffb300);
+    border-radius: 6px;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    transform: translate3d(0, 0, 30px);
+    z-index: 11;
+    box-shadow: 0 -5px 15px rgba(0,0,0,0.2);
+}
+
+.playlist-options-btn {
+    opacity: 0;
+    transition: opacity 0.2s;
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.song-card.vinyl-box-card:hover .playlist-options-btn {
+    opacity: 1;
+}
+
+.playlist-options-btn:hover {
+    color: #fff;
+}
+
+/* Empty Crate / Create slot */
+.create-slot .vinyl-box-visual {
+    background: rgba(255,255,255,0.02);
+    border: 2px dashed rgba(255,255,255,0.15);
+    box-shadow: none;
+    align-items: center;
+}
+
+.create-slot .vinyl-box-visual:hover {
+    border-color: var(--accent-color);
+    background: rgba(255,255,255,0.05);
+}
+
+.plus-icon {
+    font-size: 2rem;
+    font-weight: 300;
+    color: rgba(255,255,255,0.3);
+    transition: color 0.3s;
+}
+
+.create-slot:hover .plus-icon {
+    color: var(--accent-color);
+}
+
+/* Layout for Edit Library View */
+.edit-help-banner {
+    position: absolute;
+    top: 92px; left: 0; right: 0;
+    height: 40px;
+    background: rgba(10, 10, 14, 0.75);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 20px;
+    z-index: 10;
+}
+
+.edit-help-banner span {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-align: center;
+    font-weight: 500;
+}
+
+.edit-grid-container {
+    position: absolute;
+    top: 132px; bottom: 0; left: 0; right: 0;
+    overflow-y: auto;
+    padding: 20px 60px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.05) transparent;
+}
+.edit-grid-container::-webkit-scrollbar {
+    width: 2px;
+}
+.edit-grid-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+.edit-grid-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 1px;
+}
+.edit-grid-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.edit-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--grid-columns, 6), 1fr);
+    grid-auto-rows: max-content;
+    gap: 20px;
+    align-content: start;
+    min-height: 100%;
+    position: relative; /* Anchor for selection-box */
+}
+
+/* Drag Selection Area Box */
+.selection-box {
+    position: absolute;
+    border: 1.5px solid #00ffff;
+    background: rgba(0, 255, 255, 0.08);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+    z-index: 1000;
+    pointer-events: none;
+    border-radius: 4px;
+}
+
+/* Song card modifications during editing */
+.edit-grid .song-card {
+    position: relative;
+    user-select: none;
+    -webkit-user-drag: none;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s;
+}
+
+.edit-grid .song-card.selected {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 15px rgba(255, 42, 109, 0.3);
+}
+
+.edit-grid .song-card.selected::before {
+    content: '';
+    position: absolute;
+    top: 10px; right: 10px;
+    width: 18px; height: 18px;
+    background: var(--accent-color);
+    border-radius: 50%;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+.edit-grid .song-card.selected::after {
+    content: '\2714';
+    position: absolute;
+    top: 9px; right: 15px;
+    color: #fff;
+    font-size: 11px;
+    font-weight: bold;
+    z-index: 11;
+}
+
+/* Drag & Drop Visuals */
+.edit-grid .song-card.dragging {
+    opacity: 0.4;
+    transform: scale(0.95);
+    border-color: rgba(255,255,255,0.1);
+    box-shadow: none;
+}
+
+/* Sucking animation clones */
+.flying-card-clone {
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+    transition: all 0.75s cubic-bezier(0.25, 1, 0.5, 1);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    border-radius: 12px;
+}
+
+/* Add Songs Modal Styles */
+.add-song-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.add-song-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.add-song-item img {
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+    object-fit: cover;
+    margin-right: 15px;
+}
+
+.add-song-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.add-song-info .title {
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.95rem;
+}
+
+.add-song-info .artist {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.add-song-checkbox {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--accent-color);
+    cursor: pointer;
+}
+
+/* Playlist Context Menu for Vinyl Boxes */
+.playlist-context-menu {
+    position: fixed;
+    background: rgba(20, 20, 25, 0.95);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    backdrop-filter: blur(10px);
+    z-index: 9999;
+    padding: 5px 0;
+    min-width: 120px;
+}
+
+.playlist-context-menu button {
+    display: block;
+    width: 100%;
+    padding: 10px 15px;
+    background: none;
+    border: none;
+    color: #fff;
+    text-align: left;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.playlist-context-menu button:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.playlist-context-menu button.delete-option {
+    color: var(--accent-color);
+}
+.playlist-context-menu button.delete-option:hover {
+    background: rgba(255, 42, 109, 0.1);
+}
+
+/* Vinyl Box Integration in Library Grid */
+.song-card.vinyl-box-card {
+    position: relative; /* needed for .btn-delete-box absolute positioning */
+    border-color: color-mix(in srgb, var(--box-color, #ffb300) 25%, transparent);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.song-card.vinyl-box-card:hover {
+    border-color: var(--box-color, #ffb300);
+    box-shadow: 0 10px 40px color-mix(in srgb, var(--box-color, #ffb300) 45%, transparent),
+                0 0 0 1px color-mix(in srgb, var(--box-color, #ffb300) 30%, transparent);
+    transform: translateY(-6px) scale(1.02);
+}
+.song-card.vinyl-box-card .vinyl-box-visual {
+    width: 100%;
+    height: 100%;
+    margin-bottom: 0;
+    border-radius: 12px;
+}
+.song-card.vinyl-box-card.expanded-active {
+    grid-column: 1 / -1;
+    width: 100%;
+    height: auto !important;
+    min-height: max-content;
+    cursor: default !important;
+    background: color-mix(in srgb, var(--box-color, #ffb300) 5%, rgba(10, 10, 14, 0.9));
+    border: 1.5px solid var(--box-color, #ffb300);
+    border-radius: 20px;
+    padding: 24px;
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    box-shadow: 0 0 25px color-mix(in srgb, var(--box-color, #ffb300) 25%, transparent);
+    overflow: hidden;
+    animation: slideDownFade 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.song-card.vinyl-box-card.expanded-active:hover {
+    transform: none !important;
+    border-color: var(--box-color, #ffb300) !important;
+    box-shadow: 0 0 25px color-mix(in srgb, var(--box-color, #ffb300) 40%, transparent) !important;
+}
+
+@keyframes slideDownFade {
+    from { opacity: 0; transform: translateY(-15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.box-expansion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 15px;
+}
+
+.box-expansion-title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #fff;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+
+.box-expansion-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-left: 12px;
+}
+
+.box-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.box-actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-secondary);
+}
+
+.box-actions button svg {
+    pointer-events: none;
+}
+
+.box-actions button:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+.box-actions .btn-box-play {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.05);
+}
+.box-actions .btn-box-play:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+}
+
+.box-actions .btn-box-close {
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Horizontal slider container */
+.box-expansion-slider {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    padding: 10px 5px;
+    scroll-behavior: smooth;
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.box-expansion-slider::-webkit-scrollbar {
+    height: 2px;
+}
+
+.box-expansion-slider::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 1px;
+    margin: 0 10px;
+}
+
+.box-expansion-slider::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 1px;
+}
+
+.box-expansion-slider::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* Fit song cards in the expanded horizontal slider container */
+.box-expansion-slider .song-card {
+    flex: 0 0 calc((100% - (var(--grid-columns, 6) - 1) * 16px) / var(--grid-columns, 6));
+    min-width: 120px; /* Safeguard for high column layouts */
+    height: auto !important;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.box-expansion-slider .song-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* Quick Add List in Modal */
+.add-songs-list-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 10px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.add-songs-list-item:hover {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.15);
+}
+
+.add-songs-list-item.selected {
+    border-color: #00ffff;
+    background: rgba(0, 255, 255, 0.04);
+}
+
+.add-songs-list-item img {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+.add-songs-list-item .song-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.add-songs-list-item .song-details .title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.add-songs-list-item .song-details .artist {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.add-songs-list-item .checkbox-indicator {
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid var(--glass-border);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.add-songs-list-item.selected .checkbox-indicator {
+    background: #00ffff;
+    border-color: #00ffff;
+    color: #000;
+}
+
+/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+   Floating Selection Action Bar (Edit Library)
+   ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
+.edit-selection-bar {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: rgba(15, 15, 20, 0.85);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 100px;
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    white-space: nowrap;
+}
+
+.edit-selection-bar.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.selection-count {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding-right: 12px;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    margin-right: 4px;
+}
+
+.btn-create-box-from-sel {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg,
+        var(--accent-color, #a855f7) 0%,
+        color-mix(in srgb, var(--accent-color, #a855f7) 70%, #60a5fa) 100%);
+    color: #fff;
+    border: none;
+    border-radius: 100px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 16px rgba(168, 85, 247, 0.35);
+}
+
+.btn-create-box-from-sel:hover {
+    transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 8px 24px rgba(168, 85, 247, 0.55);
+    filter: brightness(1.1);
+}
+
+.btn-create-box-from-sel:active {
+    transform: translateY(0) scale(0.97);
+}
+
+.btn-clear-selection {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 100px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-clear-selection:hover {
+    background: rgba(255, 80, 80, 0.15);
+    border-color: rgba(255, 80, 80, 0.3);
+    color: #ff6b6b;
+}
+
+
+/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+   Delete Box Button (on vinyl box card in Edit mode)
+   ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
+.btn-delete-box {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 5, 5, 0.7);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 60, 60, 0.3);
+    border-radius: 50%;
+    color: rgba(255, 100, 100, 0.7);
+    cursor: pointer;
+    opacity: 0;
+    transform: scale(0.7);
+    transition:
+        opacity 0.2s ease,
+        transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+        background 0.2s ease,
+        color 0.2s ease,
+        border-color 0.2s ease;
+    pointer-events: none;
+}
+
+/* Show on hover of the parent card (only when NOT expanded) */
+.song-card.vinyl-box-card:not(.expanded-active):hover .btn-delete-box,
+.song-card.vinyl-box-card:not(.expanded-active):focus-within .btn-delete-box {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+}
+
+.btn-delete-box:hover {
+    background: rgba(220, 38, 38, 0.85) !important;
+    border-color: rgba(255, 100, 100, 0.8) !important;
+    color: #fff !important;
+    transform: scale(1.15) !important;
+}
+
+.btn-delete-box:active {
+    transform: scale(0.92) !important;
+}
+
+/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+   Delete Box Confirmation Modal
+   ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */
+.delete-box-modal-content {
+    max-width: 380px;
+    text-align: center;
+    padding: 40px 36px;
+}
+
+.delete-box-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(255, 42, 109, 0.12);
+    border: 1px solid rgba(255, 42, 109, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    color: #FF2A6D;
+}
+
+.delete-box-modal-content h2 {
+    margin-bottom: 10px;
+    font-size: 1.5rem;
+}
+
+.delete-box-modal-content .modal-subtitle {
+    margin-bottom: 32px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.delete-box-modal-content .modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.delete-box-modal-content .secondary-btn {
+    flex: 1;
+    max-width: 140px;
+}
+
+.delete-box-modal-content .danger-btn {
+    flex: 1;
+    max-width: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ═══════════════════════════════════════════════════
+   Floating Selection Action Bar (Edit Library)
+   ═══════════════════════════════════════════════════ */
+.edit-selection-bar {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: rgba(15, 15, 20, 0.85);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 100px;
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    white-space: nowrap;
+}
+
+.edit-selection-bar.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.selection-count {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding-right: 12px;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    margin-right: 4px;
+}
+
+.btn-create-box-from-sel {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg,
+        var(--accent-color, #a855f7) 0%,
+        color-mix(in srgb, var(--accent-color, #a855f7) 70%, #60a5fa) 100%);
+    color: #fff;
+    border: none;
+    border-radius: 100px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 16px rgba(168, 85, 247, 0.35);
+}
+
+.btn-create-box-from-sel:hover {
+    transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 8px 24px rgba(168, 85, 247, 0.55);
+    filter: brightness(1.1);
+}
+
+.btn-create-box-from-sel:active {
+    transform: translateY(0) scale(0.97);
+}
+
+.btn-clear-selection {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 100px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-clear-selection:hover {
+    background: rgba(255, 80, 80, 0.15);
+    border-color: rgba(255, 80, 80, 0.3);
+    color: #ff6b6b;
+}
+
+
+/* ═══════════════════════════════════════════════════
+   Delete Box Button (on vinyl box card in Edit mode)
+   ═══════════════════════════════════════════════════ */
+.btn-delete-box {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 5, 5, 0.7);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 60, 60, 0.3);
+    border-radius: 50%;
+    color: rgba(255, 100, 100, 0.7);
+    cursor: pointer;
+    opacity: 0;
+    transform: scale(0.7);
+    transition:
+        opacity 0.2s ease,
+        transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+        background 0.2s ease,
+        color 0.2s ease,
+        border-color 0.2s ease;
+    pointer-events: none;
+}
+
+/* Show on hover of the parent card (only when NOT expanded) */
+.song-card.vinyl-box-card:not(.expanded-active):hover .btn-delete-box,
+.song-card.vinyl-box-card:not(.expanded-active):focus-within .btn-delete-box {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+}
+
+.btn-delete-box:hover {
+    background: rgba(220, 38, 38, 0.85) !important;
+    border-color: rgba(255, 100, 100, 0.8) !important;
+    color: #fff !important;
+    transform: scale(1.15) !important;
+}
+
+.btn-delete-box:active {
+    transform: scale(0.92) !important;
+}
+
+/* ═══════════════════════════════════════════════════
+   Delete Box Confirmation Modal
+   ═══════════════════════════════════════════════════ */
+.delete-box-modal-content {
+    max-width: 380px;
+    text-align: center;
+    padding: 40px 36px;
+}
+
+.delete-box-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(255, 42, 109, 0.12);
+    border: 1px solid rgba(255, 42, 109, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    color: #FF2A6D;
+}
+
+.delete-box-modal-content h2 {
+    margin-bottom: 10px;
+    font-size: 1.5rem;
+}
+
+.delete-box-modal-content .modal-subtitle {
+    margin-bottom: 32px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.delete-box-modal-content .modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.delete-box-modal-content .secondary-btn {
+    flex: 1;
+    max-width: 140px;
+}
+
+.delete-box-modal-content .danger-btn {
+    flex: 1;
+    max-width: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Wavr Premium Glassmorphic Toast Notification */
+.wavr-toast {
+    position: fixed;
+    bottom: 110px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(10, 10, 12, 0.7);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #fff;
+    padding: 10px 24px;
+    border-radius: 30px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    z-index: 11000;
+    pointer-events: none;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 12px var(--accent-glow, rgba(0, 255, 255, 0.1));
+    opacity: 0;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.25s ease;
+}
+.wavr-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}

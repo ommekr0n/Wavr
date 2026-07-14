@@ -1,6 +1,7 @@
 import { parseLyrics } from './modules/lyric-parser.js';
 import { extractColorsFromImage } from './modules/color-extractor.js';
 import { DOM } from './modules/dom.js';
+import { initSettings, initEditLibrary } from './modules/edit-library.js';
 
     
     // Prevent copy/cut globally unless inside an input/textarea
@@ -39,7 +40,7 @@ import { DOM } from './modules/dom.js';
     const btnBackHome = document.getElementById('btn-back-home');
     const audio = document.getElementById('audio-player');
     const coverArt = document.getElementById('cover-art');
-    const artGlow = document.querySelector('.am-art-glow');
+
     const songTitleEl = document.getElementById('song-title');
     const songArtistEl = document.getElementById('song-artist');
     const lyricsContainer = document.getElementById('lyrics-container');
@@ -72,7 +73,12 @@ import { DOM } from './modules/dom.js';
     const vinylRecord = document.querySelector('.vinyl-record');
 
     // --- State ---
-    let playlist = []; // No longer using songs.js
+    let playlist = [];
+    let activeQueue = []; // Active playback queue (either unboxed songs or a specific box's songs)
+    let activePlaylistContext = 'library'; // 'library' or the vinyl box ID like 'vinyl-xxx'
+    // In-memory cache: avoids hitting IndexedDB on every renderSongGrid call
+    let cachedVinylBoxes = [];
+    let cachedLibraryOrder = [];
     let currentTrackIndex = 0;
     let isPlaying = false;
     let isShuffle = false;
@@ -102,7 +108,7 @@ import { DOM } from './modules/dom.js';
     let analyser = null;
     let dataArray = null;
     let eqNodes = [];
-    const glassOverlay = document.getElementById('glass-overlay'); // Can be removed later
+
     
     // Cinematic Mode Elements
     const cinematicView = document.getElementById('cinematic-view');
@@ -254,30 +260,77 @@ import { DOM } from './modules/dom.js';
         try {
             const savedPlaylist = await localforage.getItem('playlist');
             if (savedPlaylist) {
+                let needsSave = false;
                 // Reconstruct blob URLs dynamically for the current session
-                playlist = savedPlaylist.map(song => ({
-                    title: song.title,
-                    artist: song.artist,
-                    lyrics: song.lyrics,
-                    drift: song.drift || 1.0,
-                    url: URL.createObjectURL(song.audioBlob),
-                    cover: URL.createObjectURL(song.coverBlob),
-                    audioBlob: song.audioBlob, // Keep reference to save again later if needed
-                    coverBlob: song.coverBlob
-                }));
+                playlist = savedPlaylist.map((song, idx) => {
+                    let url = song.url || '';
+                    let cover = song.cover || 'assets/images/cover.png';
+                    try {
+                        if (song.audioBlob instanceof Blob) url = URL.createObjectURL(song.audioBlob);
+                        if (song.coverBlob instanceof Blob) cover = URL.createObjectURL(song.coverBlob);
+                    } catch(blobErr) { console.warn('Blob URL error', blobErr); }
+                    return {
+                        id: song.id || 'song-' + Date.now() + '-' + idx + '-' + Math.floor(Math.random() * 1000),
+                        title: song.title,
+                        artist: song.artist,
+                        lyrics: song.lyrics,
+                        drift: song.drift || 1.0,
+                        url,
+                        cover,
+                        audioBlob: song.audioBlob,
+                        coverBlob: song.coverBlob
+                    };
+                });
+                if (needsSave) {
+                    await saveLibraryToDB();
+                }
             }
         } catch (e) {
             console.error("Error loading library from IndexedDB", e);
         }
         
-        renderSongGrid();
+        await renderSongGrid();
         setupEventListeners();
+
+        // Initialize Settings and Edit Library Modules
+        initSettings();
+        initEditLibrary(playlist, async () => {
+            // Callback: reload playlist from IndexedDB and re-render grid
+            try {
+                const savedPlaylist = await localforage.getItem('playlist');
+                if (savedPlaylist) {
+                playlist = savedPlaylist.map((song, idx) => {
+                        let url = song.url || '';
+                        let cover = song.cover || 'assets/images/cover.png';
+                        try {
+                            if (song.audioBlob instanceof Blob) url = URL.createObjectURL(song.audioBlob);
+                            if (song.coverBlob instanceof Blob) cover = URL.createObjectURL(song.coverBlob);
+                        } catch(blobErr) { console.warn('Blob URL error', blobErr); }
+                        return {
+                            id: song.id || 'song-' + Date.now() + '-' + idx + '-' + Math.floor(Math.random() * 1000),
+                            title: song.title,
+                            artist: song.artist,
+                            lyrics: song.lyrics,
+                            drift: song.drift || 1.0,
+                            url,
+                            cover,
+                            audioBlob: song.audioBlob,
+                            coverBlob: song.coverBlob  // BUG 11 FIX: preserve coverBlob
+                        };
+                    });
+                }
+            } catch (e) {
+                console.error("Error reloading library", e);
+            }
+            await renderSongGrid();
+        });
     }
 
     async function saveLibraryToDB() {
         try {
             // Save the raw blobs to IndexedDB. Transient URLs cannot be saved.
             const playlistToSave = playlist.map(song => ({
+                id: song.id || 'song-' + Date.now() + '-' + Math.floor(Math.random() * 100000),
                 title: song.title,
                 artist: song.artist,
                 lyrics: song.lyrics,
@@ -291,32 +344,117 @@ import { DOM } from './modules/dom.js';
         }
     }
 
-    function renderSongGrid() {
+    async function renderSongGrid() {
         homeSongGrid.innerHTML = '';
+        // Use cache; only refresh from DB if cache is empty (first load)
+        if (cachedVinylBoxes.length === 0 && cachedLibraryOrder.length === 0) {
+            try {
+                cachedVinylBoxes = await localforage.getItem('vinyl_boxes') || [];
+                cachedLibraryOrder = await localforage.getItem('library_order') || [];
+            } catch (e) {
+                console.error("Error loading vinyl boxes or order", e);
+            }
+        }
+        const vinylBoxes = cachedVinylBoxes;
+        const libraryOrder = cachedLibraryOrder;
+
+        // Get set of all boxed song IDs
+        const boxedSongIds = new Set();
+        vinylBoxes.forEach(box => {
+            if (box.songIds) {
+                box.songIds.forEach(id => boxedSongIds.add(id));
+            }
+        });
+
+        const unorderedItems = [];
+
+        // Add Vinyl Boxes
+        vinylBoxes.forEach(box => {
+            unorderedItems.push({
+                type: 'box',
+                id: box.id,
+                name: box.name,
+                songIds: box.songIds || [],
+                raw: box
+            });
+        });
+
+        // Add Unboxed Songs
         playlist.forEach((song, index) => {
+            if (!boxedSongIds.has(song.id)) {
+                unorderedItems.push({
+                    type: 'song',
+                    id: song.id,
+                    index: index,
+                    raw: song
+                });
+            }
+        });
+
+        // Sort items according to libraryOrder
+        const gridItems = [];
+        const itemMap = new Map();
+        unorderedItems.forEach(item => itemMap.set(item.id, item));
+
+        libraryOrder.forEach(orderId => {
+            if (itemMap.has(orderId)) {
+                gridItems.push(itemMap.get(orderId));
+                itemMap.delete(orderId);
+            }
+        });
+
+        // Append any remaining items (new boxes or songs not yet in order array)
+        itemMap.forEach(item => gridItems.push(item));
+
+        gridItems.forEach(item => {
             const card = document.createElement('div');
-            card.className = 'song-card';
-            card.setAttribute('data-index', index);
-            card.innerHTML = `
-                <div class="song-card-inner">
-                    <img src="${song.cover}" alt="Cover">
-                    <button class="song-options-btn" data-index="${index}" title="Options">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                            <circle cx="12" cy="5" r="2"></circle>
-                            <circle cx="12" cy="12" r="2"></circle>
-                            <circle cx="12" cy="19" r="2"></circle>
-                        </svg>
-                    </button>
-                    <div class="context-menu" id="context-menu-${index}">
-                        <button class="context-item edit-btn" data-index="${index}">Edit Info</button>
-                        <button class="context-item danger delete-song-btn" data-index="${index}">Delete</button>
+            if (item.type === 'song') {
+                const song = item.raw;
+                card.className = 'song-card';
+                card.setAttribute('data-index', item.index);
+                card.setAttribute('data-id', song.id);
+                card.innerHTML = `
+                    <div class="song-card-inner">
+                        <img src="${song.cover || 'assets/images/cover.png'}" alt="Cover">
                     </div>
-                </div>
-                <div class="song-card-title">${song.title}</div>
-                <div class="song-card-artist">${song.artist}</div>
-            `;
+                    <div class="song-card-title">${song.title}</div>
+                    <div class="song-card-artist">${song.artist}</div>
+                `;
+            } else {
+                const box = item.raw;
+                card.className = 'song-card vinyl-box-card';
+                card.setAttribute('data-box-id', box.id);
+                card.style.setProperty('--box-color', box.color || '#5a4232');
+                
+                const boxSongs = playlist.filter(s => box.songIds && box.songIds.includes(s.id));
+                const recentSongs = [...boxSongs].reverse().slice(0, 4);
+                
+                let sleevesHTML = '';
+                for (let i = 0; i < recentSongs.length; i++) {
+                    const song = recentSongs[i];
+                    const coverUrl = song.cover || 'assets/images/cover.png';
+                    const sleeveClass = `sleeve-${i}`;
+                    sleevesHTML += `<div class="peeking-sleeve ${sleeveClass}" style="background-image: url('${coverUrl}')"></div>`;
+                }
+
+                card.innerHTML = `
+                    <div class="song-card-inner box-card-inner" style="aspect-ratio: 1/1; margin-bottom: 15px;">
+                        <div class="vinyl-box-visual" style="--box-color: ${box.color || '#5a4232'};">
+                            <div class="vinyl-sleeves-container">
+                                ${sleevesHTML}
+                                <div class="glass-front"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="song-card-title">${box.name}</div>
+                    <div class="song-card-artist">${box.songIds ? box.songIds.length : 0} Tracks</div>
+                `;
+            }
             homeSongGrid.appendChild(card);
         });
+
+        setupBoxExpansionListeners(vinylBoxes);
+        activeQueue = playlist.filter(s => !boxedSongIds.has(s.id)); // Default active queue is unboxed songs
     }
 
     let trackToDeleteIndex = null;
@@ -346,9 +484,11 @@ import { DOM } from './modules/dom.js';
                     playlist.splice(idx, 1);
                     
                     if (playlist.length > 0) {
+                        // BUG 10 FIX: rebuild activeQueue before calling loadTrack
+                        await renderSongGrid();
                         currentTrackIndex = 0;
                         loadTrack(0);
-                        updateMiniPlayerUI(); // Update UI to new track
+                        updateMiniPlayerUI();
                     } else {
                         currentTrackIndex = -1;
                         audio.src = '';
@@ -363,6 +503,9 @@ import { DOM } from './modules/dom.js';
                 
                 renderSongGrid();
                 await saveLibraryToDB();
+                
+                // Notify edit-library to re-render immediately so the song disappears right away
+                document.dispatchEvent(new CustomEvent('wavr:libraryChanged'));
                 
                 document.getElementById('delete-modal').classList.add('hidden');
                 trackToDeleteIndex = null;
@@ -464,6 +607,7 @@ import { DOM } from './modules/dom.js';
     function openPlayer(index) {
         currentTrackIndex = index;
         loadTrack(index);
+        syncPlayerControlsUI();
         homeView.classList.add('hidden');
         playerView.classList.remove('hidden');
         const auroraBg = document.getElementById('aurora-bg');
@@ -485,11 +629,12 @@ import { DOM } from './modules/dom.js';
     }
     
     function updateMiniPlayerUI() {
-        if (currentTrackIndex === -1) {
+        const source = getPlaybackSource();
+        if (currentTrackIndex === -1 || !source[currentTrackIndex]) {
             document.getElementById('mini-player').classList.add('hidden');
             return;
         }
-        const song = playlist[currentTrackIndex];
+        const song = source[currentTrackIndex];
         document.getElementById('mini-cover').src = song.cover || 'assets/images/cover.png';
         document.getElementById('mini-title').textContent = song.title || 'Unknown Title';
         document.getElementById('mini-artist').textContent = song.artist || 'Unknown Artist';
@@ -560,9 +705,71 @@ import { DOM } from './modules/dom.js';
         updateMiniPlayerUI();
     });
 
-    function loadTrack(index) {
-        const track = playlist[index];
+    function getPlaybackSource() {
+        if (isShuffle && repeatMode === 0) {
+            return playlist;
+        }
+        return activeQueue;
+    }
+
+    let toastTimeout = null;
+    function showToast(message) {
+        let toast = document.getElementById('wavr-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'wavr-toast';
+            toast.className = 'wavr-toast';
+            document.body.appendChild(toast);
+        }
+        toast.textContent = message;
+        toast.classList.add('show');
         
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => {
+            toast.classList.remove('show');
+        }, 2200);
+    }
+
+    function syncPlayerControlsUI() {
+        const btnRepeat = document.getElementById('btn-repeat');
+        if (!btnRepeat) return;
+        const iconRepeat = btnRepeat.querySelector('.icon-repeat');
+        const iconRepeat1 = btnRepeat.querySelector('.icon-repeat-1');
+        const btnShuffle = document.getElementById('btn-shuffle');
+        
+        // Main Repeat Button
+        if (repeatMode === 0) {
+            btnRepeat.classList.remove('active-state');
+            iconRepeat.classList.remove('hidden');
+            iconRepeat1.classList.add('hidden');
+        } else if (repeatMode === 1) {
+            btnRepeat.classList.add('active-state');
+            iconRepeat.classList.remove('hidden');
+            iconRepeat1.classList.add('hidden');
+        } else if (repeatMode === 2) {
+            btnRepeat.classList.add('active-state');
+            iconRepeat.classList.add('hidden');
+            iconRepeat1.classList.remove('hidden');
+        }
+        
+        // Main Shuffle Button
+        if (isShuffle) {
+            btnShuffle.classList.add('active-state');
+        } else {
+            btnShuffle.classList.remove('active-state');
+        }
+        
+        // Mini Player
+        updateMiniPlayerUI();
+    }
+
+    function loadTrack(index) {
+        const source = getPlaybackSource();
+        const track = source[index];
+        if (!track) {
+            console.warn('loadTrack: no track at index', index, 'source.length=', source.length);
+            return;
+        }
         // Setup Audio
         audio.src = track.url;
         audio.load();
@@ -758,36 +965,34 @@ import { DOM } from './modules/dom.js';
     
     // ─── Smart Word-Wrap: Ngăn chữ "mồ côi" ───────────────
     // Nối 2-3 từ cuối câu bằng khoảng trắng không ngắt dòng (non-breaking space).
-    // Vercel redeploy trigger
     // Giúp cho khi màn hình hẹp, trình duyệt sẽ rớt cả cụm 3 từ xuống dòng thay vì 1 từ chơ vơ.
-    function preserveParentheticalGroups(text) {
-        if (!text) return "";
-        const maxGroupLength = 24;
-        const maxGroupWords = 6;
-
-        return text.replace(/\(([^()]*)\)/g, (match, inner) => {
-            const trimmedInner = inner.trim();
-            const wordCount = trimmedInner ? trimmedInner.split(/\s+/).length : 0;
-
-            // Only keep short parenthetical groups together; long ones fall back to normal wrapping.
-            if (trimmedInner.length > maxGroupLength || wordCount > maxGroupWords) {
-                return match;
-            }
-
-            const protectedInner = trimmedInner.replace(/[ \t]+/g, '\u00A0');
-            return `\u00A0(${protectedInner})\u00A0`;
-        });
-    }
-
     function preventOrphanWords(text) {
         if (!text) return "";
-        const protectedText = preserveParentheticalGroups(text);
-        const words = protectedText.trim().split(/[ \t]+/);
-        if (words.length <= 3) return protectedText;
         
-        // Lấy 3 từ cuối và nối bằng non-breaking space (\u00A0)
-        const lastWords = words.splice(-3).join('\u00A0');
-        return words.join(' ') + ' ' + lastWords;
+        // 1. Xử lý cụm ngoặc đơn (...)
+        let processedText = text.replace(/\([^)]*\)/g, (match) => {
+            if (match.length <= 40) {
+                // Ngắn: thay khoảng trắng thường thành non-breaking space
+                return match.replace(/ /g, '\u00A0');
+            } else {
+                // Dài: chèn \n trước dấu ( để xuống dòng
+                return '\n' + match;
+            }
+        });
+
+        // 2. Logic orphan-word cũ (xử lý từng dòng để không làm mất \n)
+        const lines = processedText.split('\n');
+        const processedLines = lines.map(line => {
+            // Split bằng dấu cách thường (tránh \s vì \s match cả \u00A0)
+            const words = line.trim().split(/ +/);
+            if (words.length <= 3) return line;
+            
+            // Nối 3 từ cuối bằng non-breaking space
+            const lastWords = words.splice(-3).join('\u00A0');
+            return words.join(' ') + ' ' + lastWords;
+        });
+        
+        return processedLines.join('\n');
     }
 
     function triggerCinematicLine(text) {
@@ -812,8 +1017,7 @@ import { DOM } from './modules/dom.js';
             line.style.setProperty('--exit-rot', `${rot}deg`);
             line.style.setProperty('--exit-tx', `${tx}vw`);
             
-            // Match JS removal timeout to CSS exit duration (~900ms) with small buffer
-            setTimeout(() => { if (line.parentNode) line.remove(); }, 1000);
+            setTimeout(() => { if (line.parentNode) line.remove(); }, 1200);
         });
         
         // Create new line flying in
@@ -824,7 +1028,7 @@ import { DOM } from './modules/dom.js';
         const sparkContainer = document.createElement('div');
         sparkContainer.className = 'sparkle-container';
         // Smart Distribution Algorithm: 2-3 sparks per word, strictly capped at 15 to guarantee zero lag, minimum 5.
-        const wordCount = (preventOrphanWords(text).match(/[^\t ]+/g) || []).length;
+        const wordCount = text.split(' ').length;
         const numSparks = Math.min(Math.max(wordCount * 3, 5), 15);
         for (let i = 0; i < numSparks; i++) {
             const spark = document.createElement('div');
@@ -904,11 +1108,11 @@ import { DOM } from './modules/dom.js';
         const amp = 80 + Math.random() * 60; 
         const phase = Math.random() > 0.5 ? 1 : -1; 
         
-        const pathLen = w * 1.5; 
+        const pathLen = Math.ceil(w * 1.15); 
         let paths = '';
         for(let i=0; i<5; i++) {
             const y = yCenter + (i - 2) * staffLineGap;
-            paths += `<path class="staff-line" d="M 0,${y} C ${w*0.3},${y - amp*phase} ${w*0.7},${y + amp*phase} ${w},${y}" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2" style="stroke-dasharray: ${pathLen}; stroke-dashoffset: ${pathLen};"/>`;
+            paths += `<path class="staff-line" d="M 0,${y} C ${w*0.3},${y - amp*phase} ${w*0.7},${y + amp*phase} ${w},${y}" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="stroke-dasharray: ${pathLen}; stroke-dashoffset: ${pathLen};"/>`;
         }
         
         // --- Add Music Symbols (Clef & Motifs) ---
@@ -949,63 +1153,79 @@ import { DOM } from './modules/dom.js';
         // --- End Music Symbols ---
         
         const placedRoots = [];
-        const maxAttempts = 150; 
-        const targetCount = Math.floor(w / 250) + 1; 
-        
-        for (let i = 0; i < maxAttempts && placedRoots.length < targetCount; i++) {
-            const fx = (w * 0.05) + Math.random() * (w * 0.9); 
-            
-            const allowedLines = [0, 1, 3, 4];
-            const lineRandom = Math.random();
-            let chosenLineIndex;
-            if (lineRandom < 0.35) chosenLineIndex = 0; 
-            else if (lineRandom < 0.5) chosenLineIndex = 1; 
-            else if (lineRandom < 0.65) chosenLineIndex = 3; 
-            else chosenLineIndex = 4; 
-            
-            const offset = (chosenLineIndex - 2) * staffLineGap;
+        // Light templates (2-3 branches) for dense scenes, all templates for sparse scenes
+        const lightTemplateIndices = [1, 2, 3, 7]; // Elegant Twin, Majestic, Heart, Asymmetrical
+        const targetCount = Math.max(2, Math.floor(w / 320));
+
+        // --- Stratified Placement (even spacing, no random clustering) ---
+        // Divide usable width into equal slots, place one tree per slot with small jitter.
+        const usableLeft  = w * 0.06;
+        const usableWidth = w * 0.88;
+        const slotWidth   = usableWidth / targetCount;
+
+        // Alternating line pattern: outer-top → outer-bottom → inner-top → inner-bottom
+        // Creates a natural rhythm: tall peak, deep valley, medium high, medium low…
+        const linePattern = [0, 4, 1, 3];
+
+        for (let i = 0; i < targetCount; i++) {
+            // Even horizontal spread: centre of slot ± up to 30% of slot width
+            const slotCenter = usableLeft + (i + 0.5) * slotWidth;
+            const xJitter    = (Math.random() - 0.5) * slotWidth * 0.6;
+            const fx = Math.max(usableLeft, Math.min(usableLeft + usableWidth, slotCenter + xJitter));
+
+            // Deterministic top/bottom alternation with slight random swap (10%) for life
+            let chosenLineIndex = linePattern[i % linePattern.length];
+            if (Math.random() < 0.1) {
+                // Occasionally swap to the opposite side to avoid feeling mechanical
+                const swapMap = { 0: 4, 4: 0, 1: 3, 3: 1 };
+                chosenLineIndex = swapMap[chosenLineIndex];
+            }
+
+            const offset     = (chosenLineIndex - 2) * staffLineGap;
             const baseCenter = yCenter + offset;
-            
+
             const t = fx / w;
             const u = 1 - t;
             const fy = u*u*u*baseCenter + 3*u*u*t*(baseCenter - amp*phase) + 3*u*t*t*(baseCenter + amp*phase) + t*t*t*baseCenter;
-            
-            const hitboxRadius = 60 + Math.random() * 40; 
-            
-            let isCollision = false;
-            for (const root of placedRoots) {
-                const dx = fx - root.x;
-                const dy = fy - root.y;
-                const dist = Math.sqrt(dx*dx + dy*dy);
-                if (dist < (hitboxRadius + root.radius + 10)) {
-                    isCollision = true;
-                    break;
-                }
-            }
-            
-            if (!isCollision) {
-                placedRoots.push({
-                    x: fx,
-                    y: fy,
-                    chosenLineIndex: chosenLineIndex,
-                    radius: hitboxRadius
-                });
-            }
+
+            // --- Bezier Tangent for lean angle ---
+            const u_t = 1 - t;
+            const dBx = 3 * (
+                (w * 0.3)         * u_t * u_t +
+                2 * (w * 0.4) * t * u_t +
+                (w * 0.3)         * t * t
+            );
+            const dy0 = -amp * phase;
+            const dy1 =  amp * phase;
+            const dy2 = -amp * phase;
+            const dBy = 3 * (
+                dy0 * u_t * u_t +
+                2 * dy1 * t * u_t +
+                dy2 * t * t
+            );
+            const tangentAngleDeg = Math.atan2(dBy, dBx) * (180 / Math.PI);
+            const jitter = (Math.random() - 0.5) * 10;
+            const rawLean = Math.max(-35, Math.min(35, tangentAngleDeg + jitter));
+
+            placedRoots.push({ x: fx, y: fy, chosenLineIndex, leanAngle: rawLean });
         }
         
         for (const root of placedRoots) {
-            const { x: fx, y: fy, chosenLineIndex, radius } = root;
+            const { x: fx, y: fy, chosenLineIndex, radius, leanAngle = 0 } = root;
             
             const t = fx / w; 
             const isGrowingUp = chosenLineIndex < 2;
-            const baseAngle = isGrowingUp ? -90 : 90; 
-            const maxScale = radius * 0.6;
-            let treeBaseScale = 20 + Math.random() * maxScale;
-            // Clamp tree size: not too small (<35) and not too large (>75)
-            treeBaseScale = Math.max(35, Math.min(treeBaseScale, 75));
+            const baseAngle = isGrowingUp ? (-90 - leanAngle) : (90 + leanAngle);
+            // Fixed range: 48 = min readable, 78 = max before overlapping lyrics
+            const treeBaseScale = 48 + Math.random() * 30;
             
             const templates = window.WavrFloral.templates;
-            const selectedTemplate = templates[Math.floor(Math.random() * templates.length)];
+            // When scene is dense (many trees), prefer lighter 2-branch templates to stay performant
+            const useLightTemplate = targetCount > 3;
+            const templatePool = useLightTemplate
+                ? lightTemplateIndices.map(i => templates[i])
+                : templates;
+            const selectedTemplate = templatePool[Math.floor(Math.random() * templatePool.length)];
             
             let templateHTML = '';
             selectedTemplate.branches.forEach((branch, idx) => {
@@ -1017,7 +1237,7 @@ import { DOM } from './modules/dom.js';
         }
         
         const svgHTML = `
-        <svg class="angelic-staff-svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <svg class="angelic-staff-svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" shape-rendering="geometricPrecision" overflow="visible">
             ${paths}
         </svg>`;
         
@@ -1025,26 +1245,39 @@ import { DOM } from './modules/dom.js';
         newLine.className = 'angelic-line';
         
         const safeText = preventOrphanWords(text);
-        const words = safeText.match(/[^\t ]+/g) || [];
+        const textLines = safeText.split('\n');
         
         let wordsHTML = '';
-        words.forEach((word, wordIdx) => {
-            const popDelay = 0.1 + wordIdx * 0.08;
-            let bFly = '';
-            if (Math.random() < 0.3) { 
-                const dirX = (Math.random() > 0.5 ? 1 : -1) * (15 + Math.random() * 25); 
-                const dirY = (Math.random() > 0.2 ? -1 : 1) * (15 + Math.random() * 30); 
-                const rot = (Math.random() > 0.5 ? 1 : -1) * (10 + Math.random() * 30);
-                const dur = Math.random() < 0.1 ? '0.5s' : '1.0s';
-                const color = Math.random() < 0.1 ? 'var(--blob-3-color)' : 'var(--blob-1-color)';
-                const styleStr = `animation-delay: ${popDelay}s, 0s; animation-duration: ${dur}, 0.3s; background-color: ${color}; --dx: ${dirX}px; --dy: ${dirY}px; --drot: ${rot}deg;`;
-                bFly = `<div class="sprite-butterfly" style="${styleStr}"></div>`;
+        let globalWordIdx = 0;
+        
+        textLines.forEach((lineText, lineIdx) => {
+            if (lineIdx > 0) {
+                wordsHTML += '<br />';
             }
             
-            wordsHTML += `<span class="angelic-word-sway" style="animation-delay: ${popDelay}s">
-                <span class="angelic-word-pop" style="animation-delay: ${popDelay}s">${word}</span>
-                ${bFly}
-            </span> `;
+            const words = lineText.split(' ').filter(w => w.length > 0);
+            // If the lyric is very long (multiple lines), reduce butterfly chance to maintain 60 FPS
+            const butterflyChance = safeText.length > 60 ? 0.15 : 0.3;
+            
+            words.forEach((word) => {
+                const popDelay = 0.1 + globalWordIdx * 0.06; // Slightly faster pop to feel snappier
+                let bFly = '';
+                if (Math.random() < butterflyChance) { 
+                    const dirX = (Math.random() > 0.5 ? 1 : -1) * (15 + Math.random() * 25); 
+                    const dirY = (Math.random() > 0.2 ? -1 : 1) * (15 + Math.random() * 30); 
+                    const rot = (Math.random() > 0.5 ? 1 : -1) * (10 + Math.random() * 30);
+                    const dur = Math.random() < 0.1 ? '0.5s' : '1.0s';
+                    const color = Math.random() < 0.1 ? 'var(--blob-3-color)' : 'var(--blob-1-color)';
+                    const styleStr = `animation-delay: ${popDelay}s, 0s; animation-duration: ${dur}, 0.3s; background-color: ${color}; --dx: ${dirX}px; --dy: ${dirY}px; --drot: ${rot}deg;`;
+                    bFly = `<div class="sprite-butterfly" style="${styleStr}"></div>`;
+                }
+                
+                wordsHTML += `<span class="angelic-word-sway" style="animation-delay: ${popDelay}s">
+                    <span class="angelic-word-pop" style="animation-delay: ${popDelay}s">${word}</span>
+                    ${bFly}
+                </span> `;
+                globalWordIdx++;
+            });
         });
         
         newLine.innerHTML = wordsHTML.trim();
@@ -1258,7 +1491,7 @@ import { DOM } from './modules/dom.js';
                         angelicParticleTimer--;
                         if (angelicParticleTimer <= 0) {
                             spawnAngelicParticle();
-                            angelicParticleTimer = 5;
+                            angelicParticleTimer = 10; // Increased cooldown to prevent frame drops
                         }
                     }
                     if (intensity > 0.8) {
@@ -1692,9 +1925,17 @@ import { DOM } from './modules/dom.js';
     }
 
     function prevTrack() {
-        if (playlist.length === 0) return;
+        const source = getPlaybackSource();
+        if (source.length === 0) return;
         if (audio.currentTime > 3) {
             audio.currentTime = 0;
+            return;
+        }
+        
+        // Repeat 1 (repeatMode === 2): restart the song immediately
+        if (repeatMode === 2) {
+            audio.currentTime = 0;
+            playAudio();
             return;
         }
         
@@ -1705,7 +1946,7 @@ import { DOM } from './modules/dom.js';
             currentTrackIndex = shuffledQueue[qIdx];
         } else {
             let index = currentTrackIndex - 1;
-            if (index < 0) index = playlist.length - 1;
+            if (index < 0) index = source.length - 1;
             currentTrackIndex = index;
         }
         
@@ -1715,27 +1956,28 @@ import { DOM } from './modules/dom.js';
     }
 
     function nextTrack(isAutoNext = false) {
-        if (playlist.length === 0) return;
+        const source = getPlaybackSource();
+        if (source.length === 0) return;
         
-        if (isAutoNext && repeatMode === 2) {
+        // Repeat 1 (repeatMode === 2): Loop current track (ignores shuffle setting)
+        if (repeatMode === 2) {
             audio.currentTime = 0;
             playAudio();
             return;
         }
         
-        if (isAutoNext && repeatMode === 0 && !isShuffle) {
-            if (currentTrackIndex === playlist.length - 1) {
-                pauseAudio();
-                return;
-            }
-        }
-        
         if (isShuffle) {
             let qIdx = shuffledQueue.indexOf(currentTrackIndex);
-            if (qIdx === -1 || qIdx === shuffledQueue.length - 1 || shuffledQueue.length !== playlist.length) {
-                // Generate a new shuffle queue when reaching the end or if the playlist changed.
-                // If we were already playing a track, exclude it from the first position of the new queue to prevent immediate replay.
-                generateShuffleQueue(qIdx !== -1);
+            const sourceLengthMismatch = shuffledQueue.length !== source.length;
+            
+            if (qIdx === -1 || qIdx === shuffledQueue.length - 1 || sourceLengthMismatch) {
+                // If it is auto-advance (song naturally finished) and repeatMode is 0 (no repeat), STOP
+                if (isAutoNext && repeatMode === 0) {
+                    pauseAudio();
+                    return;
+                }
+                // Otherwise, reshuffle and start over, excluding current from the start to prevent immediate repeat
+                generateShuffleQueue(true);
                 qIdx = 0;
             } else {
                 qIdx++;
@@ -1743,9 +1985,13 @@ import { DOM } from './modules/dom.js';
             currentTrackIndex = shuffledQueue[qIdx];
         } else {
             let index = currentTrackIndex + 1;
-            if (index >= playlist.length) {
-                if (isAutoNext && repeatMode === 0) return; // Stop at end of list
-                index = 0;
+            if (index >= source.length) {
+                if (repeatMode === 0) {
+                    // Both shuffle and repeat are off: stop at end of list
+                    pauseAudio();
+                    return;
+                }
+                index = 0; // Wrap around for Repeat All
             }
             currentTrackIndex = index;
         }
@@ -1757,14 +2003,15 @@ import { DOM } from './modules/dom.js';
     
     function generateShuffleQueue(excludeCurrent = false) {
         shuffledQueue = [];
-        for (let i = 0; i < playlist.length; i++) shuffledQueue.push(i);
+        const source = getPlaybackSource();
+        for (let i = 0; i < source.length; i++) shuffledQueue.push(i);
         // Fisher-Yates
         for (let i = shuffledQueue.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [shuffledQueue[i], shuffledQueue[j]] = [shuffledQueue[j], shuffledQueue[i]];
         }
         // Handle current track placement to avoid immediate repeat on loop/reshuffle
-        if (currentTrackIndex !== -1 && playlist.length > 1) {
+        if (currentTrackIndex !== -1 && source.length > 1) {
             const currentQIdx = shuffledQueue.indexOf(currentTrackIndex);
             if (currentQIdx !== -1) {
                 shuffledQueue.splice(currentQIdx, 1);
@@ -1825,9 +2072,17 @@ import { DOM } from './modules/dom.js';
             const reader = new FileReader();
             reader.onload = async function(event) {
                 const lrcText = event.target.result;
+
+                // Ensure coverBlob is a true Blob (not just a File ref that may be GC'd)
+                let persistBlob = coverBlob;
+                if (coverBlob instanceof File) {
+                    const ab = await coverBlob.arrayBuffer();
+                    persistBlob = new Blob([ab], { type: coverBlob.type });
+                }
                 
-                // Create new song object
+                // Create new song object WITH a stable ID from the start
                 const newSong = {
+                    id: 'song-' + Date.now() + '-' + Math.floor(Math.random() * 100000),
                     title: title,
                     artist: artist,
                     url: audioUrl,
@@ -1835,15 +2090,15 @@ import { DOM } from './modules/dom.js';
                     lyrics: lrcText,
                     drift: 1.0,
                     audioBlob: audioFile,
-                    coverBlob: coverBlob
+                    coverBlob: persistBlob
                 };
                 
-                // Add to playlist
+                // Add to in-memory playlist immediately
                 playlist.push(newSong);
-                renderSongGrid();
                 
-                // Save persistently to IndexedDB
+                // Save to IndexedDB first, then re-render so grid reads fresh data
                 await saveLibraryToDB();
+                await renderSongGrid();
                 
                 // Reset form and close modal
                 uploadForm.reset();
@@ -1869,9 +2124,9 @@ import { DOM } from './modules/dom.js';
     function setupEventListeners() {
         // Song grid event delegation (optimizes memory and render speed)
         homeSongGrid.addEventListener('click', (e) => {
-            const optionBtn = e.target.closest('.song-options-btn');
-            const contextItem = e.target.closest('.context-item');
             const card = e.target.closest('.song-card');
+
+            const optionBtn = e.target.closest('.song-options-btn');
 
             if (optionBtn) {
                 e.stopPropagation();
@@ -1887,23 +2142,18 @@ import { DOM } from './modules/dom.js';
                 return;
             }
 
-            if (contextItem) {
-                e.stopPropagation();
-                const idx = contextItem.getAttribute('data-index');
-                if (contextItem.classList.contains('delete-song-btn')) {
-                    showDeleteModal(idx);
-                } else if (contextItem.classList.contains('edit-btn')) {
-                    showEditModal(idx);
-                }
-                
-                // Close active menus
-                document.querySelectorAll('.context-menu.active').forEach(m => m.classList.remove('active'));
-                return;
-            }
-
+            // BUG 1 FIX: contextItem was never defined — remove dead block
             if (card) {
-                const idx = parseInt(card.getAttribute('data-index'));
-                openPlayer(idx);
+                if (card.classList.contains('vinyl-box-card')) return; // handled in setupBoxExpansionListeners
+                
+                const songId = card.getAttribute('data-id');
+                // Always use full library as source when clicking a song outside a box
+                activeQueue = [...playlist];
+                const pIdx = playlist.findIndex(s => s.id === songId);
+                if (pIdx !== -1) {
+                    activePlaylistContext = 'library';
+                    openPlayer(pIdx);
+                }
             }
         });
 
@@ -1985,35 +2235,57 @@ import { DOM } from './modules/dom.js';
         
         // Repeat Button Logic
         const btnRepeat = document.getElementById('btn-repeat');
-        const iconRepeat = btnRepeat.querySelector('.icon-repeat');
-        const iconRepeat1 = btnRepeat.querySelector('.icon-repeat-1');
         btnRepeat.addEventListener('click', () => {
+            const currentTrack = getPlaybackSource()[currentTrackIndex];
+            
             repeatMode = (repeatMode + 1) % 3;
-            if (repeatMode === 0) {
-                btnRepeat.classList.remove('active-state');
-                iconRepeat.classList.remove('hidden');
-                iconRepeat1.classList.add('hidden');
-            } else if (repeatMode === 1) {
-                btnRepeat.classList.add('active-state');
-                iconRepeat.classList.remove('hidden');
-                iconRepeat1.classList.add('hidden');
-            } else if (repeatMode === 2) {
-                btnRepeat.classList.add('active-state');
-                iconRepeat.classList.add('hidden');
-                iconRepeat1.classList.remove('hidden');
+            
+            // Re-map currentTrackIndex to the new source list after repeatMode changes
+            const newSource = getPlaybackSource();
+            if (currentTrack) {
+                const newIdx = newSource.findIndex(s => s.id === currentTrack.id);
+                if (newIdx !== -1) currentTrackIndex = newIdx;
             }
+            
+            // Reshuffle queue if shuffle is active
+            if (isShuffle) {
+                generateShuffleQueue();
+            }
+            
+            // Show premium feedback
+            if (repeatMode === 0) showToast("Repeat: Off");
+            else if (repeatMode === 1) showToast("Repeat: All");
+            else if (repeatMode === 2) showToast("Repeat: One");
+            
+            syncPlayerControlsUI();
         });
         
         // Shuffle Button Logic
         const btnShuffle = document.getElementById('btn-shuffle');
         btnShuffle.addEventListener('click', () => {
+            const currentTrack = getPlaybackSource()[currentTrackIndex];
+            
             isShuffle = !isShuffle;
-            if (isShuffle) {
-                btnShuffle.classList.add('active-state');
-                generateShuffleQueue();
-            } else {
-                btnShuffle.classList.remove('active-state');
+            
+            // Re-map currentTrackIndex to the new source list after isShuffle changes
+            const newSource = getPlaybackSource();
+            if (currentTrack) {
+                const newIdx = newSource.findIndex(s => s.id === currentTrack.id);
+                if (newIdx !== -1) currentTrackIndex = newIdx;
             }
+            
+            if (isShuffle) {
+                generateShuffleQueue();
+                if (repeatMode === 0) {
+                    showToast("Shuffle: On (Playing Library)");
+                } else {
+                    showToast("Shuffle: On (Playing Playlist)");
+                }
+            } else {
+                showToast("Shuffle: Off");
+            }
+            
+            syncPlayerControlsUI();
         });
         
         progressSlider.addEventListener('input', (e) => {
@@ -2126,8 +2398,13 @@ import { DOM } from './modules/dom.js';
         driftSlider.addEventListener('input', (e) => {
             driftRatio = parseFloat(e.target.value);
             driftVal.textContent = driftRatio.toFixed(3) + 'x';
-            if (playlist[currentTrackIndex]) {
-                playlist[currentTrackIndex].drift = driftRatio;
+            const source = getPlaybackSource();
+            if (source[currentTrackIndex]) {
+                source[currentTrackIndex].drift = driftRatio;
+                // Sync back to main playlist
+                const trackId = source[currentTrackIndex].id;
+                const plTrack = playlist.find(s => s.id === trackId);
+                if (plTrack) plTrack.drift = driftRatio;
             }
             if (!isPlaying) updateProgress();
         });
@@ -2181,24 +2458,26 @@ import { DOM } from './modules/dom.js';
                     if (!isPlaying) updateProgress();
                     break;
 
-                // ── Arrow Left / Right: Seek ±5s ─────────────
-                case 'ArrowLeft':
+                // BUG 19 FIX: wrap case bodies in {} to avoid const in switch scope error
+                case 'ArrowLeft': {
                     e.preventDefault();
                     const newTimeL = Math.max(0, audio.currentTime - 5);
                     prepareLyricNearTime(newTimeL);
                     audio.currentTime = newTimeL;
                     if (!isPlaying) updateProgress();
                     break;
-                case 'ArrowRight':
+                }
+                case 'ArrowRight': {
                     e.preventDefault();
                     const newTimeR = Math.min(audio.duration || 0, audio.currentTime + 5);
                     prepareLyricNearTime(newTimeR);
                     audio.currentTime = newTimeR;
                     if (!isPlaying) updateProgress();
                     break;
+                }
 
                 // ── Arrow Up / Down: Volume ±5% ──────────────
-                case 'ArrowUp':
+                case 'ArrowUp': {
                     e.preventDefault();
                     const newVolUp = Math.min(1, audio.volume + 0.05);
                     audio.volume = newVolUp;
@@ -2206,7 +2485,8 @@ import { DOM } from './modules/dom.js';
                     isMuted = (newVolUp === 0);
                     updateVolumeIcon(newVolUp);
                     break;
-                case 'ArrowDown':
+                }
+                case 'ArrowDown': {
                     e.preventDefault();
                     const newVolDown = Math.max(0, audio.volume - 0.05);
                     audio.volume = newVolDown;
@@ -2214,6 +2494,7 @@ import { DOM } from './modules/dom.js';
                     isMuted = (newVolDown === 0);
                     updateVolumeIcon(newVolDown);
                     break;
+                }
             }
         });
     }
@@ -2324,3 +2605,233 @@ import { DOM } from './modules/dom.js';
             if (eqPresets) eqPresets.value = 'default';
         });
     });
+
+    // --- Box Expansion and Modal Logic ---
+    function setupBoxExpansionListeners(vinylBoxes) {
+        const boxCards = homeSongGrid.querySelectorAll('.vinyl-box-card');
+        boxCards.forEach(card => {
+            card.addEventListener('click', (e) => {
+                if (card.classList.contains('expanded-active')) return;
+
+                const boxId = card.getAttribute('data-box-id');
+                toggleBoxExpansion(card, boxId, vinylBoxes);
+            });
+        });
+    }
+
+    let activeExpandedCard = null;
+
+    function toggleBoxExpansion(card, boxId, vinylBoxes) {
+        if (activeExpandedCard === card) {
+            closeBoxExpansion();
+            return;
+        }
+
+        closeBoxExpansion();
+
+        const box = vinylBoxes.find(b => b.id === boxId);
+        if (!box) return;
+
+        card.setAttribute('data-original-html', card.innerHTML);
+        card.classList.add('expanded-active');
+        activeExpandedCard = card;
+
+        const boxSongs = playlist.filter(song => box.songIds && box.songIds.includes(song.id));
+
+        let songsHTML = '';
+        if (boxSongs.length === 0) {
+            songsHTML = `<div style="padding: 20px; color: var(--text-secondary); font-size: 0.9rem; text-align: center; width: 100%;">This box is empty. Click "Add Songs" in Edit mode to stack some records!</div>`;
+        } else {
+            boxSongs.forEach((song, idx) => {
+                songsHTML += `
+                    <div class="song-card box-slider-song-card" data-idx="${idx}" style="cursor: pointer;">
+                        <div class="song-cover-wrapper" style="width: 100%; position: relative; aspect-ratio: 1/1; border-radius: 8px; overflow: hidden; margin-bottom: 10px;">
+                            <img src="${song.cover || 'assets/images/cover.png'}" alt="${song.title}" style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+                        <div class="song-card-title">${song.title}</div>
+                        <div class="song-card-artist">${song.artist}</div>
+                    </div>
+                `;
+            });
+        }
+
+        // Updated expanded view with a subtle scrollbar wrapper
+        card.innerHTML = `
+            <div class="box-expansion-content" style="width: 100%; animation: fadeIn 0.3s ease;">
+                <div class="box-expansion-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div>
+                        <h2 style="margin: 0; font-size: 1.5rem; font-weight: 600;">${box.name}</h2>
+                        <span style="color: var(--text-secondary); font-size: 0.9rem;">${boxSongs.length} Tracks</span>
+                    </div>
+                    <div class="box-expansion-controls" style="display: flex; gap: 10px;">
+                        <button class="btn-play-box" title="Play Box" style="background: var(--surface-light); color: var(--text-primary); border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                                <path d="M8 5v14l11-7z"></path>
+                            </svg>
+                        </button>
+                        <button class="btn-close-box" title="Close" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 5px;">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="box-expansion-slider-wrapper" style="overflow-x: auto; overflow-y: hidden; padding-bottom: 10px;">
+                    <div class="box-expansion-slider" style="display: flex; gap: 20px; min-width: min-content;">
+                        ${songsHTML}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Event Listeners for the expanded view
+        const closeBtn = card.querySelector('.btn-close-box');
+        if (closeBtn) closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeBoxExpansion();
+        });
+
+        const playBtn = card.querySelector('.btn-play-box');
+        if (playBtn) playBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (boxSongs.length > 0) {
+                activeQueue = [...boxSongs];
+                activePlaylistContext = box.id;
+                
+                // Auto-enable Shuffle + Repeat All when playing a playlist (Spotify behavior)
+                isShuffle = true;
+                repeatMode = 1; // Repeat All
+                generateShuffleQueue(false);
+                syncPlayerControlsUI();
+                
+                openPlayer(0);
+            }
+        });
+
+        // Clicking a song inside the expanded box
+        const sliderSongs = card.querySelectorAll('.box-slider-song-card');
+        sliderSongs.forEach(songCard => {
+            songCard.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const idx = parseInt(songCard.getAttribute('data-idx'));
+                activeQueue = [...boxSongs];
+                activePlaylistContext = box.id;
+                openPlayer(idx);
+            });
+        });
+    }
+
+    function closeBoxExpansion() {
+        if (activeExpandedCard) {
+            activeExpandedCard.classList.remove('expanded-active');
+            // Restore original HTML
+            const originalHTML = activeExpandedCard.getAttribute('data-original-html');
+            if (originalHTML) {
+                activeExpandedCard.innerHTML = originalHTML;
+            }
+            activeExpandedCard = null;
+        }
+    }
+
+    // Modal to add songs to a box
+    let currentBoxIdForAdd = null;
+    let currentVinylBoxesArray = null;
+    
+    function openAddSongsModal(box, vinylBoxesArray) {
+        currentBoxIdForAdd = box.id;
+        currentVinylBoxesArray = vinylBoxesArray;
+        const modal = document.getElementById('add-songs-to-box-modal');
+        const list = document.getElementById('add-songs-list');
+        list.innerHTML = '';
+
+        const boxSongIds = new Set(box.songIds || []);
+        const availableSongs = playlist.filter(song => !boxSongIds.has(song.id));
+
+        if (availableSongs.length === 0) {
+            list.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">No other songs available to add.</div>';
+        } else {
+            availableSongs.forEach(song => {
+                const item = document.createElement('div');
+                item.className = 'add-song-item';
+                item.innerHTML = `
+                    <img src="${song.cover || 'assets/images/cover.png'}" alt="Cover">
+                    <div class="add-song-info">
+                        <div class="title">${song.title}</div>
+                        <div class="artist">${song.artist}</div>
+                    </div>
+                    <button class="add-song-quick-btn" style="background: none; border: none; color: var(--accent-color); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 5px;">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                    </button>
+                `;
+                list.appendChild(item);
+                
+                // Click to add immediately
+                item.addEventListener('click', () => {
+                    if (!currentBoxIdForAdd || !currentVinylBoxesArray) return;
+                    const b = currentVinylBoxesArray.find(b => b.id === currentBoxIdForAdd);
+                    if (b) {
+                        if (!b.songIds) b.songIds = [];
+                        b.songIds.push(song.id);
+                        
+                        // Update in-memory cache so home grid is correct without re-reading DB
+                        cachedVinylBoxes = currentVinylBoxesArray;
+                        
+                        // Save to DB then refresh both grids
+                        localforage.setItem('vinyl_boxes', currentVinylBoxesArray).then(() => {
+                            renderSongGrid();
+                            // Immediately sync edit-library's localVinylBoxes + re-render edit grid
+                            if (window.appEditLibraryContext && window.appEditLibraryContext.syncBoxes) {
+                                window.appEditLibraryContext.syncBoxes([...currentVinylBoxesArray]);
+                            }
+                        });
+                    }
+                    
+                    // Visually remove from the modal
+                    item.remove();
+                    if (list.children.length === 0) {
+                        list.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">No other songs available to add.</div>';
+                    }
+                });
+            });
+        }
+        
+        modal.classList.remove('hidden');
+    }
+
+    // Modal Cancel for adding songs
+    document.getElementById('btn-cancel-add-songs').addEventListener('click', () => {
+        document.getElementById('add-songs-to-box-modal').classList.add('hidden');
+        currentBoxIdForAdd = null;
+        currentVinylBoxesArray = null;
+    });
+
+    // Expose helpers for edit mode
+    function showEditModalBySongId(songId) {
+        const index = playlist.findIndex(s => s.id === songId);
+        if (index !== -1) showEditModal(index);
+    }
+    
+    function showDeleteModalBySongId(songId) {
+        const index = playlist.findIndex(s => s.id === songId);
+        if (index !== -1) showDeleteModal(index);
+    }
+
+    // Expose methods to other modules
+    window.appMainContext = {
+        renderSongGrid: renderSongGrid,
+        openAddSongsModal: openAddSongsModal,
+        showEditModalBySongId: showEditModalBySongId,
+        showDeleteModalBySongId: showDeleteModalBySongId,
+        getPlaylist: () => playlist,
+        // Called by edit-library after any box/order mutation to keep home grid cache in sync
+        updateBoxCache: (boxes, order) => {
+            if (boxes !== undefined) cachedVinylBoxes = boxes;
+            if (order !== undefined) cachedLibraryOrder = order;
+        },
+        openPlaylistNameModal: (box, boxes, cb) => {
+            document.dispatchEvent(new CustomEvent('wavr:openEditBox', { detail: { boxId: box.id, cb } }));
+        }
+    };
