@@ -97,6 +97,34 @@ body {
     transform: scale(0.95);
 }
 
+
+/* Fade Overlay */
+#fade-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background: #000;
+    opacity: 0; pointer-events: none;
+    z-index: 50;
+    transition: opacity 0.3s ease;
+}
+#fade-overlay.active {
+    opacity: 1; pointer-events: auto;
+}
+
+#player-view { z-index: 100; }
+/* Custom Player View Transition */
+#player-view {
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transform: translateY(100%);
+    opacity: 0;
+    pointer-events: none;
+}
+#player-view.player-active {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
 /* 1. HOME VIEW */
 #home-view {
     height: 100vh;
@@ -193,7 +221,7 @@ body {
 }
 .song-card:hover .song-options-btn { opacity: 1; }
 .song-options-btn.active { opacity: 1; background: var(--accent-color); }
-.song-options-btn:hover { background: var(--accent-color); transform: scale(1.1); opacity: 1 !important; }
+.song-options-btn:hover { background: var(--accent-color); filter: brightness(1.2); opacity: 1 !important; }
 
 .remove-song-btn {
     position: absolute; top: 8px; right: 8px;
@@ -1678,6 +1706,15 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 }
 
 /* Drag & Drop Visuals */
+
+.inner-editable-song.inner-dragging {
+    opacity: 0.4;
+    transform: scale(0.95);
+    border-color: rgba(255,255,255,0.1);
+}
+.inner-editable-song.drag-over {
+    border: 2px dashed var(--primary-color) !important;
+}
 .edit-grid .song-card.dragging {
     opacity: 0.4;
     transform: scale(0.95);
@@ -2427,4 +2464,90 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 .wavr-toast.show {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
+}
+
+/* Glassmorphism Buttons */
+.glass-btn {
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 500;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+}
+.glass-btn:hover {
+    background: rgba(255,255,255,0.2);
+    filter: brightness(1.2);
+}
+.glass-btn.primary {
+    background: rgba(0, 229, 255, 0.15);
+    color: var(--accent-color);
+}
+.glass-btn.primary:hover {
+    background: rgba(0, 229, 255, 0.25);
+    filter: brightness(1.2);
+}
+.glass-btn.danger {
+    background: rgba(239, 83, 80, 0.15);
+    color: #ef5350;
+}
+.glass-btn.danger:hover {
+    background: rgba(239, 83, 80, 0.25);
+    filter: brightness(1.2);
+}
+.glass-btn svg {
+    flex-shrink: 0;
+}
+
+/* Modal specific overrides for glass-btn */
+.modal-actions .glass-btn { flex: 1; }
+
+/* Glass Icon Buttons */
+.glass-icon-btn {
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 50%;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    flex-shrink: 0;
+}
+.glass-icon-btn:hover {
+    background: rgba(255,255,255,0.2);
+    filter: brightness(1.2);
+}
+.glass-icon-btn.primary {
+    background: rgba(0, 229, 255, 0.15);
+    color: var(--accent-color);
+}
+.glass-icon-btn.primary:hover {
+    background: rgba(0, 229, 255, 0.25);
+    filter: brightness(1.2);
+}
+.glass-icon-btn.danger {
+    background: rgba(239, 83, 80, 0.15);
+    color: #ef5350;
+}
+.glass-icon-btn.danger:hover {
+    background: rgba(239, 83, 80, 0.25);
+    filter: brightness(1.2);
+}
+.glass-icon-btn.transparent {
+    background: transparent;
+    border: none;
+}
+.glass-icon-btn.transparent:hover {
+    background: rgba(255,255,255,0.1);
 }

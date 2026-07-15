@@ -290,8 +290,8 @@ function renderEditGrid() {
             card.setAttribute('data-id', box.id);
             card.style.setProperty('--box-color', box.color || '#ffb300');
 
-            const boxSongs = localPlaylist.filter(s => box.songIds && box.songIds.includes(s.id));
-            const recentSongs = [...boxSongs].reverse().slice(0, 4);
+            const boxSongs = (box.songIds || []).map(id => localPlaylist.find(s => s.id === id)).filter(Boolean);
+            const recentSongs = [...boxSongs].slice(0, 4);
             
             let sleevesHTML = '';
             for (let i = 0; i < recentSongs.length; i++) {
@@ -732,6 +732,7 @@ let contextMenu = null;
 let songContextMenu = null;
 let activeBoxId = null;
 let activeSongId = null;
+let activeBoxIdForSong = null;
 
 function setupContextMenu() {
     contextMenu = document.createElement('div');
@@ -779,8 +780,15 @@ function setupContextMenu() {
     songContextMenu = document.createElement('div');
     songContextMenu.className = 'playlist-context-menu hidden';
     songContextMenu.innerHTML = `
-        <button class="edit-song-option">Edit Info</button>
-        <button class="delete-song-option danger">Delete</button>
+        <button class="edit-song-option" style="display: flex; align-items: center; gap: 8px;">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Edit Info
+        </button>
+        <button class="remove-from-box-option danger hidden" style="display: flex; align-items: center; gap: 8px; border-top: 1px solid rgba(255,255,255,0.05);">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="8" y1="12" x2="16" y2="12"></line></svg> Remove from Box
+        </button>
+        <button class="delete-song-option danger" style="display: flex; align-items: center; gap: 8px; border-top: 1px solid rgba(255,255,255,0.05);">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg> Delete
+        </button>
     `;
     document.body.appendChild(songContextMenu);
 
@@ -792,6 +800,30 @@ function setupContextMenu() {
         }
     });
 
+    songContextMenu.querySelector('.remove-from-box-option').addEventListener('click', async () => {
+        songContextMenu.classList.add('hidden');
+        if (!activeSongId || !activeBoxIdForSong) return;
+        
+        const box = localVinylBoxes.find(b => b.id === activeBoxIdForSong);
+        if (box) {
+            box.songIds = box.songIds.filter(id => id !== activeSongId);
+            await window.localforage.setItem('vinyl_boxes', localVinylBoxes);
+            
+            closeEditBoxExpansion();
+            renderEditGrid();
+            const newCard = document.querySelector(`.vinyl-box-card[data-id="${activeBoxIdForSong}"]`);
+            if (newCard) {
+                toggleEditBoxExpansion(newCard, activeBoxIdForSong);
+            }
+            
+            if (window.appMainContext && window.appMainContext.updateBoxCache) {
+                window.appMainContext.updateBoxCache([...localVinylBoxes], localLibraryOrder);
+            }
+            if (window.appMainContext && window.appMainContext.renderSongGrid) {
+                window.appMainContext.renderSongGrid();
+            }
+        }
+    });
     songContextMenu.querySelector('.delete-song-option').addEventListener('click', () => {
         songContextMenu.classList.add('hidden');
         if (!activeSongId) return;
@@ -819,8 +851,17 @@ function showContextMenu(x, y, boxId) {
     songContextMenu.classList.add('hidden');
 }
 
-function showSongContextMenu(x, y, songId) {
+function showSongContextMenu(x, y, songId, boxId = null) {
     activeSongId = songId;
+    activeBoxIdForSong = boxId;
+    
+    // Toggle remove-from-box option
+    const removeOpt = songContextMenu.querySelector('.remove-from-box-option');
+    if (removeOpt) {
+        if (boxId) removeOpt.classList.remove('hidden');
+        else removeOpt.classList.add('hidden');
+    }
+    
     songContextMenu.style.left = `${x}px`;
     songContextMenu.style.top = `${y}px`;
     songContextMenu.classList.remove('hidden');
@@ -860,7 +901,7 @@ function toggleEditBoxExpansion(card, boxId) {
     card.classList.add('expanded-active');
     activeEditExpandedCard = card;
 
-    const boxSongs = localPlaylist.filter(song => box.songIds && box.songIds.includes(song.id));
+    const boxSongs = (box.songIds || []).map(id => localPlaylist.find(s => s.id === id)).filter(Boolean);
     let songsHTML = '';
     if (boxSongs.length === 0) {
         songsHTML = `<div style="padding: 20px; color: var(--text-secondary); font-size: 0.9rem; text-align: center; width: 100%;">This box is empty. Click "Add Songs" to add tracks!</div>`;
@@ -870,9 +911,12 @@ function toggleEditBoxExpansion(card, boxId) {
                 <div class="song-card box-slider-song-card inner-editable-song" data-song-id="${song.id}" data-box-id="${box.id}" draggable="true" style="cursor: grab; position: relative;">
                     <div class="song-cover-wrapper" style="width: 100%; position: relative; aspect-ratio: 1/1; border-radius: 8px; overflow: hidden; margin-bottom: 10px;">
                         <img src="${song.cover || 'assets/images/cover.png'}" alt="${song.title}" style="width: 100%; height: 100%; object-fit: cover;">
-                        <button class="remove-song-btn" data-song-id="${song.id}" title="Remove from box">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
+
+                        <button class="song-options-btn" data-id="${song.id}" title="Options">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                                <circle cx="12" cy="5" r="2"></circle>
+                                <circle cx="12" cy="12" r="2"></circle>
+                                <circle cx="12" cy="19" r="2"></circle>
                             </svg>
                         </button>
                     </div>
@@ -893,7 +937,7 @@ function toggleEditBoxExpansion(card, boxId) {
                 <div class="box-expansion-controls" style="display: flex; gap: 10px; align-items: center;">
                     <button class="btn-edit-add-songs" style="background: var(--surface-light); color: var(--text-primary); border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s;">Add Songs</button>
                     <button class="btn-edit-info" style="background: var(--surface-light); color: var(--text-primary); border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s;">Edit Info</button>
-                    <button class="btn-delete-box" style="background: rgba(220,50,50,0.15); color: #ef5350; border: 1px solid rgba(220,50,50,0.25); padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s;">Delete Box</button>
+                    <button class="btn-delete-box glass-btn danger" style="border-radius: 20px;" title="Delete Box"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg> Delete Box</button>
                     <button class="btn-close-box" title="Close" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 5px;">
                         <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
                             <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
@@ -984,21 +1028,103 @@ function toggleEditBoxExpansion(card, boxId) {
         });
     });
 
-    // Drag out logic for inner songs
+    // Options button logic for inner songs
+    const optionsBtns = card.querySelectorAll('.song-options-btn');
+    optionsBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const rect = btn.getBoundingClientRect();
+            const sid = btn.getAttribute('data-id');
+            // inner songs have data-box-id on their parent card
+            const innerCard = btn.closest('.inner-editable-song');
+            const bid = innerCard ? innerCard.getAttribute('data-box-id') : null;
+            showSongContextMenu(rect.left, rect.bottom + 5, sid, bid);
+        });
+    });
+
+    // Drag out and reorder logic for inner songs
     const innerSongs = card.querySelectorAll('.inner-editable-song');
     innerSongs.forEach(songCard => {
         songCard.addEventListener('dragstart', (e) => {
             e.stopPropagation();
-            songCard.classList.add('dragging');
+            songCard.classList.add('inner-dragging');
             const sid = songCard.getAttribute('data-song-id');
             const bid = songCard.getAttribute('data-box-id');
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('application/json', JSON.stringify({ type: 'unbox-song', songId: sid, boxId: bid }));
         });
+        
+        songCard.addEventListener('dragover', (e) => {
+            e.preventDefault(); // Necessary to allow dropping
+            songCard.classList.add('drag-over');
+        });
+        
+        songCard.addEventListener('dragleave', () => {
+            songCard.classList.remove('drag-over');
+        });
+        
+        songCard.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            songCard.classList.remove('drag-over');
+            
+            try {
+                const data = JSON.parse(e.dataTransfer.getData('application/json'));
+                // Only allow reorder if dragged from the SAME box
+                if (data.type === 'unbox-song' && data.boxId === boxId) {
+                    const targetId = songCard.getAttribute('data-song-id');
+                    const draggedId = data.songId;
+                    
+                    if (draggedId && targetId && draggedId !== targetId) {
+                        const draggedIdx = box.songIds.indexOf(draggedId);
+                        const targetIdx = box.songIds.indexOf(targetId);
+                        
+                        if (draggedIdx !== -1 && targetIdx !== -1) {
+                            // Reorder logic: remove dragged item, insert it at target index
+                            box.songIds.splice(draggedIdx, 1);
+                            box.songIds.splice(targetIdx, 0, draggedId);
+                            
+                            await window.localforage.setItem('vinyl_boxes', localVinylBoxes);
+                            
+                            // Re-render and re-expand the box seamlessly
+                            closeEditBoxExpansion();
+                            renderEditGrid();
+                            const newCard = document.querySelector(`.vinyl-box-card[data-id="${boxId}"]`);
+                            if (newCard) {
+                                toggleEditBoxExpansion(newCard, boxId);
+                            }
+                            
+                            // Sync global state
+                            if (window.appMainContext && window.appMainContext.updateBoxCache) {
+                                window.appMainContext.updateBoxCache([...localVinylBoxes], localLibraryOrder);
+                            }
+                            if (window.appMainContext && window.appMainContext.renderSongGrid) {
+                                window.appMainContext.renderSongGrid();
+                            }
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn("Invalid drop data", err);
+            }
+        });
+
         songCard.addEventListener('dragend', (e) => {
-            songCard.classList.remove('dragging');
+            songCard.classList.remove('inner-dragging');
+            songCard.classList.remove('drag-over');
         });
     });
+    
+    // Catch drop events on the box expansion area so they don't bubble to the grid and unbox the song
+    const expansionContent = card.querySelector('.box-expansion-content');
+    if (expansionContent) {
+        expansionContent.addEventListener('drop', (e) => {
+            e.stopPropagation(); // Prevent grid from unboxing!
+        });
+        expansionContent.addEventListener('dragover', (e) => {
+            e.preventDefault(); // Allow dropping
+        });
+    }
 }
 
 // ============================================================

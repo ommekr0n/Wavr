@@ -16,6 +16,55 @@ import { initSettings, initEditLibrary } from './modules/edit-library.js';
         }
     });
 
+    // Global ESC handler for gradual exit
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            // 1. Context Menu
+            const activeMenu = document.querySelector('.context-menu.active');
+            if (activeMenu) {
+                activeMenu.classList.remove('active');
+                return;
+            }
+            
+            // 2. Modals
+            const activeModal = document.querySelector('.modal:not(.hidden), .modal-backdrop:not(.hidden)');
+            if (activeModal) {
+                const closeBtn = activeModal.querySelector('.close-btn, .btn-close, .btn-cancel, #btn-close-modal, .btn-create-box-cancel, [title="Close"], button[id*="cancel"]');
+                if (closeBtn) closeBtn.click();
+                else activeModal.classList.add('hidden');
+                return;
+            }
+            
+            // 3. Player View (Higher priority than box since it overlays everything)
+            const playerViewEl = document.getElementById('player-view');
+            if (playerViewEl && !playerViewEl.classList.contains('hidden') && typeof closePlayer === 'function') {
+                closePlayer();
+                return;
+            }
+
+            // 4. Expanded Vinyl Box
+            const expandedBox = document.querySelector('.vinyl-box-card.expanded-active');
+            if (expandedBox) {
+                const boxCloseBtn = expandedBox.querySelector('.btn-close-box');
+                if (boxCloseBtn) {
+                    boxCloseBtn.click();
+                    return;
+                }
+            }
+            
+            // 5. Edit Library View
+            const editLibraryViewEl = document.getElementById('edit-library-view');
+            if (editLibraryViewEl && !editLibraryViewEl.classList.contains('hidden')) {
+                const doneBtn = document.getElementById('btn-edit-done');
+                if (doneBtn) {
+                    doneBtn.click();
+                    return;
+                }
+            }
+        }
+    });
+
+
     // --- DOM Elements ---
     const homeView = document.getElementById('home-view');
     const playerView = document.getElementById('player-view');
@@ -436,8 +485,8 @@ import { initSettings, initEditLibrary } from './modules/edit-library.js';
                 card.setAttribute('data-box-id', box.id);
                 card.style.setProperty('--box-color', box.color || '#5a4232');
                 
-                const boxSongs = playlist.filter(s => box.songIds && box.songIds.includes(s.id));
-                const recentSongs = [...boxSongs].reverse().slice(0, 4);
+                const boxSongs = (box.songIds || []).map(id => playlist.find(s => s.id === id)).filter(Boolean);
+                const recentSongs = [...boxSongs].slice(0, 4);
                 
                 let sleevesHTML = '';
                 for (let i = 0; i < recentSongs.length; i++) {
@@ -614,28 +663,47 @@ import { initSettings, initEditLibrary } from './modules/edit-library.js';
         }
     });
 
+    let isPlayerTransitioning = false;
+
+    window.closePlayer = closePlayer; // Expose for ESC handler
+
     function openPlayer(index) {
         currentTrackIndex = index;
         loadTrack(index);
         syncPlayerControlsUI();
-        homeView.classList.add('hidden');
-        playerView.classList.remove('hidden');
-        const auroraBg = document.getElementById('aurora-bg');
-        if (auroraBg) auroraBg.classList.remove('hidden');
+        
+        document.getElementById('mini-player').classList.remove('hidden');
+        updateMiniPlayerUI();
+        
         playAudio();
     }
 
     function closePlayer() {
-        playerView.classList.add('hidden');
-        homeView.classList.remove('hidden');
-        const auroraBg = document.getElementById('aurora-bg');
-        if (auroraBg) auroraBg.classList.add('hidden');
+        if (isPlayerTransitioning) return;
+        isPlayerTransitioning = true;
         
-        // Show mini player if a track is selected
-        if (currentTrackIndex !== -1 && playlist[currentTrackIndex]) {
-            document.getElementById('mini-player').classList.remove('hidden');
-            updateMiniPlayerUI();
-        }
+        playerView.classList.remove('player-active');
+        const overlay = document.getElementById('fade-overlay');
+        if (overlay) overlay.classList.add('active');
+        
+        setTimeout(() => {
+            playerView.classList.add('hidden');
+            const auroraBg = document.getElementById('aurora-bg');
+            if (auroraBg) auroraBg.classList.add('hidden');
+            
+            homeView.classList.remove('hidden');
+            void homeView.offsetHeight;
+            
+            if (overlay) overlay.classList.remove('active');
+            
+            setTimeout(() => {
+                isPlayerTransitioning = false;
+                if (currentTrackIndex !== -1 && playlist[currentTrackIndex]) {
+                    document.getElementById('mini-player').classList.remove('hidden');
+                    updateMiniPlayerUI();
+                }
+            }, 200);
+        }, 200);
     }
     
     function updateMiniPlayerUI() {
@@ -688,13 +756,27 @@ import { initSettings, initEditLibrary } from './modules/edit-library.js';
         // Prevent opening full player if clicking buttons
         if (e.target.closest('.mini-btn')) return;
         
-        if (currentTrackIndex !== -1) {
-            // Re-open player
+        if (currentTrackIndex !== -1 && !isPlayerTransitioning) {
             document.getElementById('mini-player').classList.add('hidden');
-            playerView.classList.remove('hidden');
-            homeView.classList.add('hidden');
-            const auroraBg = document.getElementById('aurora-bg');
-            if (auroraBg) auroraBg.classList.remove('hidden');
+            isPlayerTransitioning = true;
+            
+            const overlay = document.getElementById('fade-overlay');
+            if (overlay) overlay.classList.add('active');
+            
+            setTimeout(() => {
+                homeView.classList.add('hidden');
+                playerView.classList.remove('hidden');
+                const auroraBg = document.getElementById('aurora-bg');
+                if (auroraBg) auroraBg.classList.remove('hidden');
+                
+                void playerView.offsetHeight;
+                playerView.classList.add('player-active');
+                if (overlay) overlay.classList.remove('active');
+                
+                setTimeout(() => {
+                    isPlayerTransitioning = false;
+                }, 200);
+            }, 200);
         }
     });
     
@@ -2646,7 +2728,7 @@ import { initSettings, initEditLibrary } from './modules/edit-library.js';
         card.classList.add('expanded-active');
         activeExpandedCard = card;
 
-        const boxSongs = playlist.filter(song => box.songIds && box.songIds.includes(song.id));
+        const boxSongs = (box.songIds || []).map(id => playlist.find(s => s.id === id)).filter(Boolean);
 
         let songsHTML = '';
         if (boxSongs.length === 0) {
@@ -2674,16 +2756,12 @@ import { initSettings, initEditLibrary } from './modules/edit-library.js';
                         <span style="color: var(--text-secondary); font-size: 0.9rem;">${boxSongs.length} Tracks</span>
                     </div>
                     <div class="box-expansion-controls" style="display: flex; gap: 10px;">
-                        <button class="btn-play-box" title="Play Box" style="background: var(--surface-light); color: var(--text-primary); border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                        <button class="btn-play-box glass-icon-btn primary" title="Play Box">
                             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                                 <path d="M8 5v14l11-7z"></path>
                             </svg>
                         </button>
-                        <button class="btn-close-box" title="Close" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 5px;">
-                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
-                            </svg>
-                        </button>
+                        <button class="btn-close-box glass-icon-btn danger" title="Close"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
                     </div>
                 </div>
                 <div class="box-expansion-slider-wrapper" style="overflow-x: auto; overflow-y: hidden; padding-bottom: 10px;">
@@ -2769,7 +2847,7 @@ import { initSettings, initEditLibrary } from './modules/edit-library.js';
                         <div class="title">${song.title}</div>
                         <div class="artist">${song.artist}</div>
                     </div>
-                    <button class="add-song-quick-btn" style="background: none; border: none; color: var(--accent-color); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 5px;">
+                    <button class="add-song-quick-btn glass-icon-btn primary" title="Add to Box">
                         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="12" y1="5" x2="12" y2="19"></line>
                             <line x1="5" y1="12" x2="19" y2="12"></line>
