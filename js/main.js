@@ -35,6 +35,18 @@ import { initSettings, initEditLibrary } from './modules/edit-library.js';
                 return;
             }
             
+            // 2.5. Cinematic/Angelic Mode
+            if (typeof isCinematicMode !== 'undefined' && isCinematicMode) {
+                const btnExitCine = document.getElementById('btn-exit-cinematic');
+                if (btnExitCine) btnExitCine.click();
+                return;
+            }
+            if (typeof isAngelicMode !== 'undefined' && isAngelicMode) {
+                const btnExitAngel = document.getElementById('btn-exit-angelic');
+                if (btnExitAngel) btnExitAngel.click();
+                return;
+            }
+            
             // 3. Player View (Higher priority than box since it overlays everything)
             const playerViewEl = document.getElementById('player-view');
             if (playerViewEl && !playerViewEl.classList.contains('hidden') && typeof closePlayer === 'function') {
