@@ -212,8 +212,16 @@ export async function startScreenRecording(modeId, options = {}) {
         };
     }
 
-    // Pause audio first to ensure clean ambient start
-    if (pauseAudio) pauseAudio();
+    // Reset playback state first to ensure clean ambient start from 0.0s
+    if (options.resetPlaybackState) {
+        options.resetPlaybackState();
+    } else {
+        if (pauseAudio) pauseAudio();
+        const audioElement = document.getElementById('audio-player');
+        if (audioElement) {
+            audioElement.currentTime = 0;
+        }
+    }
 
     // Start recording continuously
     mediaRecorder.start();

@@ -2790,7 +2790,26 @@ import { startScreenRecording } from './modules/recorder.js';
             playAudio,
             pauseAudio,
             showToast,
-            getCurrentTrack: () => playlist[currentTrackIndex] || null
+            getCurrentTrack: () => {
+                const source = getPlaybackSource();
+                return source[currentTrackIndex] || null;
+            },
+            resetPlaybackState: () => {
+                // Pause audio and seek to 0
+                pauseAudio();
+                audio.currentTime = 0;
+                
+                // Reset lyric sync index & UI
+                activeLyricIndex = -1;
+                renderLyrics();
+                updateProgress();
+                
+                // Clear active cinematic/angelic visualizer text
+                const cinematicTextContainer = document.getElementById('cinematic-text-container');
+                if (cinematicTextContainer) cinematicTextContainer.innerHTML = '';
+                const angelicTextContainer = document.getElementById('angelic-text-container');
+                if (angelicTextContainer) angelicTextContainer.innerHTML = '';
+            }
         });
     });
 
