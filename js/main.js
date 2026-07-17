@@ -991,9 +991,9 @@ import { startScreenRecording } from './modules/recorder.js';
             lineEl.className = 'am-lyric-line';
             
             let htmlText = preventOrphanWords(lyric.text);
-            // Format parenthetical repeats elegantly with block layout and precise spacing
-            htmlText = htmlText.replace(/\n\([^)]*\)/g, (match) => {
-                const cleanMatch = match.replace('\n', '');
+            // Format parenthetical repeats elegantly with block layout and precise spacing, removing newlines on both sides
+            htmlText = htmlText.replace(/\n\([^)]*\)(\n)?/g, (match) => {
+                const cleanMatch = match.replace(/\n/g, '');
                 let scaleVal = 0.75;
                 if (cleanMatch.length > 35) {
                     scaleVal = 0.55;
@@ -1089,13 +1089,14 @@ import { startScreenRecording } from './modules/recorder.js';
         if (!text) return "";
         
         // 1. Xử lý cụm ngoặc đơn (...)
-        let processedText = text.replace(/\([^)]*\)/g, (match) => {
-            if (match.length > 10) {
-                // Dài vừa đủ: chèn \n trước dấu ( để xuống dòng riêng biệt
-                return '\n' + match;
+        let processedText = text.replace(/\s*\([^)]*\)\s*/g, (match) => {
+            if (match.trim().length > 10) {
+                // Dài vừa đủ: chèn \n ở cả hai đầu để tách biệt hẳn cụm ngoặc đơn thành dòng riêng
+                return '\n' + match.trim() + '\n';
             }
             return match;
         });
+        processedText = processedText.replace(/\n+/g, '\n').trim();
 
         // 2. Logic orphan-word cũ (xử lý từng dòng để không làm mất \n)
         const lines = processedText.split('\n');
