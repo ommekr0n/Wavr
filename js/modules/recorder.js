@@ -89,12 +89,14 @@ let preRollTimeout = null;
 let currentModeId = 'normal';
 let wasFullscreenBefore = false;
 let initialViewState = 'home';
+let recordedTrack = null;
 
 export async function startScreenRecording(modeId, options = {}) {
-    const { playAudio, pauseAudio, showToast } = options;
+    const { playAudio, pauseAudio, showToast, getCurrentTrack } = options;
     const modeConfig = recordingModeRegistry[modeId] || recordingModeRegistry.normal;
     currentModeId = modeId;
     wasFullscreenBefore = !!document.fullscreenElement;
+    recordedTrack = getCurrentTrack ? getCurrentTrack() : null;
 
     // Capture initial view state before switching modes
     const homeView = document.getElementById('home-view');
@@ -315,9 +317,10 @@ async function finishRecording(options = {}) {
     }
 
     const blob = new Blob(recordedChunks, { type: 'video/webm' });
-    const currentTrack = getCurrentTrack ? getCurrentTrack() : null;
-    const songTitle = currentTrack?.title ? currentTrack.title.replace(/[^a-zA-Z0-9_-]/g, '_') : 'Track';
-    const filename = `Wavr_${songTitle}_${Date.now()}.webm`;
+    const currentTrack = recordedTrack || (getCurrentTrack ? getCurrentTrack() : null);
+    const rawTitle = currentTrack?.title || 'Track';
+    const cleanTitle = rawTitle.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_');
+    const filename = `Wavr_${cleanTitle || 'Track'}.webm`;
 
     let savedSuccessfully = false;
 
