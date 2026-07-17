@@ -2551,3 +2551,91 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 .glass-icon-btn.transparent:hover {
     background: rgba(255,255,255,0.1);
 }
+
+/* =========================================
+   Record Popover & Recording Mode Styles
+   ========================================= */
+.record-popover {
+    position: absolute;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 8px 0;
+    min-width: 180px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    z-index: 101;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.record-popover.active {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+}
+
+.record-popover.hidden {
+    display: none;
+}
+
+.record-option-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 12px 18px;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.9rem;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    gap: 10px;
+}
+
+.record-option-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--accent-color);
+}
+
+.record-option-item svg {
+    flex-shrink: 0;
+}
+
+/* Hide UI elements during recording */
+body.is-recording {
+    cursor: none !important;
+}
+
+body.is-recording * {
+    cursor: none !important;
+}
+
+body.is-recording .app-header,
+body.is-recording .am-controls-container,
+body.is-recording .am-volume-container,
+body.is-recording #btn-exit-cinematic,
+body.is-recording #btn-exit-angelic,
+body.is-recording #fade-overlay,
+body.is-recording #loading-overlay,
+body.is-recording #mini-player {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity 0.5s ease !important;
+}
+
+body.is-recording #progress-slider {
+    pointer-events: none !important;
+}
+
+body.is-recording .modal,
+body.is-recording .modal-backdrop {
+    display: none !important;
+}

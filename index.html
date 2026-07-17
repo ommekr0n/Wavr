@@ -408,6 +408,17 @@
                                 <line x1="17" y1="16" x2="23" y2="16"></line>
                             </svg>
                         </button>
+                        <div class="record-container" style="position: relative; display: flex; align-items: center;">
+                            <button id="btn-record" class="icon-btn" title="Screen Recording">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M23 7l-7 5 7 5V7z"></path>
+                                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                                </svg>
+                            </button>
+                            <div id="record-popover" class="record-popover hidden">
+                                <!-- Dynamic options will be rendered here -->
+                            </div>
+                        </div>
                         <button id="btn-toggle-drift" class="icon-btn" title="Lyrics Sync">
                             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="12" r="10"></circle>
@@ -612,6 +623,31 @@
             </div>
             <div class="modal-actions" style="display: flex; gap: 10px;">
                 <button type="button" id="btn-cancel-add-songs" class="glass-btn primary"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen Recording Setup Modal -->
+    <div id="recording-setup-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Recording Setup</h2>
+            <p class="modal-subtitle" style="margin-bottom: 20px; font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5;">
+                To record high-quality video, your browser will prompt you to share your screen. 
+                Please select the <strong>"This Tab"</strong> option and ensure <strong>"Share Tab Audio"</strong> is checked. 
+                The recording will start with 4 seconds of ambient visuals before the music drops.
+            </p>
+            <div class="modal-actions" style="display: flex; gap: 10px; margin-top: 25px;">
+                <button type="button" id="btn-cancel-recording" class="glass-btn danger">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg> Cancel
+                </button>
+                <button type="button" id="btn-confirm-recording" class="glass-btn primary">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg> I Understand & Start
+                </button>
             </div>
         </div>
     </div>

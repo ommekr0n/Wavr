@@ -2,6 +2,7 @@ import { parseLyrics } from './modules/lyric-parser.js';
 import { extractColorsFromImage } from './modules/color-extractor.js';
 import { DOM } from './modules/dom.js';
 import { initSettings, initEditLibrary } from './modules/edit-library.js';
+import { startScreenRecording } from './modules/recorder.js';
 
     
     // Prevent copy/cut globally unless inside an input/textarea
@@ -2707,6 +2708,86 @@ import { initSettings, initEditLibrary } from './modules/edit-library.js';
             
             // Custom change means it's no longer a predefined preset
             if (eqPresets) eqPresets.value = 'default';
+        });
+    });
+
+    // --- Screen Recording UI Logic ---
+    const btnRecord = document.getElementById('btn-record');
+    const recordPopover = document.getElementById('record-popover');
+    const recordingSetupModal = document.getElementById('recording-setup-modal');
+    const btnCancelRecording = document.getElementById('btn-cancel-recording');
+    const btnConfirmRecording = document.getElementById('btn-confirm-recording');
+    
+    // Extensible list of recording modes
+    const recordingModes = [
+        { id: 'normal', label: 'Normal Player', icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>' },
+        { id: 'cinematic', label: 'Cinematic Mode', icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>' },
+        { id: 'angelic', label: 'Angelic Mode', icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>' }
+    ];
+    
+    let selectedRecordingMode = null;
+    
+    if (btnRecord && recordPopover) {
+        // Render dynamic options
+        recordPopover.innerHTML = recordingModes.map(mode => `
+            <button class="record-option-item" data-mode="${mode.id}">
+                ${mode.icon}
+                <span>${mode.label}</span>
+            </button>
+        `).join('');
+        
+        btnRecord.addEventListener('click', (e) => {
+            e.stopPropagation();
+            recordPopover.classList.toggle('hidden');
+            requestAnimationFrame(() => {
+                recordPopover.classList.toggle('active');
+            });
+        });
+        
+        document.addEventListener('click', (e) => {
+            if (!recordPopover.classList.contains('hidden') && !e.target.closest('.record-container')) {
+                recordPopover.classList.remove('active');
+                setTimeout(() => recordPopover.classList.add('hidden'), 200);
+            }
+        });
+        
+        recordPopover.addEventListener('click', (e) => {
+            const btn = e.target.closest('.record-option-item');
+            if (btn) {
+                selectedRecordingMode = btn.getAttribute('data-mode');
+                recordPopover.classList.remove('active');
+                recordPopover.classList.add('hidden');
+                
+                if (recordingSetupModal) {
+                    recordingSetupModal.classList.remove('hidden');
+                }
+            }
+        });
+    }
+    
+    if (btnCancelRecording && recordingSetupModal) {
+        btnCancelRecording.addEventListener('click', () => {
+            recordingSetupModal.classList.add('hidden');
+        });
+    }
+    
+    if (btnConfirmRecording && recordingSetupModal) {
+        btnConfirmRecording.addEventListener('click', () => {
+            recordingSetupModal.classList.add('hidden');
+            if (selectedRecordingMode) {
+                const event = new CustomEvent('startRecording', { detail: { mode: selectedRecordingMode } });
+                document.dispatchEvent(event);
+            }
+        });
+    }
+
+    document.addEventListener('startRecording', (e) => {
+        const mode = e.detail?.mode || 'normal';
+        startScreenRecording(mode, {
+            playAudio,
+            pauseAudio,
+            showToast,
+            getCurrentTrack: () => playlist[currentTrackIndex] || null
         });
     });
 
