@@ -989,7 +989,20 @@ import { startScreenRecording } from './modules/recorder.js';
         currentLyrics.forEach((lyric, index) => {
             const lineEl = document.createElement('div');
             lineEl.className = 'am-lyric-line';
-            lineEl.textContent = preventOrphanWords(lyric.text);
+            
+            let htmlText = preventOrphanWords(lyric.text);
+            // Format parenthetical repeats elegantly with custom scaling and nowrap
+            htmlText = htmlText.replace(/\([^)]*\)/g, (match) => {
+                let scaleVal = 0.75;
+                if (match.length > 35) {
+                    scaleVal = 0.55;
+                } else if (match.length > 25) {
+                    scaleVal = 0.65;
+                }
+                return `<span class="lyric-parenthesis" style="font-size: ${scaleVal}em; opacity: 0.65; font-weight: 500; white-space: nowrap; display: inline-block; transform-origin: left center;">${match}</span>`;
+            });
+            
+            lineEl.innerHTML = htmlText;
             lineEl.setAttribute('data-index', index);
             
             lineEl.addEventListener('click', () => {
@@ -1076,11 +1089,11 @@ import { startScreenRecording } from './modules/recorder.js';
         
         // 1. Xử lý cụm ngoặc đơn (...)
         let processedText = text.replace(/\([^)]*\)/g, (match) => {
-            if (match.length > 30) {
-                // Dài: chèn \n trước dấu ( để xuống dòng
+            if (match.length > 10) {
+                // Dài vừa đủ: chèn \n trước dấu ( để xuống dòng riêng biệt
                 return '\n' + match;
             }
-            return match; // Ngắn: giữ nguyên khoảng trắng để tránh tạo chuỗi non-breaking quá dài gây lỗi ngắt từ
+            return match;
         });
 
         // 2. Logic orphan-word cũ (xử lý từng dòng để không làm mất \n)
