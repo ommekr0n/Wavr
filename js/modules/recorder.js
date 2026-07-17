@@ -95,26 +95,40 @@ export async function startScreenRecording(modeId, options = {}) {
     currentModeId = modeId;
     wasFullscreenBefore = !!document.fullscreenElement;
 
-    // Step 1: Request Display Media (Screen/Tab Capture) with highest quality constraints
+    // Step 1: Request Display Media (Screen/Tab Capture) with highest quality constraints & self-tab preference
     let stream;
+    const displayOptions = {
+        preferCurrentTab: true,
+        selfBrowserSurface: 'include',
+        surfaceSwitching: 'include',
+        systemAudio: 'include',
+        video: {
+            displaySurface: 'browser',
+            width: { ideal: 1920, max: 3840 },
+            height: { ideal: 1080, max: 2160 },
+            frameRate: { ideal: 60, max: 120 }
+        },
+        audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false
+        }
+    };
+
     try {
-        stream = await navigator.mediaDevices.getDisplayMedia({
-            video: {
-                displaySurface: 'browser',
-                width: { ideal: 1920, max: 3840 },
-                height: { ideal: 1080, max: 2160 },
-                frameRate: { ideal: 60, max: 120 }
-            },
-            audio: {
-                echoCancellation: false,
-                noiseSuppression: false,
-                autoGainControl: false
-            }
-        });
+        stream = await navigator.mediaDevices.getDisplayMedia(displayOptions);
     } catch (err) {
-        console.warn('Display media permission denied or failed:', err);
-        if (showToast) showToast('Recording cancelled or permission denied.');
-        return;
+        console.warn('Advanced displayMedia failed, trying standard fallback:', err);
+        try {
+            stream = await navigator.mediaDevices.getDisplayMedia({
+                video: true,
+                audio: true
+            });
+        } catch (fallbackErr) {
+            console.warn('Display media permission denied or failed:', fallbackErr);
+            if (showToast) showToast('Recording cancelled or permission denied.');
+            return;
+        }
     }
 
     activeStream = stream;
