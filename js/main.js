@@ -2803,6 +2803,12 @@ import { startScreenRecording } from './modules/recorder.js';
                 activeLyricIndex = -1;
                 renderLyrics();
                 updateProgress();
+
+                // Scroll lyrics container back to the top
+                const lyricsContainer = document.getElementById('lyrics-container');
+                if (lyricsContainer) {
+                    lyricsContainer.scrollTop = 0;
+                }
                 
                 // Clear active cinematic/angelic visualizer text
                 const cinematicTextContainer = document.getElementById('cinematic-text-container');
