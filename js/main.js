@@ -1076,13 +1076,11 @@ import { startScreenRecording } from './modules/recorder.js';
         
         // 1. Xử lý cụm ngoặc đơn (...)
         let processedText = text.replace(/\([^)]*\)/g, (match) => {
-            if (match.length <= 40) {
-                // Ngắn: thay khoảng trắng thường thành non-breaking space
-                return match.replace(/ /g, '\u00A0');
-            } else {
+            if (match.length > 30) {
                 // Dài: chèn \n trước dấu ( để xuống dòng
                 return '\n' + match;
             }
+            return match; // Ngắn: giữ nguyên khoảng trắng để tránh tạo chuỗi non-breaking quá dài gây lỗi ngắt từ
         });
 
         // 2. Logic orphan-word cũ (xử lý từng dòng để không làm mất \n)
