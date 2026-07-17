@@ -1088,13 +1088,15 @@ import { startScreenRecording } from './modules/recorder.js';
     function preventOrphanWords(text) {
         if (!text) return "";
         
-        // 1. Xử lý cụm ngoặc đơn (...)
-        let processedText = text.replace(/\s*\([^)]*\)\s*/g, (match) => {
-            if (match.trim().length > 10) {
-                // Dài vừa đủ: chèn \n ở cả hai đầu để tách biệt hẳn cụm ngoặc đơn thành dòng riêng
-                return '\n' + match.trim() + '\n';
+        // 1. Xử lý cụm ngoặc đơn (...) và dấu câu đứng sau ngoặc
+        let processedText = text.replace(/([^\n(]*?)\s*\(([^)]*)\)\s*([.,;:!?]?)\s*/g, (match, before, inside, punc) => {
+            const parenthesisText = `(${inside})`;
+            if (parenthesisText.length > 10) {
+                // Nếu có dấu câu đứng sau dấu ngoặc, đính kèm nó vào từ trước dấu ngoặc
+                const cleanBefore = before.trim() + (punc ? punc : '');
+                return cleanBefore + '\n' + parenthesisText + '\n';
             }
-            return match;
+            return before + ' ' + parenthesisText + (punc ? punc : '') + ' ';
         });
         processedText = processedText.replace(/\n+/g, '\n').trim();
 
