@@ -845,6 +845,17 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
         0 0 22px var(--blob-1-color, #c9a0ff);
 }
 
+.angelic-apostrophe-fix {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.85em;
+    font-weight: 500;
+    vertical-align: middle;
+    display: inline-block;
+    transform: translateY(-0.15em);
+    margin: 0 -0.02em;
+    text-shadow: none; /* Avoid double glow to keep it sharp */
+}
+
 .angelic-enter-wrapper .angelic-word-pop {
     animation: pop-word 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
