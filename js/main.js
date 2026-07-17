@@ -2332,7 +2332,10 @@ import { startScreenRecording } from './modules/recorder.js';
         btnBackHome.addEventListener('click', closePlayer);
         
         // No longer using timeupdate for progress! using requestAnimationFrame 60-FPS loop instead!
-        audio.addEventListener('ended', () => nextTrack(true));
+        audio.addEventListener('ended', () => {
+            if (document.body.classList.contains('is-recording')) return;
+            nextTrack(true);
+        });
         
         playBtn.addEventListener('click', togglePlay);
         prevBtn.addEventListener('click', prevTrack);

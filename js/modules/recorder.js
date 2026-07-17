@@ -88,12 +88,32 @@ let activeStream = null;
 let preRollTimeout = null;
 let currentModeId = 'normal';
 let wasFullscreenBefore = false;
+let initialViewState = 'home';
 
 export async function startScreenRecording(modeId, options = {}) {
     const { playAudio, pauseAudio, showToast } = options;
     const modeConfig = recordingModeRegistry[modeId] || recordingModeRegistry.normal;
     currentModeId = modeId;
     wasFullscreenBefore = !!document.fullscreenElement;
+
+    // Capture initial view state before switching modes
+    const homeView = document.getElementById('home-view');
+    const editView = document.getElementById('edit-library-view');
+    const playerView = document.getElementById('player-view');
+    const cinematicView = document.getElementById('cinematic-view');
+    const angelicView = document.getElementById('angelic-view');
+
+    if (cinematicView && !cinematicView.classList.contains('hidden')) {
+        initialViewState = 'cinematic';
+    } else if (angelicView && !angelicView.classList.contains('hidden')) {
+        initialViewState = 'angelic';
+    } else if (playerView && !playerView.classList.contains('hidden')) {
+        initialViewState = 'player';
+    } else if (editView && !editView.classList.contains('hidden')) {
+        initialViewState = 'edit-library';
+    } else {
+        initialViewState = 'home';
+    }
 
     // Step 1: Request Display Media (Screen/Tab Capture) with optimized constraints for 60fps
     let stream;
@@ -193,7 +213,7 @@ export async function startScreenRecording(modeId, options = {}) {
     // Pause audio first to ensure clean ambient start
     if (pauseAudio) pauseAudio();
 
-    // Start recording continuously (without timeslice parameter to eliminate 1s micro-freezes)
+    // Start recording continuously
     mediaRecorder.start();
     if (showToast) showToast('Recording started! Music starts in 4 seconds...');
 
@@ -230,10 +250,55 @@ export function stopRecording() {
 }
 
 async function finishRecording(options = {}) {
-    const { showToast, getCurrentTrack } = options;
+    const { pauseAudio, showToast, getCurrentTrack } = options;
 
     // Cleanup UI
     document.body.classList.remove('is-recording');
+
+    // Pause audio & reset time
+    if (pauseAudio) pauseAudio();
+    const audioElement = document.getElementById('audio-player');
+    if (audioElement) {
+        audioElement.currentTime = 0;
+    }
+
+    // Teardown current recording mode
+    const modeConfig = recordingModeRegistry[currentModeId];
+    if (modeConfig && modeConfig.teardown) {
+        modeConfig.teardown();
+    }
+
+    // Restore initial view state
+    const homeView = document.getElementById('home-view');
+    const editView = document.getElementById('edit-library-view');
+    const playerView = document.getElementById('player-view');
+    const cinematicView = document.getElementById('cinematic-view');
+    const angelicView = document.getElementById('angelic-view');
+
+    [homeView, editView, playerView, cinematicView, angelicView].forEach(v => {
+        if (v) v.classList.add('hidden');
+    });
+
+    if (initialViewState === 'cinematic') {
+        const btnCine = document.getElementById('btn-cinematic');
+        if (btnCine) btnCine.click();
+    } else if (initialViewState === 'angelic') {
+        const btnAngel = document.getElementById('btn-angelic');
+        if (btnAngel) btnAngel.click();
+    } else if (initialViewState === 'player') {
+        if (playerView) {
+            playerView.classList.remove('hidden');
+            playerView.classList.add('player-active');
+        }
+    } else if (initialViewState === 'edit-library') {
+        if (editView) editView.classList.remove('hidden');
+    } else {
+        if (homeView) homeView.classList.remove('hidden');
+        const miniPlayer = document.getElementById('mini-player');
+        if (miniPlayer && audioElement && audioElement.src) {
+            miniPlayer.classList.remove('hidden');
+        }
+    }
 
     if (!wasFullscreenBefore && document.fullscreenElement) {
         try {
