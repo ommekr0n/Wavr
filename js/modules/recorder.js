@@ -95,7 +95,7 @@ export async function startScreenRecording(modeId, options = {}) {
     currentModeId = modeId;
     wasFullscreenBefore = !!document.fullscreenElement;
 
-    // Step 1: Request Display Media (Screen/Tab Capture) with highest quality constraints & self-tab preference
+    // Step 1: Request Display Media (Screen/Tab Capture) with optimized constraints for 60fps
     let stream;
     const displayOptions = {
         preferCurrentTab: true,
@@ -104,9 +104,9 @@ export async function startScreenRecording(modeId, options = {}) {
         systemAudio: 'include',
         video: {
             displaySurface: 'browser',
-            width: { ideal: 1920, max: 3840 },
-            height: { ideal: 1080, max: 2160 },
-            frameRate: { ideal: 60, max: 120 }
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            frameRate: { ideal: 60, max: 60 }
         },
         audio: {
             echoCancellation: false,
@@ -150,11 +150,13 @@ export async function startScreenRecording(modeId, options = {}) {
         modeConfig.setup();
     }
 
-    // Step 3: MediaRecorder Initialization (Prefer VP9 @ 8 Mbps)
-    let mimeType = 'video/webm;codecs=vp9';
+    // Step 3: MediaRecorder Initialization (Prefer hardware-accelerated VP8/standard WebM)
+    let mimeType = 'video/webm;codecs=vp8,opus';
     if (!MediaRecorder.isTypeSupported(mimeType)) {
         if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
             mimeType = 'video/webm;codecs=vp8';
+        } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+            mimeType = 'video/webm;codecs=vp9';
         } else {
             mimeType = 'video/webm';
         }
@@ -163,7 +165,7 @@ export async function startScreenRecording(modeId, options = {}) {
     try {
         mediaRecorder = new MediaRecorder(stream, {
             mimeType: mimeType,
-            videoBitsPerSecond: 8000000 // 8 Mbps for ultra crisp 1080p60
+            videoBitsPerSecond: 6000000 // 6 Mbps optimal for smooth 1080p60
         });
     } catch (e) {
         console.warn('MediaRecorder init fallback without bitrates:', e);
@@ -191,8 +193,8 @@ export async function startScreenRecording(modeId, options = {}) {
     // Pause audio first to ensure clean ambient start
     if (pauseAudio) pauseAudio();
 
-    // Start recording
-    mediaRecorder.start(1000);
+    // Start recording continuously (without timeslice parameter to eliminate 1s micro-freezes)
+    mediaRecorder.start();
     if (showToast) showToast('Recording started! Music starts in 4 seconds...');
 
     // Step 4: 4-second ambient time before playing music
