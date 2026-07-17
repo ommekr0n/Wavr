@@ -1180,22 +1180,50 @@ import { startScreenRecording } from './modules/recorder.js';
         newLine.className = 'cinematic-line';
         
         const processedText = preventOrphanWords(text);
-        const words = processedText.split(' ');
-        const allowGlitch = words.length > 3; // Forbid glitch on short sentences
+        const textLines = processedText.split('\n');
         
-        words.forEach((word, index) => {
-            const span = document.createElement('span');
-            if (allowGlitch) {
-                span.className = 'cine-word glitch-immune';
-                // Remove glitch immunity after 1500ms (1.5 seconds) so new words don't glitch immediately
-                setTimeout(() => { if (span.parentNode) span.classList.remove('glitch-immune'); }, 1500);
+        textLines.forEach((lineText, lineIdx) => {
+            if (lineIdx > 0) {
+                newLine.appendChild(document.createElement('br'));
             }
-            span.textContent = word;
-            span.dataset.text = word;
-            newLine.appendChild(span);
-            if (index < words.length - 1) {
-                newLine.appendChild(document.createTextNode(' '));
+            
+            const isParenthesis = lineText.trim().startsWith('(');
+            const lineContainer = document.createElement('span');
+            if (isParenthesis) {
+                let scaleVal = 0.65;
+                if (lineText.length > 35) {
+                    scaleVal = 0.45;
+                } else if (lineText.length > 25) {
+                    scaleVal = 0.55;
+                }
+                lineContainer.className = 'cine-parenthesis';
+                lineContainer.style.fontSize = `${scaleVal}em`;
+                lineContainer.style.opacity = '0.65';
+                lineContainer.style.display = 'inline-block';
+                lineContainer.style.whiteSpace = 'nowrap';
             }
+            
+            const words = lineText.trim().split(' ').filter(w => w.length > 0);
+            const allowGlitch = words.length > 3;
+            
+            words.forEach((word, index) => {
+                const span = document.createElement('span');
+                if (allowGlitch && !isParenthesis) {
+                    span.className = 'cine-word glitch-immune';
+                    setTimeout(() => { if (span.parentNode) span.classList.remove('glitch-immune'); }, 1500);
+                } else {
+                    span.className = 'cine-word';
+                }
+                span.textContent = word;
+                span.dataset.text = word;
+                
+                lineContainer.appendChild(span);
+                if (index < words.length - 1) {
+                    lineContainer.appendChild(document.createTextNode(' '));
+                }
+            });
+            
+            newLine.appendChild(lineContainer);
         });
         
         newWrapper.appendChild(newLine);
@@ -1371,6 +1399,17 @@ import { startScreenRecording } from './modules/recorder.js';
                 wordsHTML += '<br />';
             }
             
+            const isParenthesis = lineText.trim().startsWith('(');
+            if (isParenthesis) {
+                let scaleVal = 0.75;
+                if (lineText.length > 35) {
+                    scaleVal = 0.55;
+                } else if (lineText.length > 25) {
+                    scaleVal = 0.65;
+                }
+                wordsHTML += `<span class="angelic-parenthesis" style="font-size: ${scaleVal}em; opacity: 0.65; white-space: nowrap; display: inline-block; transform-origin: center center;">`;
+            }
+            
             const words = lineText.split(' ').filter(w => w.length > 0);
             // If the lyric is very long (multiple lines), reduce butterfly chance to maintain 60 FPS
             const butterflyChance = safeText.length > 60 ? 0.15 : 0.3;
@@ -1394,6 +1433,10 @@ import { startScreenRecording } from './modules/recorder.js';
                 </span> `;
                 globalWordIdx++;
             });
+            
+            if (isParenthesis) {
+                wordsHTML += `</span>`;
+            }
         });
         
         newLine.innerHTML = wordsHTML.trim();
