@@ -1430,11 +1430,8 @@ import { startScreenRecording } from './modules/recorder.js';
                     bFly = `<div class="sprite-butterfly" style="${styleStr}"></div>`;
                 }
                 
-                // Thay thế dấu ' hoặc ’ thành một thẻ span căn chỉnh riêng biệt để tránh lỗi nhảy cao của font Dancing Script
-                const cleanWord = word.replace(/['’]/g, `<span class="angelic-apostrophe-fix">'</span>`);
-                
                 wordsHTML += `<span class="angelic-word-sway" style="animation-delay: ${popDelay}s">
-                    <span class="angelic-word-pop" style="animation-delay: ${popDelay}s">${cleanWord}</span>
+                    <span class="angelic-word-pop" style="animation-delay: ${popDelay}s">${word}</span>
                     ${bFly}
                 </span> `;
                 globalWordIdx++;
