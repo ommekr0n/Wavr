@@ -1091,7 +1091,7 @@ import { startScreenRecording } from './modules/recorder.js';
         // 1. Xử lý cụm ngoặc đơn (...) và dấu câu đứng sau ngoặc
         let processedText = text.replace(/([^\n(]*?)\s*\(([^)]*)\)\s*([.,;:!?]?)\s*/g, (match, before, inside, punc) => {
             const parenthesisText = `(${inside})`;
-            if (parenthesisText.length > 10) {
+            if (parenthesisText.length > 3) {
                 // Nếu có dấu câu đứng sau dấu ngoặc, đính kèm nó vào từ trước dấu ngoặc
                 const cleanBefore = before.trim() + (punc ? punc : '');
                 return cleanBefore + '\n' + parenthesisText + '\n';
