@@ -991,15 +991,16 @@ import { startScreenRecording } from './modules/recorder.js';
             lineEl.className = 'am-lyric-line';
             
             let htmlText = preventOrphanWords(lyric.text);
-            // Format parenthetical repeats elegantly with custom scaling and nowrap
-            htmlText = htmlText.replace(/\([^)]*\)/g, (match) => {
+            // Format parenthetical repeats elegantly with block layout and precise spacing
+            htmlText = htmlText.replace(/\n\([^)]*\)/g, (match) => {
+                const cleanMatch = match.replace('\n', '');
                 let scaleVal = 0.75;
-                if (match.length > 35) {
+                if (cleanMatch.length > 35) {
                     scaleVal = 0.55;
-                } else if (match.length > 25) {
+                } else if (cleanMatch.length > 25) {
                     scaleVal = 0.65;
                 }
-                return `<span class="lyric-parenthesis" style="font-size: ${scaleVal}em; opacity: 0.65; font-weight: 500; white-space: nowrap; display: inline-block; transform-origin: left center;">${match}</span>`;
+                return `<span class="lyric-parenthesis" style="font-size: ${scaleVal}em; opacity: 0.65; font-weight: 500; white-space: nowrap; display: block; margin-top: 4px; line-height: 1.1; transform-origin: left center;">${cleanMatch}</span>`;
             });
             
             lineEl.innerHTML = htmlText;
@@ -1182,13 +1183,10 @@ import { startScreenRecording } from './modules/recorder.js';
         const processedText = preventOrphanWords(text);
         const textLines = processedText.split('\n');
         
-        textLines.forEach((lineText, lineIdx) => {
-            if (lineIdx > 0) {
-                newLine.appendChild(document.createElement('br'));
-            }
-            
+        textLines.forEach((lineText) => {
             const isParenthesis = lineText.trim().startsWith('(');
-            const lineContainer = document.createElement('span');
+            const lineContainer = document.createElement('div');
+            
             if (isParenthesis) {
                 let scaleVal = 0.65;
                 if (lineText.length > 35) {
@@ -1199,8 +1197,12 @@ import { startScreenRecording } from './modules/recorder.js';
                 lineContainer.className = 'cine-parenthesis';
                 lineContainer.style.fontSize = `${scaleVal}em`;
                 lineContainer.style.opacity = '0.65';
-                lineContainer.style.display = 'inline-block';
+                lineContainer.style.display = 'block';
+                lineContainer.style.marginTop = '6px';
+                lineContainer.style.lineHeight = '1.0';
                 lineContainer.style.whiteSpace = 'nowrap';
+            } else {
+                lineContainer.style.lineHeight = '1.1';
             }
             
             const words = lineText.trim().split(' ').filter(w => w.length > 0);
@@ -1395,10 +1397,7 @@ import { startScreenRecording } from './modules/recorder.js';
         let globalWordIdx = 0;
         
         textLines.forEach((lineText, lineIdx) => {
-            if (lineIdx > 0) {
-                wordsHTML += '<br />';
-            }
-            
+        textLines.forEach((lineText) => {
             const isParenthesis = lineText.trim().startsWith('(');
             if (isParenthesis) {
                 let scaleVal = 0.75;
@@ -1407,7 +1406,9 @@ import { startScreenRecording } from './modules/recorder.js';
                 } else if (lineText.length > 25) {
                     scaleVal = 0.65;
                 }
-                wordsHTML += `<span class="angelic-parenthesis" style="font-size: ${scaleVal}em; opacity: 0.65; white-space: nowrap; display: inline-block; transform-origin: center center;">`;
+                wordsHTML += `<div class="angelic-parenthesis" style="font-size: ${scaleVal}em; opacity: 0.65; white-space: nowrap; display: block; margin-top: 6px; line-height: 1.0; transform-origin: center center;">`;
+            } else {
+                wordsHTML += `<div style="display: block; line-height: 1.1;">`;
             }
             
             const words = lineText.split(' ').filter(w => w.length > 0);
@@ -1434,9 +1435,7 @@ import { startScreenRecording } from './modules/recorder.js';
                 globalWordIdx++;
             });
             
-            if (isParenthesis) {
-                wordsHTML += `</span>`;
-            }
+            wordsHTML += `</div>`;
         });
         
         newLine.innerHTML = wordsHTML.trim();
