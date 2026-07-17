@@ -981,7 +981,7 @@ import { initSettings, initEditLibrary } from './modules/edit-library.js';
         activeLyricIndex = -1;
         
         if (currentLyrics.length === 0) {
-            lyricsList.innerHTML = '<div class="am-lyric-line placeholder-line">Không có lời bài hát</div>';
+            lyricsList.innerHTML = '<div class="am-lyric-line placeholder-line">No lyrics available</div>';
             return;
         }
         
@@ -2744,7 +2744,7 @@ import { initSettings, initEditLibrary } from './modules/edit-library.js';
 
         let songsHTML = '';
         if (boxSongs.length === 0) {
-            songsHTML = `<div style="padding: 20px; color: var(--text-secondary); font-size: 0.9rem; text-align: center; width: 100%;">This box is empty. Click "Add Songs" in Edit mode to stack some records!</div>`;
+            songsHTML = `<div style="padding: 20px; color: var(--text-secondary); font-size: 0.9rem; text-align: center; width: 100%;">This box is empty. Go to Edit Library to add tracks.</div>`;
         } else {
             boxSongs.forEach((song, idx) => {
                 songsHTML += `
