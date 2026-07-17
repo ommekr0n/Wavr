@@ -1396,7 +1396,6 @@ import { startScreenRecording } from './modules/recorder.js';
         let wordsHTML = '';
         let globalWordIdx = 0;
         
-        textLines.forEach((lineText, lineIdx) => {
         textLines.forEach((lineText) => {
             const isParenthesis = lineText.trim().startsWith('(');
             if (isParenthesis) {
