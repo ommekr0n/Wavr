@@ -436,6 +436,8 @@ body {
 #cinematic-canvas {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;
     filter: blur(10px); /* Heavy blur */
+    will-change: transform;
+    transform: translateZ(0);
 }
 #reactive-dim {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5;
@@ -639,6 +641,7 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     box-shadow: 0 0 50px rgba(0,0,0,0.8), inset 0 0 20px rgba(255,255,255,0.05);
     animation: spin-vinyl 15s linear infinite;
     animation-play-state: paused;
+    will-change: transform;
 }
 .vinyl-record.playing {
     animation-play-state: running;
@@ -662,7 +665,8 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 }
 
 @keyframes spin-vinyl {
-    100% { transform: rotate(360deg); }
+    from { transform: rotate(0deg) translateZ(0); }
+    to { transform: rotate(360deg) translateZ(0); }
 }
 
 #angelic-text-container {
@@ -688,8 +692,16 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     opacity: 0.8;
 }
 
+/* =========================================================================
+   ANGELIC MODE: CSS CORE ARCHITECTURE & ANIMATIONS
+   - Quyền hạn: Quản lý layout, GPU compositing layer, timing nảy chữ & thoát mây trôi.
+   - LƯU Ý CHO CÁC AGENT KHÁC: KHÔNG ĐƯỢC XÓA BỎ các thuộc tính GPU (contain, translateZ, 
+     will-change) hoặc thay đổi khung timing 680ms/1200ms khi chưa có yêu cầu!
+   ========================================================================= */
+
 .angelic-line-wrapper {
     position: absolute;
+    top: 0; left: 0;
     width: 100vw;
     height: 100vh;
     display: flex;
@@ -701,6 +713,9 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     backdrop-filter: none;
     padding: 0;
     will-change: transform, opacity;
+    /* GPU layer isolation: Phân lập cây DOM, triệt tiêu layout thrashing */
+    contain: layout style paint;
+    transform: translateZ(0);
 }
 
 .angelic-line-wrapper.angelic-prebuilt {
@@ -712,11 +727,13 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 .angelic-staff-svg {
     position: absolute;
     top: 50%; left: 0;
-    transform: translateY(-50%);
+    transform: translateY(-50%) translateZ(0);
     transform-style: preserve-3d;
     z-index: 100;
     will-change: transform, opacity;
     overflow: visible !important;
+    /* Isolate staff SVG into own GPU layer - prevents repaints from bubbling up */
+    contain: layout style;
 }
 
 .angelic-line {
@@ -763,6 +780,9 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     opacity: 0;
     pointer-events: none;
     z-index: 10;
+    /* GPU compositing layer for sprite animation */
+    will-change: transform, opacity;
+    transform: translateZ(0);
 }
 
 .angelic-enter-wrapper .angelic-word-sway .sprite-butterfly {
@@ -815,13 +835,13 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 
 .giant-butterfly {
     position: absolute;
-    width: 60px;
-    height: 60px;
+    width: 120px;
+    height: 120px;
     left: 0;
     top: 0;
-    z-index: 5;
+    z-index: 1000;
     will-change: transform;
-    filter: drop-shadow(0 4px 10px var(--blob-3-color));
+    filter: drop-shadow(0 4px 15px var(--blob-3-color));
     animation: giant-fly 6s ease-in-out forwards;
     pointer-events: none;
 }
@@ -837,7 +857,7 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 .angelic-word-pop {
     display: inline-block;
     opacity: 0;
-    transform: translateY(20px) scale(0.9);
+    transform: translateY(20px) scale(0.9) translateZ(0);
     will-change: transform, opacity;
     /* Divine Glow inherits from parent .angelic-line, but boosted individually */
     text-shadow:
@@ -845,25 +865,25 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
         0 0 22px var(--blob-1-color, #c9a0ff);
 }
 
-
 .angelic-enter-wrapper .angelic-word-pop {
-    animation: pop-word 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: pop-word 0.94s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* Relaxed Poetic Angelic Pop-Word: Smooth 680ms gentle float, very easy on the eyes */
 @keyframes pop-word {
     0% {
         opacity: 0;
-        transform: translateY(25px) scale(0.85) rotate(-3deg);
+        transform: translateY(24px) scale(0.85) rotate(-2.5deg) translateZ(0);
         filter: blur(4px);
     }
     60% {
         opacity: 1;
-        transform: translateY(-5px) scale(1.04) rotate(0.5deg);
-        filter: blur(0px);
+        transform: translateY(-3px) scale(1.02) rotate(0.5deg) translateZ(0);
+        filter: blur(0.5px);
     }
     100% {
         opacity: 1;
-        transform: translateY(0) scale(1) rotate(0);
+        transform: translateY(0) scale(1) rotate(0) translateZ(0);
         filter: blur(0);
     }
 }
@@ -873,21 +893,22 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     position: fixed;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%) scale(0);
-    width: 90vmax;
-    height: 90vmax;
+    /* GPU compositing layer - ripple expands purely on GPU without touching layout */
+    transform: translate(-50%, -50%) scale(0) translateZ(0);
+    width: 85vmax;
+    height: 85vmax;
     border-radius: 50%;
-    border: 4px solid rgba(255, 255, 255, 0.7);
-    box-shadow: 0 0 30px rgba(255,255,255,0.5), inset 0 0 30px rgba(255,255,255,0.5);
+    border: 3.5px solid rgba(255, 255, 255, 0.75);
+    box-shadow: 0 0 25px rgba(255,255,255,0.6), inset 0 0 25px rgba(255,255,255,0.4);
     will-change: transform, opacity;
-    animation: ripple-out 4s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+    animation: ripple-out 2.2s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
     pointer-events: none;
     z-index: 1;
 }
 
 @keyframes ripple-out {
-    0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
-    100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+    0% { transform: translate(-50%, -50%) scale(0) translateZ(0); opacity: 0.9; }
+    100% { transform: translate(-50%, -50%) scale(1.5) translateZ(0); opacity: 0; }
 }
 
 .kata-fire-text {
@@ -903,7 +924,7 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     letter-spacing: -12px;
     filter: url(#fireFilter);
     will-change: transform;
-    z-index: -1; /* Behind angelic-particles (0) but inside right container */
+    z-index: 1;
     pointer-events: none;
     opacity: 0.8;
     mix-blend-mode: screen;
@@ -913,21 +934,21 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 }
 
 @keyframes kata-fall {
-    0% { transform: translateY(-100vh); opacity: 0; }
-    10% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { transform: translateY(100vh); opacity: 0; }
+    0% { transform: translateY(-100vh) translateZ(0); opacity: 0; }
+    10% { opacity: 0.95; }
+    90% { opacity: 0.95; }
+    100% { transform: translateY(100vh) translateZ(0); opacity: 0; }
 }
 
 @keyframes kata-rise {
-    0% { transform: translateY(100vh); opacity: 0; }
-    10% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { transform: translateY(-100vh); opacity: 0; }
+    0% { transform: translateY(100vh) translateZ(0); opacity: 0; }
+    10% { opacity: 0.95; }
+    90% { opacity: 0.95; }
+    100% { transform: translateY(-100vh) translateZ(0); opacity: 0; }
 }
 @keyframes sway-word {
     0% { transform: translateY(0) rotate(-2deg); }
-    100% { transform: translateY(-8px) rotate(2deg); }
+    100% { transform: translateY(-6px) rotate(2deg); }
 }
 
 /* Flora Bloom Animation */
@@ -952,58 +973,51 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     transform-origin: 0 0;
 }
 .angelic-enter-wrapper .angelic-bloom {
-    animation: bloom 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    animation: bloom 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 @keyframes bloom {
     to { opacity: 1; transform: scale(1); }
 }
 
-/* Exit Burn Animation */
+/* Exit Burn Animation - Relaxed 1.2s Soft Cloud Drift */
 .angelic-exit {
-    /* Heavenly Exit: floats up and fades out cleanly */
-    animation: angelic-heavenly-exit 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: angelic-heavenly-exit 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     pointer-events: none;
 }
 .angelic-exit .angelic-line {
-    animation: angelic-line-color-shift 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: angelic-line-color-shift 2.5s ease-out forwards;
 }
 .angelic-exit .angelic-word-pop {
     /* Let parent handle translation, but allow word-pop to inherit the color shift */
     opacity: 0.9;
 }
 .angelic-exit .angelic-staff-svg {
-    animation: fade-out-staff 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: fade-out-staff 2.5s ease-out forwards;
 }
 
 @keyframes fade-out-staff {
-    to { opacity: 0; transform: translateY(-50%) scale(0.95); }
+    to { opacity: 0; transform: translateY(-50%) scale(0.94) translateZ(0); }
 }
 
 @keyframes angelic-line-color-shift {
     0% {
         color: #fff;
-        text-shadow:
-            0 0 8px rgba(255, 255, 255, 1),
-            0 0 18px rgba(255, 255, 255, 0.8),
-            0 0 35px var(--blob-1-color, #c9a0ff);
     }
     100% {
         color: var(--blob-2-color, #ffe8b0);
-        text-shadow:
-            0 0 12px var(--blob-2-color, #ffe8b0),
-            0 0 25px var(--blob-3-color, #88aaff);
+        opacity: 0.3;
     }
 }
 
-/* Wrapper floats up as a whole (cheap GPU transform with lightweight blur) */
+/* Wrapper floats up like a soft cloud into heaven with gentle blur */
 @keyframes angelic-heavenly-exit {
-    0%   { transform: translateY(0) scale(1); opacity: 1; filter: blur(0px); }
-    100% { transform: translateY(-35px) scale(0.97) rotateZ(var(--exit-rot, 2deg)); opacity: 0; filter: blur(4px); }
+    0%   { transform: translateY(0) scale(1) translateZ(0); opacity: 1; filter: blur(0px); }
+    100% { transform: translateY(-48px) scale(0.95) rotateZ(var(--exit-rot, 2deg)) translateZ(0); opacity: 0; filter: blur(6px); }
 }
 
 /* Global Staff Animation */
 .angelic-enter-wrapper .staff-line {
-    animation: draw-staff 1.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    animation: draw-staff 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 @keyframes draw-staff {
     to { stroke-dashoffset: 0; }
@@ -2640,3 +2654,5 @@ body.is-recording .modal,
 body.is-recording .modal-backdrop {
     display: none !important;
 }
+
+

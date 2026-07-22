@@ -1418,7 +1418,7 @@ import { startScreenRecording } from './modules/recorder.js';
             const butterflyChance = safeText.length > 60 ? 0.15 : 0.3;
             
             words.forEach((word) => {
-                const popDelay = 0.1 + globalWordIdx * 0.06; // Slightly faster pop to feel snappier
+                const popDelay = globalWordIdx * 0.065; // Harmonized popDelay for 0.94s pop-in animation
                 let bFly = '';
                 if (Math.random() < butterflyChance) { 
                     const dirX = (Math.random() > 0.5 ? 1 : -1) * (15 + Math.random() * 25); 
@@ -1478,7 +1478,7 @@ import { startScreenRecording } from './modules/recorder.js';
                 line.classList.add('angelic-exit');
                 const rot = (Math.random() - 0.5) * 20;
                 line.style.setProperty('--exit-rot', `${rot}deg`);
-                setTimeout(() => { if (line.parentNode) line.remove(); }, 800);
+                setTimeout(() => { if (line.parentNode) line.remove(); }, 2500);
             }
         });
         
@@ -2674,7 +2674,8 @@ import { startScreenRecording } from './modules/recorder.js';
         const branchStr = window.WavrFloral.createBranch({ angle: 0, scale: 0.1, cy: 1, flower: true }, 0, 10, 0);
         
         // Pre-warm the fireFilter SVG shader by applying it to a dummy text element on startup
-        const warmUpFireText = `<div style="font-family: 'DotGothic16'; filter: url(#fireFilter); font-size: 1rem; width: 10px; height: 10px;">Prewarm</div>`;
+        const warmUpFireText = `<div style="font-family: 'DotGothic16'; filter: url(#fireFilter); font-size: 1rem; width: 10px; height: 10px;">Prewarm</div>
+                                <div style="font-family: 'Dancing Script'; font-size: 1rem; width: 10px; height: 10px;">Prewarm</div>`;
         
         dummyContainer.innerHTML = `<svg width="10" height="10">${branchStr}</svg>${warmUpFireText}`;
         
