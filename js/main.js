@@ -2062,7 +2062,15 @@ import { startScreenRecording } from './modules/recorder.js';
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
             syncLoop();
             
-        }).catch(err => console.error("Play error:", err));
+        }).catch(err => {
+            console.error("Play error:", err);
+            isPlaying = false;
+            playIcon.classList.remove('hidden');
+            pauseIcon.classList.add('hidden');
+            coverArt.classList.remove('playing');
+            if (vinylRecord) vinylRecord.classList.remove('playing');
+            updateMiniPlayerUI();
+        });
     }
 
     function pauseAudio() {
@@ -2079,8 +2087,11 @@ import { startScreenRecording } from './modules/recorder.js';
     }
 
     function togglePlay() {
-        if (isPlaying) pauseAudio();
-        else playAudio();
+        if (!audio.paused && isPlaying) {
+            pauseAudio();
+        } else {
+            playAudio();
+        }
         updateMiniPlayerUI();
     }
 
@@ -2089,6 +2100,11 @@ import { startScreenRecording } from './modules/recorder.js';
         if (source.length === 0) return;
         if (audio.currentTime > 3) {
             audio.currentTime = 0;
+            if (isPlaying) {
+                playAudio();
+            } else {
+                updateProgress();
+            }
             return;
         }
         
@@ -2386,10 +2402,22 @@ import { startScreenRecording } from './modules/recorder.js';
         
         btnBackHome.addEventListener('click', closePlayer);
         
-        // No longer using timeupdate for progress! using requestAnimationFrame 60-FPS loop instead!
+        // Keep isPlaying state strictly synchronized with browser audio element events
         audio.addEventListener('ended', () => {
             if (document.body.classList.contains('is-recording')) return;
             nextTrack(true);
+        });
+
+        audio.addEventListener('pause', () => {
+            // When HTML5 audio is paused or stalled, update JS state and UI
+            if (isPlaying) {
+                isPlaying = false;
+                playIcon.classList.remove('hidden');
+                pauseIcon.classList.add('hidden');
+                coverArt.classList.remove('playing');
+                if (vinylRecord) vinylRecord.classList.remove('playing');
+                updateMiniPlayerUI();
+            }
         });
         
         playBtn.addEventListener('click', togglePlay);
