@@ -1490,25 +1490,54 @@ import { startScreenRecording } from './modules/recorder.js';
             }
         });
         
-        // Trigger CSS Animations instantly by bringing it back on screen
+        // Trigger CSS Animations instantly without forcing synchronous main-thread layout reflow
         wrapper.classList.remove('angelic-prebuilt'); 
-        // Force Reflow to ensure animations play from start
-        void wrapper.offsetWidth;
-        wrapper.classList.add('angelic-enter-wrapper');
+        requestAnimationFrame(() => {
+            wrapper.classList.add('angelic-enter-wrapper');
+        });
     }
 
-    function spawnAngelicParticle() {
-        if (!isAngelicMode) return;
+    /* =========================================================================
+       ANGELIC MODE: OBJECT POOLING & CHARM SPAWNER (angelicParticlePool)
+       - Chức năng: Quản lý tập hợp bộ nhớ đệm (Object Pool) các hạt nốt nhạc bay.
+       - Tối ưu hóa: Tái sử dụng DOM element có sẵn, triệt tiêu Garbage Collection 
+         gây khựng bộ nhớ khi phát nhạc lâu. KHÔNG ĐƯỢC XÓA HÀM NÀY!
+       ========================================================================= */
+    const angelicParticlePool = [];
+    function getAngelicParticleFromPool() {
+        if (angelicParticlePool.length > 0) {
+            return angelicParticlePool.pop();
+        }
         const p = document.createElement('div');
         p.className = 'angelic-particle';
-        
-        // Use Global SVG Symbols for extreme performance
         const svgs = [
             `<svg viewBox="0 0 24 24"><use href="#icon-music-note"></use></svg>`,
             `<svg viewBox="0 0 24 24"><use href="#icon-star"></use></svg>`,
             `<svg viewBox="0 0 24 24"><use href="#icon-heart"></use></svg>`
         ];
         p.innerHTML = svgs[Math.floor(Math.random() * svgs.length)];
+        return p;
+    }
+
+    function releaseAngelicParticleToPool(p) {
+        if (p && p.parentNode) {
+            p.remove();
+            if (angelicParticlePool.length < 20) {
+                angelicParticlePool.push(p);
+            }
+        }
+    }
+
+    function spawnAngelicParticle() {
+        if (!isAngelicMode) return;
+
+        // Dynamic Throttling: Giới hạn tối đa 6 hạt khi quay màn hình, 15 hạt khi xem bình thường
+        const isRecording = document.body.classList.contains('is-recording');
+        const maxParticles = isRecording ? 6 : 15;
+        const activeParticles = angelicParticleContainer.querySelectorAll('.angelic-particle').length;
+        if (activeParticles >= maxParticles) return;
+
+        const p = getAngelicParticleFromPool();
         
         // Dynamic colors extracted from art cover
         const colorVar = `--blob-${Math.floor(Math.random() * 4) + 1}-color`;
@@ -1542,7 +1571,7 @@ import { startScreenRecording } from './modules/recorder.js';
         p.style.setProperty('--p-op', `${0.3 + Math.random() * 0.4}`);
         
         angelicParticleContainer.appendChild(p);
-        setTimeout(() => { if (p.parentNode) p.remove(); }, dur * 1000);
+        setTimeout(() => { releaseAngelicParticleToPool(p); }, dur * 1000);
     }
 
     let giantButterflyCooldown = 0;

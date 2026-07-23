@@ -719,8 +719,8 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 }
 
 .angelic-line-wrapper.angelic-prebuilt {
-    transform: translate3d(-9999px, 0, 0) !important;
-    opacity: 0.001 !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
     pointer-events: none !important;
 }
 
