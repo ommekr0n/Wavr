@@ -15,6 +15,7 @@ import { DOM } from './modules/dom.js';
 import { initSettings, initEditLibrary } from './modules/edit-library.js';
 import { startScreenRecording } from './modules/recorder.js';
 
+import './floral-templates.js';
 import { AudioEngine } from './core/audio/AudioEngine.js';
 import { FFTAnalyzer } from './core/audio/FFTAnalyzer.js';
 import { CinematicRenderer } from './core/rendering/CinematicRenderer.js';
