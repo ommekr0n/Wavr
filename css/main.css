@@ -618,6 +618,9 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     justify-content: center;
     overflow: hidden;
     background: transparent; /* aurora-bg is behind */
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    contain: layout style paint;
 }
 
 #angelic-vinyl-container {
@@ -861,7 +864,7 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
      mà KHÔNG CẦN CẮT BỎ bất kỳ bóng glow, blur, particle hay hiệu ứng thẩm mỹ nào.
    ========================================================================= */
 :root {
-    --pop-duration: 0.94s; /* Thời gian nảy từ mặc định khi xem trực tiếp */
+    --pop-duration: 0.82s; /* Thời gian nảy từ mặc định khi xem trực tiếp */
 }
 
 /* Đổi sang thời gian Pop-in dồn dập (0.65s) khi quay màn hình để giảm mờ đè, tăng độ mượt */
@@ -1004,18 +1007,18 @@ body.is-recording {
 
 /* Exit Burn Animation - Relaxed 1.2s Soft Cloud Drift */
 .angelic-exit {
-    animation: angelic-heavenly-exit 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: angelic-heavenly-exit 2.0s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     pointer-events: none;
 }
 .angelic-exit .angelic-line {
-    animation: angelic-line-color-shift 2.5s ease-out forwards;
+    animation: angelic-line-color-shift 2.0s ease-out forwards;
 }
 .angelic-exit .angelic-word-pop {
     /* Let parent handle translation, but allow word-pop to inherit the color shift */
     opacity: 0.9;
 }
 .angelic-exit .angelic-staff-svg {
-    animation: fade-out-staff 2.5s ease-out forwards;
+    animation: fade-out-staff 2.0s ease-out forwards;
 }
 
 @keyframes fade-out-staff {

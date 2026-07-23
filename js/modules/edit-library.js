@@ -329,6 +329,7 @@ function renderEditGrid() {
             }
 
             card.addEventListener('click', (e) => {
+                if (e.target.closest('.btn-delete-box')) return;
                 if (card.classList.contains('expanded-active')) return;
                 toggleEditBoxExpansion(card, box.id);
             });
@@ -765,15 +766,10 @@ function setupContextMenu() {
         contextMenu.classList.add('hidden');
         if (!activeBoxId) return;
 
-        localVinylBoxes = localVinylBoxes.filter(b => b.id !== activeBoxId);
-        renderEditGrid();
-        
-        // Push update to DB directly since we deleted a box
-        localforage.setItem('vinyl_boxes', localVinylBoxes).then(() => {
-            if (window.appMainContext) {
-                window.appMainContext.renderSongGrid();
-            }
-        });
+        const box = localVinylBoxes.find(b => b.id === activeBoxId);
+        if (box) {
+            showDeleteBoxModal(box.id, box.name);
+        }
     });
 
     // Song Context Menu Setup
@@ -974,32 +970,9 @@ function toggleEditBoxExpansion(card, boxId) {
     });
 
     // Delete Box button
-    card.querySelector('.btn-delete-box').addEventListener('click', async (e) => {
+    card.querySelector('.btn-delete-box').addEventListener('click', (e) => {
         e.stopPropagation();
-        const confirmed = confirm(`Delete box "${box.name}"? Songs inside will be unboxed, not deleted.`);
-        if (!confirmed) return;
-
-        // Remove box from localVinylBoxes
-        const idx = localVinylBoxes.findIndex(b => b.id === boxId);
-        if (idx !== -1) localVinylBoxes.splice(idx, 1);
-
-        // Remove box from order
-        localLibraryOrder = localLibraryOrder.filter(id => id !== boxId);
-
-        // Save and re-render
-        await window.localforage.setItem('vinyl_boxes', localVinylBoxes);
-        await window.localforage.setItem('library_order', localLibraryOrder);
-
-        activeEditExpandedCard = null;
-        renderEditGrid();
-
-        // Sync home grid
-        if (window.appMainContext) {
-            if (window.appMainContext.updateBoxCache)
-                window.appMainContext.updateBoxCache([...localVinylBoxes], [...localLibraryOrder]);
-            if (window.appMainContext.renderSongGrid)
-                window.appMainContext.renderSongGrid();
-        }
+        showDeleteBoxModal(box.id, box.name);
     });
 
     
