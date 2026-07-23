@@ -1,40 +1,47 @@
-# Wavr - Local Music Visualizer
+# Wavr 🎵 — Your Personal Music Visualizer & Gallery
 
-Wavr is an immersive, web-based visualizer and interactive gallery for your personal local music library. Designed with a sleek, modern aesthetic, it transforms your audio files into a highly visual, cinematic experience right in your browser.
+> **Wavr** transforms your personal music collection into an immersive, highly visual, and emotional audio experience right inside your browser.
 
-## ✨ Features
+---
 
-- **Interactive Music Gallery**: Organize your tracks into beautifully rendered "Vinyl Boxes" that feel tactile and dynamic.
-- **Cinematic Visualizer Mode**: Dive into your music with a distraction-free, full-screen visualizer featuring fluid transitions, dynamic background effects, and synchronized lyrics.
-- **Local Audio Support**: Upload your own `.mp3`, `.wav`, or `.flac` files directly from your computer. Everything runs locally in your browser for maximum privacy, speed, and offline capability.
-- **Smart Metadata Extraction**: Automatically extracts cover art, titles, and artist information from your audio files using `jsmediatags`.
-- **Custom Lyrics**: Load `.lrc` files to display perfectly synchronized, karaoke-style scrolling lyrics inside the visualizer.
-- **Advanced Audio Equalizer**: Fine-tune your listening experience with a built-in multi-band EQ and custom presets.
-- **Premium Interface**: A stunning dark mode interface with glassmorphism elements, custom SVG iconography, and fluid micro-animations that make your library feel alive.
+## 🌟 Visualizer & Player Experience
 
-## 🚀 Tech Stack
+- 📦 **Interactive Vinyl Boxes**: Organize and group your favorite tracks into tactile, draggable Vinyl Boxes for an intuitive gallery experience.
+- 🪽 **Angelic Mode**: A poetic visualizer featuring dynamic fluid staff lines, blooming floral branches, soaring giant butterflies, and water ripple bursts synced perfectly to musical climaxes.
+- 🎬 **Cinematic Mode**: An immersive concert visualizer with 3D stage lighting, ambient smoke particle physics, and dynamic LED pillars reacting live to your music's beat.
+- 📜 **Synchronized Lyrics**: Load `.lrc` files to enjoy smoothly scrolling, karaoke-style lyrics perfectly timed with your audio.
+- 🎛️ **Audio Equalizer**: Custom multi-band EQ with built-in sound presets (Pop, Rock, Bass Boost, Flat...) to tailor your audio experience.
+- 🔒 **100% Local & Private**: Everything runs entirely in your local browser. Your audio files and personal media are never uploaded to any remote server.
 
-- **HTML5 & Vanilla JavaScript**: Pure web technologies, ensuring a lightweight and blazing-fast experience.
-- **CSS3**: Fully responsive and highly animated interface using centralized CSS variables and advanced flexbox/grid layouts.
-- **jsmediatags**: Integrated for reading ID3 tags from local audio files.
-- **SortableJS**: Powers the smooth drag-and-drop track reordering.
+---
 
-## 🛠 Setup & Installation
+## 📖 User Guide
 
-Since Wavr is a purely client-side application, setup is incredibly simple:
+### 1. Adding & Managing Songs
+1. Click the **`+`** button in the main library header to load local audio files (`.mp3`, `.wav`, `.flac`).
+2. **Wavr** automatically reads track titles, artist names, and album cover art.
+3. To attach `.lrc` lyric files or update cover art manually, click the **`⋮` (Options)** button on any song card and select **Edit Metadata**.
 
-1. **Clone the repository:**
+### 2. Launching Visualizers
+- Click the **Mini Player** at the bottom of your screen to expand into full-screen visualizer mode.
+- Use the **Angelic Mode** or **Cinematic Mode** icons on the top control bar to switch visual themes on the fly.
+
+### 3. Keyboard Controls
+| Key | Action |
+| :--- | :--- |
+| **`Space`** | Play / Pause playback |
+| **`Left / Right Arrows`** | Skip backward / forward 5 seconds |
+| **`Up / Down Arrows`** | Increase / Decrease volume |
+| **`B`** | *[Angelic Mode]* Manually trigger Giant Butterfly & Water Ripple climax combo |
+
+---
+
+## 🛠 Quick Start
+
+Wavr is lightweight and ready to run out of the box:
+
+1. **Instant Launch:** Open `index.html` directly in any modern web browser (Chrome, Edge, Firefox, Safari).
+2. **Dev Mode (Local Server):**
    ```bash
-   git clone https://github.com/ommekr0n/Wavr.git
+   npm run dev
    ```
-2. **Open the project:**
-   Simply open `index.html` in any modern web browser.
-3. **Optional (Live Server):**
-   If you want to modify the code, using an extension like VSCode Live Server is recommended to prevent CORS issues with local file loading.
-
-## 📝 Usage
-
-- **Curate Your Gallery**: Click the **"+"** button to add new songs to your library. Let Wavr automatically extract metadata, or manually upload custom cover images and `.lrc` lyric files.
-- **Create Vinyl Boxes**: Group your tracks into custom boxes to keep your gallery organized.
-- **Immersive Visuals**: Click on the miniplayer at the bottom of the screen to expand the Cinematic Visualizer, revealing synchronized lyrics and dynamic background elements.
-- **Edit Info**: Click the 3-dots icon on any song to refine its metadata, adjust the cover art, or organize it into a box.
