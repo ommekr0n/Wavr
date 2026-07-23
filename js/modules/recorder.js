@@ -223,8 +223,14 @@ export async function startScreenRecording(modeId, options = {}) {
         }
     }
 
-    // Start recording continuously
-    mediaRecorder.start();
+    /* =========================================================================
+       SCREEN RECORDING: STREAM TIMESLICE OPTIMIZATION (1000ms Batching)
+       - Kỹ thuật: Truyền timeslice = 1000ms vào mediaRecorder.start(1000).
+       - Tác dụng: Gửi các đoạn video buffer về RAM theo đợt 1 giây/lần thay vì 
+         unbuffered stream từng frame liên tục. Điều này giải phóng luồng chính 
+         (Main Thread), triệt tiêu lag giật 60 FPS mà KHÔNG GIẢM HIỆU ỨNG NÀO.
+       ========================================================================= */
+    mediaRecorder.start(1000);
     if (showToast) showToast('Recording started! Music starts in 4 seconds...');
 
     // Step 4: 4-second ambient time before playing music

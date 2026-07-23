@@ -1418,7 +1418,15 @@ import { startScreenRecording } from './modules/recorder.js';
             const butterflyChance = safeText.length > 60 ? 0.15 : 0.3;
             
             words.forEach((word) => {
-                const popDelay = globalWordIdx * 0.065; // Harmonized popDelay for 0.94s pop-in animation
+                /* =========================================================================
+                   ANGELIC MODE: DYNAMIC WORD CADENCE (Recording vs Live Viewing)
+                   - Khi quay màn hình (.is-recording): popDelay = 40ms/từ (0.04s) kết hợp 
+                     với --pop-duration: 0.65s để các từ nảy nhanh dồn dập, cực kỳ sắc nét.
+                   - Khi xem trực tiếp: popDelay = 65ms/từ (0.065s) với --pop-duration: 0.94s 
+                     tạo nhịp thở mượt mà poetic.
+                   ========================================================================= */
+                const isRecording = document.body.classList.contains('is-recording');
+                const popDelay = isRecording ? (globalWordIdx * 0.04) : (globalWordIdx * 0.065);
                 let bFly = '';
                 if (Math.random() < butterflyChance) { 
                     const dirX = (Math.random() > 0.5 ? 1 : -1) * (15 + Math.random() * 25); 

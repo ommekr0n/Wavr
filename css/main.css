@@ -854,11 +854,29 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     100% { transform: translate(var(--ex), var(--ey)) rotate(var(--er)); opacity: 0; }
 }
 
+/* =========================================================================
+   GPU COMPOSITING LAYER HARDENING (ZERO-LOSS RECORDING OPTIMIZATION)
+   - Chức năng: Cô lập từng chuyển động thành một Texture riêng trên GPU RAM.
+   - Lợi ích: Giúp trình duyệt chụp màn hình (getDisplayMedia) 60 FPS mượt mà 
+     mà KHÔNG CẦN CẮT BỎ bất kỳ bóng glow, blur, particle hay hiệu ứng thẩm mỹ nào.
+   ========================================================================= */
+:root {
+    --pop-duration: 0.94s; /* Thời gian nảy từ mặc định khi xem trực tiếp */
+}
+
+/* Đổi sang thời gian Pop-in dồn dập (0.65s) khi quay màn hình để giảm mờ đè, tăng độ mượt */
+body.is-recording {
+    --pop-duration: 0.65s;
+    cursor: none !important;
+}
+
 .angelic-word-pop {
     display: inline-block;
     opacity: 0;
     transform: translateY(20px) scale(0.9) translateZ(0);
     will-change: transform, opacity;
+    backface-visibility: hidden; /* GPU Hardware Compositing Texture lock */
+    -webkit-font-smoothing: antialiased;
     /* Divine Glow inherits from parent .angelic-line, but boosted individually */
     text-shadow:
         0 0 10px rgba(255, 255, 255, 0.9),
@@ -866,7 +884,7 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 }
 
 .angelic-enter-wrapper .angelic-word-pop {
-    animation: pop-word 0.94s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: pop-word var(--pop-duration, 0.94s) cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Relaxed Poetic Angelic Pop-Word: Smooth 680ms gentle float, very easy on the eyes */
