@@ -1562,14 +1562,15 @@ import { startScreenRecording } from './modules/recorder.js';
         angelicParticleContainer.appendChild(ripple);
         setTimeout(() => { if (ripple.parentNode) ripple.remove(); }, 4000);
 
+        // 2. Tên nghệ sĩ chạy dọc bùng cháy (.artist-fire-text)
         if (artistName !== '') {
             const fireText = document.createElement('div');
-            fireText.className = 'kata-fire-text';
+            fireText.className = 'artist-fire-text';
             fireText.innerText = artistName;
             
             const isDown = Math.random() > 0.5;
             fireText.style.left = `${10 + Math.random() * 80}%`; // Relative to the visualizer container
-            fireText.style.animationName = isDown ? 'kata-fall' : 'kata-rise';
+            fireText.style.animationName = isDown ? 'artist-fire-fall' : 'artist-fire-rise';
             
             // Glows using art colors (optimized single shadow)
             fireText.style.color = 'var(--blob-1-color)';

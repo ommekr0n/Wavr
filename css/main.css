@@ -929,7 +929,12 @@ body.is-recording {
     100% { transform: translate(-50%, -50%) scale(1.5) translateZ(0); opacity: 0; }
 }
 
-.kata-fire-text {
+/* =========================================================================
+   ANGELIC MODE: VERTICAL SCROLLING ARTIST FIRE TEXT (.artist-fire-text)
+   - Chức năng: Tạo dòng Tên Nghệ Sĩ (Artist Name) chạy dọc bùng cháy trong combo cao trào.
+   - Thẩm mỹ: Xoay dọc (vertical-rl), hiệu ứng ngọn lửa Shader (#fireFilter).
+   ========================================================================= */
+.artist-fire-text {
     position: absolute;
     top: 0;
     font-family: 'Consolas', 'Courier New', monospace;
@@ -951,14 +956,14 @@ body.is-recording {
     animation-fill-mode: forwards;
 }
 
-@keyframes kata-fall {
+@keyframes artist-fire-fall {
     0% { transform: translateY(-100vh) translateZ(0); opacity: 0; }
     10% { opacity: 0.95; }
     90% { opacity: 0.95; }
     100% { transform: translateY(100vh) translateZ(0); opacity: 0; }
 }
 
-@keyframes kata-rise {
+@keyframes artist-fire-rise {
     0% { transform: translateY(100vh) translateZ(0); opacity: 0; }
     10% { opacity: 0.95; }
     90% { opacity: 0.95; }
