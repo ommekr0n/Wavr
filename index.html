@@ -247,16 +247,16 @@
                 </svg>
             </button>
             <h2>Add New Track</h2>
-            <p class="modal-subtitle">Upload an Audio file. Lyrics and Cover Art are optional.</p>
+            <p class="modal-subtitle">Upload Audio (.mp3, .m4a, .wav) and Lyrics (.lrc) files.</p>
             
             <form id="upload-form">
                 <div class="form-group">
-                    <label for="upload-audio">Audio File (.mp3, .m4a)</label>
+                    <label for="upload-audio">Audio File (.mp3, .m4a, .wav) - Required *</label>
                     <input type="file" id="upload-audio" accept="audio/*" required>
                 </div>
                 <div class="form-group">
-                    <label for="upload-lrc">Lyrics File (.lrc) - Optional</label>
-                    <input type="file" id="upload-lrc" accept=".lrc">
+                    <label for="upload-lrc">Lyrics File (.lrc) - Required *</label>
+                    <input type="file" id="upload-lrc" accept=".lrc" required>
                 </div>
                 <div class="form-group">
                     <label for="upload-cover">Cover Art (Image) - Optional</label>
