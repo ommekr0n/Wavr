@@ -2,6 +2,7 @@
  * Edit Library Module
  * Handles grid settings, drag-and-drop reordering, drag selection, and Vinyl Box (playlist) creation/animation.
  */
+import coverImgUrl from '../../assets/images/cover.png';
 
 let localPlaylist = [];
 let localVinylBoxes = [];
@@ -289,7 +290,7 @@ function renderEditGrid() {
 
             card.innerHTML = `
                 <div class="song-cover-wrapper" style="position: relative; aspect-ratio: 1/1; border-radius: 8px; overflow: hidden; margin-bottom: 10px;">
-                    <img src="${song.cover || 'assets/images/cover.png'}" alt="${song.title}" style="width: 100%; height: 100%; object-fit: cover;">
+                    <img src="${song.cover || coverImgUrl}" alt="${song.title}" style="width: 100%; height: 100%; object-fit: cover;">
                     <button class="song-options-btn" data-id="${song.id}" title="Options">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                             <circle cx="12" cy="5" r="2"></circle>
@@ -340,7 +341,7 @@ function renderEditGrid() {
             let sleevesHTML = '';
             for (let i = 0; i < recentSongs.length; i++) {
                 const song = recentSongs[i];
-                const coverUrl = song.cover || 'assets/images/cover.png';
+                const coverUrl = song.cover || coverImgUrl;
                 const sleeveClass = `sleeve-${i}`;
                 sleevesHTML += `<div class="peeking-sleeve ${sleeveClass}" style="background-image: url('${coverUrl}')"></div>`;
             }
@@ -950,7 +951,7 @@ function toggleEditBoxExpansion(card, boxId) {
             songsHTML += `
                 <div class="song-card box-slider-song-card inner-editable-song" data-song-id="${song.id}" data-box-id="${box.id}" draggable="true">
                     <div class="song-cover-wrapper">
-                        <img src="${song.cover || 'assets/images/cover.png'}" alt="${song.title}">
+                        <img src="${song.cover || coverImgUrl}" alt="${song.title}">
                         <button class="song-options-btn" data-id="${song.id}" title="Options">
                             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                                 <circle cx="12" cy="5" r="2"></circle>

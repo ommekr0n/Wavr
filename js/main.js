@@ -15,6 +15,7 @@ import { DOM } from './modules/dom.js';
 import { initSettings, initEditLibrary } from './modules/edit-library.js';
 import { startScreenRecording } from './modules/recorder.js';
 import { BackgroundManager } from './modules/background-manager.js';
+import coverImgUrl from '../assets/images/cover.png';
 
 import './floral-templates.js';
 import { AudioEngine } from './core/audio/AudioEngine.js';
@@ -483,7 +484,7 @@ async function renderSongGrid() {
             card.setAttribute('data-id', song.id);
             card.innerHTML = `
                 <div class="song-card-inner">
-                    <img src="${song.cover || 'assets/images/cover.png'}" alt="Cover">
+                    <img src="${song.cover || coverImgUrl}" alt="Cover">
                 </div>
                 <div class="song-card-title">${song.title}</div>
                 <div class="song-card-artist">${song.artist}</div>
@@ -500,7 +501,7 @@ async function renderSongGrid() {
             let sleevesHTML = '';
             for (let i = 0; i < recentSongs.length; i++) {
                 const song = recentSongs[i];
-                const coverUrl = song.cover || 'assets/images/cover.png';
+                const coverUrl = song.cover || coverImgUrl;
                 const sleeveClass = `sleeve-${i}`;
                 sleevesHTML += `<div class="peeking-sleeve ${sleeveClass}" style="background-image: url('${coverUrl}')"></div>`;
             }
@@ -1071,7 +1072,7 @@ function updateMiniPlayerUI() {
         return;
     }
     const song = source[currentTrackIndex];
-    document.getElementById('mini-cover').src = song.cover || 'assets/images/cover.png';
+    document.getElementById('mini-cover').src = song.cover || coverImgUrl;
     document.getElementById('mini-title').textContent = song.title || 'Unknown Title';
     document.getElementById('mini-artist').textContent = song.artist || 'Unknown Artist';
     const btnMiniPlay = document.getElementById('btn-mini-play');
@@ -1141,9 +1142,9 @@ function handleUploadForm(e) {
 
     if (coverFile) processUpload(coverFile, URL.createObjectURL(coverFile));
     else {
-        fetch('assets/images/cover.png').then(r => r.blob()).then(blob => {
+        fetch(coverImgUrl).then(r => r.blob()).then(blob => {
             processUpload(blob, URL.createObjectURL(blob));
-        }).catch(() => processUpload(null, 'assets/images/cover.png'));
+        }).catch(() => processUpload(null, coverImgUrl));
     }
 }
 
@@ -1181,7 +1182,7 @@ function toggleBoxExpansion(card, boxId, vinylBoxes) {
             songsHTML += `
                 <div class="song-card box-slider-song-card" data-idx="${idx}">
                     <div class="song-cover-wrapper">
-                        <img src="${song.cover || 'assets/images/cover.png'}" alt="${song.title}">
+                        <img src="${song.cover || coverImgUrl}" alt="${song.title}">
                         <div class="box-song-play-overlay">
                             <svg viewBox="0 0 24 24" width="22" height="22" fill="#ffffff"><path d="M8 5v14l11-7z"></path></svg>
                         </div>
@@ -1834,7 +1835,7 @@ async function initHome() {
             let needsSave = false;
             loadedPlaylist = savedPlaylist.map((song, idx) => {
                 let url = song.url || '';
-                let cover = song.cover || 'assets/images/cover.png';
+                let cover = song.cover || coverImgUrl;
                 try {
                     if (song.audioBlob instanceof Blob) url = URL.createObjectURL(song.audioBlob);
                     if (song.coverBlob instanceof Blob) cover = URL.createObjectURL(song.coverBlob);
@@ -1882,7 +1883,7 @@ async function initHome() {
                 let needsSave = false;
                 const playlist = savedPlaylist.map((song, idx) => {
                     let url = song.url || '';
-                    let cover = song.cover || 'assets/images/cover.png';
+                    let cover = song.cover || coverImgUrl;
                     try {
                         if (song.audioBlob instanceof Blob) url = URL.createObjectURL(song.audioBlob);
                         if (song.coverBlob instanceof Blob) cover = URL.createObjectURL(song.coverBlob);

@@ -7,6 +7,8 @@
  * All math, timing constants, and variable names preserved exactly.
  */
 
+import fireGifUrl from '../../../assets/images/fire.gif';
+
 // ── Pillar State ────────────────────────────────────────────────────────────
 const NUM_PILLARS = 4;
 const smoothedBars    = new Float32Array(NUM_PILLARS);
@@ -44,7 +46,7 @@ let lastCineTime     = 0;
 let fireBurstTime    = 0;
 let isFireBursting   = false;
 let fireGifBlob      = null;
-let fireGifBlobUrl   = 'assets/images/fire.gif'; // Default fallback
+let fireGifBlobUrl   = fireGifUrl; // Default fallback
 
 // ── Offscreen smoke sprite canvases (pre-rendered, re-used every frame) ─────
 const smokeSprite0 = document.createElement('canvas');
@@ -72,11 +74,11 @@ export const CinematicRenderer = {
      * Call once at startup (before the first playback).
      */
     init() {
-        fetch('assets/images/fire.gif')
+        fetch(fireGifUrl)
             .then(r => r.blob())
             .then(blob => {
                 fireGifBlob = blob;
-                if (fireGifBlobUrl === 'assets/images/fire.gif') {
+                if (fireGifBlobUrl === fireGifUrl) {
                     fireGifBlobUrl = URL.createObjectURL(blob);
                 }
             })
