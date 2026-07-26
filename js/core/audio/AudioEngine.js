@@ -1,7 +1,4 @@
-/**
- * AudioEngine.js
- * Manages the Web Audio API graph: AudioContext, EQ nodes, AnalyserNode, AudioWorkletNode, and MediaElementSource.
- */
+import workletUrl from './AudioAnalysisWorklet.js?url';
 
 let audioCtx = null;
 let analyser = null;
@@ -49,7 +46,7 @@ export const AudioEngine = {
 
             // Wire AudioWorklet Processor on the dedicated audio thread
             if (audioCtx.audioWorklet) {
-                audioCtx.audioWorklet.addModule('js/core/audio/AudioAnalysisWorklet.js')
+                audioCtx.audioWorklet.addModule(workletUrl)
                     .then(() => {
                         workletNode = new AudioWorkletNode(audioCtx, 'audio-analysis-processor');
                         workletNode.port.onmessage = (event) => {
