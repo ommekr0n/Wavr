@@ -1455,7 +1455,6 @@ body.is-recording {
     filter: contrast(1.3) brightness(1.2) saturate(1.4);
     transform: translateY(100%);
     opacity: 0;
-    transition: transform 0.15s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 0.2s ease;
     will-change: transform, opacity;
     pointer-events: none;
 }
