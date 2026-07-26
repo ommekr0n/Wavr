@@ -104,8 +104,9 @@ export const CinematicRenderer = {
      * @param {HTMLImageElement}  cineFireLeft     - #cine-fire-left element
      * @param {HTMLImageElement}  cineFireRight    - #cine-fire-right element
      * @param {HTMLElement}       reactiveDim      - #reactive-dim element
+     * @param {object}            analysis         - Analysis payload from FFTAnalyzer
      */
-    renderFrame(canvas, dataArray, intensity, winWidth, winHeight, isPlaying, cineFireLeft, cineFireRight, reactiveDim) {
+    renderFrame(canvas, dataArray, intensity, winWidth, winHeight, isPlaying, cineFireLeft, cineFireRight, reactiveDim, analysis) {
         const ctx = canvas.getContext('2d');
 
         // Sync canvas dimensions to prevent layout thrashing
@@ -371,7 +372,9 @@ export const CinematicRenderer = {
 
             if (sp.blink < 0.01) continue;
 
-            const sweepAngle = sp.baseAngle + Math.sin(nowSec * sp.sweepSpeed + sp.phase) * sp.sweepRange;
+            const danceability = (typeof analysis !== 'undefined' && analysis) ? (analysis.danceability || 0.5) : 0.5;
+            const speedMult = 0.7 + danceability * 0.6;
+            const sweepAngle = sp.baseAngle + Math.sin(nowSec * sp.sweepSpeed * speedMult + sp.phase) * sp.sweepRange;
             const spread     = 0.12 + intensity * 0.06;
             const beamLen    = Math.sqrt(width * width + height * height);
             const ox = si === 0 ? width * 0.03 : width * 0.97;
@@ -417,8 +420,9 @@ export const CinematicRenderer = {
         // =============================================
         // LAYER 3: SMOKE — Realistic Fog Machine
         // =============================================
+        const trackEnergy   = (typeof analysis !== 'undefined' && analysis) ? (analysis.energy || 0.5) : 0.5;
         const isBursting    = intensity > 0.65;
-        const spawnInterval = isBursting ? 0.012 : 0.10;
+        const spawnInterval = isBursting ? 0.010 : Math.max(0.04, 0.12 - trackEnergy * 0.08);
         const spawnCount    = isBursting ? 4 : 1;
 
         smokeSpawnTimer -= dt;

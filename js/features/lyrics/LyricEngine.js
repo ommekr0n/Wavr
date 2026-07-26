@@ -11,6 +11,65 @@ let currentLyrics  = [];
 let activeLyricIndex = -1;
 let driftRatio     = 1.0;
 
+// ── Custom smooth scroll state ────────────────────────────────────────────────
+// We track one in-flight RAF scroll per container so new scroll requests
+// cancel the old one cleanly instead of stuttering over each other.
+let _scrollRaf = null;
+// After a resetScroll(), we skip the very next smoothScrollTo call so
+// timeupdate can't immediately override the scrollTop=0 reset.
+let _skipNextScroll = false;
+
+/**
+ * Custom RAF smooth scroll — ease-out-quart curve.
+ * Much smoother than browser `behavior:'smooth'` which stutters on interruption.
+ *
+ * @param {HTMLElement} el        - Scrollable container
+ * @param {number}      target    - Target scrollTop in px
+ * @param {number}      duration  - Animation duration in ms (default 520ms)
+ */
+function smoothScrollTo(el, target, duration = 520) {
+    // Skip exactly one call after resetScroll() to let the reset settle
+    if (_skipNextScroll) {
+        _skipNextScroll = false;
+        return;
+    }
+
+    // Cancel any in-flight scroll immediately
+    if (_scrollRaf) {
+        cancelAnimationFrame(_scrollRaf);
+        _scrollRaf = null;
+    }
+
+    const start    = el.scrollTop;
+    const distance = target - start;
+
+    // Nothing to scroll
+    if (Math.abs(distance) < 1) return;
+
+    const startTime = performance.now();
+
+    // Ease-out-quart: fast start, very soft landing — feels natural
+    function easeOutQuart(t) {
+        return 1 - Math.pow(1 - t, 4);
+    }
+
+    function step(now) {
+        const elapsed  = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased    = easeOutQuart(progress);
+
+        el.scrollTop = start + distance * eased;
+
+        if (progress < 1) {
+            _scrollRaf = requestAnimationFrame(step);
+        } else {
+            _scrollRaf = null;
+        }
+    }
+
+    _scrollRaf = requestAnimationFrame(step);
+}
+
 // ── Shared helper: prevent orphan words ─────────────────────────────────────
 // Mirrors the exact function in main.js and AngelicRenderer.js — must stay in sync.
 function preventOrphanWords(text) {
@@ -47,6 +106,27 @@ export const LyricEngine = {
     // ── Setters ─────────────────────────────────────────────────────────────
     setDriftRatio(val)       { driftRatio = val; },
     setActiveLyricIndex(val) { activeLyricIndex = val; },
+
+    /**
+     * Cancels any in-flight RAF scroll and instantly resets the container to top.
+     * Must be called on track change BEFORE renderLyrics.
+     * @param {HTMLElement} container - The lyrics scrollable container
+     */
+    resetScroll(container) {
+        if (_scrollRaf) {
+            cancelAnimationFrame(_scrollRaf);
+            _scrollRaf = null;
+        }
+        _skipNextScroll = false;
+        activeLyricIndex = -1;
+        if (container) {
+            container.scrollTop = 0;
+            // Double-check scroll reset after DOM paint
+            requestAnimationFrame(() => {
+                if (container) container.scrollTop = 0;
+            });
+        }
+    },
 
     /**
      * Parses an LRC text string into a lyrics array and resets the active index.
@@ -110,48 +190,67 @@ export const LyricEngine = {
      * @param {function}    onCinematicTrigger    - Callback(text) when cinematic mode triggers
      */
     updateHighlight(currentTime, lyricsListEl, lyricsContainer, onAngelicShow, onCinematicTrigger) {
-        if (currentLyrics.length === 0) return;
+        if (!currentLyrics || currentLyrics.length === 0 || !currentLyrics[0] || typeof currentLyrics[0].time !== 'number') return;
 
-        // O(1) adjacent-check optimized lyric sync
-        let newActiveIndex = activeLyricIndex !== -1 ? activeLyricIndex : 0;
+        // O(1) adjacent-check optimized lyric sync — ensure valid non-negative index for array lookup
+        let newActiveIndex = activeLyricIndex >= 0 ? activeLyricIndex : 0;
 
         // Fast-forward if time passed the next lyric
-        while (newActiveIndex < currentLyrics.length - 1 && currentTime >= currentLyrics[newActiveIndex + 1].time * driftRatio) {
+        while (
+            newActiveIndex < currentLyrics.length - 1 &&
+            currentLyrics[newActiveIndex + 1] &&
+            typeof currentLyrics[newActiveIndex + 1].time === 'number' &&
+            currentTime >= currentLyrics[newActiveIndex + 1].time * driftRatio
+        ) {
             newActiveIndex++;
         }
         // Rewind if time went backwards (e.g. user seeked)
-        while (newActiveIndex > 0 && currentTime < currentLyrics[newActiveIndex].time * driftRatio) {
+        while (
+            newActiveIndex > 0 &&
+            currentLyrics[newActiveIndex] &&
+            typeof currentLyrics[newActiveIndex].time === 'number' &&
+            currentTime < currentLyrics[newActiveIndex].time * driftRatio
+        ) {
             newActiveIndex--;
         }
-        // Edge case: time is before the very first lyric
-        if (newActiveIndex === 0 && currentTime < currentLyrics[0].time * driftRatio) {
+        // Edge case: time is before the very first lyric (Intro / Music Solo)
+        if (currentLyrics[0] && currentTime < currentLyrics[0].time * driftRatio) {
             newActiveIndex = -1;
         }
 
-        if (newActiveIndex !== activeLyricIndex && newActiveIndex !== -1) {
+        if (newActiveIndex !== activeLyricIndex) {
             activeLyricIndex = newActiveIndex;
 
             const lines = lyricsListEl.querySelectorAll('.am-lyric-line');
             lines.forEach((line, idx) => {
-                if (idx === activeLyricIndex) line.classList.add('active');
-                else                          line.classList.remove('active');
+                line.classList.remove('active', 'next-line');
+                if (idx === activeLyricIndex)     line.classList.add('active');
+                else if (idx === activeLyricIndex + 1) line.classList.add('next-line');
             });
 
-            const activeLine = lines[activeLyricIndex];
-            if (activeLine && lyricsContainer) {
-                const containerHeight = lyricsContainer.clientHeight;
-                const lineOffsetTop   = activeLine.offsetTop;
-                const lineHeight      = activeLine.clientHeight;
-                const targetScroll    = lineOffsetTop - (containerHeight * 0.4) + (lineHeight / 2);
-                lyricsContainer.scrollTo({ top: targetScroll, behavior: 'smooth' });
-            }
+            if (activeLyricIndex === -1) {
+                // If audio is currently in the intro section before first lyric, scroll container straight to top (0px)
+                if (lyricsContainer) {
+                    smoothScrollTo(lyricsContainer, 0, 350);
+                }
+            } else {
+                const activeLine = lines[activeLyricIndex];
+                if (activeLine && lyricsContainer) {
+                    const containerHeight = lyricsContainer.clientHeight;
+                    const lineOffsetTop   = activeLine.offsetTop;
+                    const lineHeight      = activeLine.clientHeight;
+                    const targetScroll    = lineOffsetTop - (containerHeight * 0.4) + (lineHeight / 2);
+                    // Custom RAF scroll — no stutter on rapid line changes
+                    smoothScrollTo(lyricsContainer, targetScroll, 520);
+                }
 
-            // Trigger mode-specific callbacks
-            if (onCinematicTrigger && currentLyrics[activeLyricIndex]) {
-                onCinematicTrigger(currentLyrics[activeLyricIndex].text);
-            }
-            if (onAngelicShow && currentLyrics[activeLyricIndex]) {
-                onAngelicShow(activeLyricIndex);
+                // Trigger mode-specific callbacks
+                if (onCinematicTrigger && currentLyrics[activeLyricIndex]) {
+                    onCinematicTrigger(currentLyrics[activeLyricIndex].text);
+                }
+                if (onAngelicShow && currentLyrics[activeLyricIndex]) {
+                    onAngelicShow(activeLyricIndex);
+                }
             }
         }
     },

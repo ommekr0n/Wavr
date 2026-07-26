@@ -14,6 +14,7 @@ import { extractColorsFromImage } from './modules/color-extractor.js';
 import { DOM } from './modules/dom.js';
 import { initSettings, initEditLibrary } from './modules/edit-library.js';
 import { startScreenRecording } from './modules/recorder.js';
+import { BackgroundManager } from './modules/background-manager.js';
 
 import './floral-templates.js';
 import { AudioEngine } from './core/audio/AudioEngine.js';
@@ -125,6 +126,7 @@ const driftVal = document.getElementById('drift-val');
 
 const progressSlider = document.getElementById('progress-slider');
 const progressBarFill = document.querySelector('.progress-bar-fill');
+const progressThumb = document.querySelector('.progress-thumb');
 const currentTimeEl = document.getElementById('current-time');
 const totalTimeEl = document.getElementById('total-time');
 
@@ -150,6 +152,7 @@ const reactiveDim = document.getElementById('reactive-dim');
 let cachedVinylBoxes = [];
 let cachedLibraryOrder = [];
 let isDraggingSlider = false;
+let isDraggingMiniSlider = false;
 let animationFrameId = null;
 let lastVolume = 0.8;
 let isMuted = false;
@@ -203,6 +206,165 @@ function updateVolumeIcon(volume) {
             </svg>
         `;
     }
+}
+
+// ── Real-audio Waveform Engine for Mini-Player ───────────────────────────────
+const waveformCtx = new (window.AudioContext || window.webkitAudioContext)();
+const waveformCache = new Map();
+let currentWaveformData = null;
+let currentWaveformUrl = null;
+
+async function loadAndDecodeWaveform(url) {
+    if (!url) return;
+    currentWaveformUrl = url;
+    
+    if (waveformCache.has(url)) {
+        currentWaveformData = waveformCache.get(url);
+        const pct = isNaN(audio.duration) ? 0 : (audio.currentTime / audio.duration) * 100;
+        drawMiniWaveform(pct);
+        return;
+    }
+    
+    // Set subtle loading placeholder
+    currentWaveformData = Array.from({ length: 140 }, (_, i) => 0.15 + Math.abs(Math.sin(i * 0.08)) * 0.15);
+    drawMiniWaveform(0);
+    
+    try {
+        const response = await fetch(url);
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await waveformCtx.decodeAudioData(arrayBuffer);
+        const channelData = audioBuffer.getChannelData(0);
+        const totalSamples = channelData.length;
+        const numBars = 140;
+        const blockSize = Math.floor(totalSamples / numBars);
+        
+        // Fast Sub-sampling step (step 6 samples for maximum accuracy and speed)
+        const step = Math.max(1, Math.floor(blockSize / 24)); 
+        const points = [];
+        let maxVal = 0;
+        
+        for (let i = 0; i < numBars; i++) {
+            let peak = 0;
+            let sumSq = 0;
+            let count = 0;
+            const start = i * blockSize;
+            const end = start + blockSize;
+            
+            for (let j = start; j < end; j += step) {
+                const val = Math.abs(channelData[j] || 0);
+                if (val > peak) peak = val; // Capture true transient kick/bass peaks!
+                sumSq += val * val;
+                count++;
+            }
+            
+            const rms = count > 0 ? Math.sqrt(sumSq / count) : 0;
+            // 75% Peak (for sharp drum & synth transients) + 25% RMS (for sustained body)
+            const combined = peak * 0.75 + rms * 0.25;
+            points.push(combined);
+            if (combined > maxVal) maxVal = combined;
+        }
+        
+        // Normalize points with a power-curve compression (0.75) for vivid dynamic contrast
+        const normalizedPoints = points.map(p => {
+            if (maxVal === 0) return 0.12;
+            const norm = p / maxVal;
+            return 0.1 + Math.pow(norm, 0.75) * 0.9;
+        });
+        
+        waveformCache.set(url, normalizedPoints);
+        if (currentWaveformUrl === url) {
+            currentWaveformData = normalizedPoints;
+            const pct = isNaN(audio.duration) ? 0 : (audio.currentTime / audio.duration) * 100;
+            drawMiniWaveform(pct);
+        }
+    } catch (err) {
+        console.warn("Waveform decoding failed, using dynamic fallback:", err);
+        // Clean fallback
+        const fallbackPoints = Array.from({ length: 140 }, (_, i) => {
+            return 0.15 + Math.abs(Math.sin(i * 0.15) * Math.cos(i * 0.05)) * 0.7;
+        });
+        waveformCache.set(url, fallbackPoints);
+        if (currentWaveformUrl === url) {
+            currentWaveformData = fallbackPoints;
+            const pct = isNaN(audio.duration) ? 0 : (audio.currentTime / audio.duration) * 100;
+            drawMiniWaveform(pct);
+        }
+    }
+}
+
+function drawMiniWaveform(percent) {
+    const canvas = document.getElementById('mini-waveform-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    // Safely measure bounding rect with sensible minimum fallback values
+    const rect = canvas.getBoundingClientRect();
+    const targetW = Math.max(300, Math.floor(rect.width || canvas.offsetWidth || 500));
+    const targetH = Math.max(36, Math.floor(rect.height || canvas.offsetHeight || 48));
+    
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+        canvas.width = targetW;
+        canvas.height = targetH;
+    }
+    
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    
+    if (!currentWaveformData || w === 0 || h === 0) return;
+    
+    const numBars = currentWaveformData.length;
+    const gap = 1.2;
+    const barWidth = (w - (numBars - 1) * gap) / numBars;
+    const centerY = h * 0.5; // Perfect vertical center
+    
+    ctx.save();
+    
+    // ── BƯỚC 1: Vẽ toàn bộ Waveform dạng Mask bằng MÀU TRẮNG ĐỤC 100% ──
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < numBars; i++) {
+        const factor = currentWaveformData[i];
+        const x = i * (barWidth + gap);
+        
+        // 1. Primary Waveform (Upward)
+        const mainHeight = Math.max(3, factor * h * 0.44);
+        const yMain = centerY - mainHeight;
+        ctx.beginPath();
+        ctx.roundRect(x, yMain, barWidth, mainHeight, 1.0);
+        ctx.fill();
+
+        // 2. Reflected Waveform (Downward reflection)
+        const reflectHeight = Math.max(1, factor * h * 0.22);
+        const yReflect = centerY + 1.5;
+        ctx.beginPath();
+        ctx.roundRect(x, yReflect, barWidth, reflectHeight, 0.8);
+        ctx.fill();
+    }
+    
+    // ── BƯỚC 2: Chuyển sang chế độ source-atop ──
+    // Chế độ này sẽ giữ 100% độ sáng rực rỡ của màu mới đè lên lớp trắng đục
+    ctx.globalCompositeOperation = 'source-atop';
+    
+    // ── BƯỚC 3: Vẽ hình chữ nhật xám mờ phủ toàn bộ phần chưa phát ──
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+    ctx.fillRect(0, 0, w, h);
+    
+    // ── BƯỚC 4: Vẽ HÌNH CHỮ NHẬT COLOR GRADIENT TRƯỢT ĐÈ THEO TIẾN TRÌNH ──
+    const progressWidth = (percent / 100) * w;
+    if (progressWidth > 0) {
+        const rootStyles = getComputedStyle(document.documentElement);
+        const accentColor = rootStyles.getPropertyValue('--accent-color').trim() || '#00e5ff';
+        
+        const neonGradient = ctx.createLinearGradient(0, 0, w, 0);
+        neonGradient.addColorStop(0, accentColor);
+        neonGradient.addColorStop(1, '#a855f7');
+        
+        ctx.fillStyle = neonGradient;
+        ctx.fillRect(0, 0, progressWidth, h);
+    }
+    
+    // Khôi phục composite mode mặc định
+    ctx.restore();
 }
 
 function showToast(message) {
@@ -490,12 +652,18 @@ function loadTrack(index) {
     FFTAnalyzer.reset();
     audio.src = track.url;
     audio.load();
+    
+    // Start decoding real audio buffer for mini-player waveform
+    loadAndDecodeWaveform(track.url);
 
     songTitleEl.textContent = track.title;
     songArtistEl.textContent = track.artist;
     coverArt.src = track.cover;
     angelicVinylArt.src = track.cover;
-    document.querySelector('.am-art-glow').style.backgroundImage = `url("${track.cover}")`;
+    const bgGlow = document.getElementById('player-bg-glow');
+    if (bgGlow) bgGlow.style.backgroundImage = `url("${track.cover}")`;
+    const artGlow = document.querySelector('.am-art-glow');
+    if (artGlow) artGlow.style.backgroundImage = `url("${track.cover}")`;
     document.getElementById('angelic-bg').style.backgroundImage = `url("${track.cover}")`;
 
     // Extract Color for Aurora and Cinematic spotlights
@@ -520,6 +688,9 @@ function loadTrack(index) {
     driftVal.textContent = driftRatio.toFixed(3) + 'x';
 
     // Lyrics
+    // Cancel any in-flight RAF scroll first, then reset to top.
+    // Must happen BEFORE renderLyrics so no stale animation can override it.
+    LyricEngine.resetScroll(lyricsContainer);
     LyricEngine.setLyrics(track.lyrics);
     LyricEngine.renderLyrics(lyricsList, angelicTextContainer, cinematicTextContainer);
 
@@ -694,11 +865,21 @@ function updateProgress() {
     if (isNaN(audio.duration)) return;
     const duration = audio.duration;
     const currentTime = audio.currentTime;
+    const percent = (currentTime / duration) * 100;
+
     if (!isDraggingSlider) {
-        const percent = (currentTime / duration) * 100;
         progressSlider.value = percent;
         progressBarFill.style.width = `${percent}%`;
     }
+
+    // Sync mini-player progress elements (waveform bars)
+    const miniSlider = document.getElementById('mini-progress-slider');
+    if (miniSlider && !isDraggingMiniSlider) {
+        miniSlider.value = percent;
+        // Draw the real audio buffer waveform only when not seeking via drag
+        drawMiniWaveform(percent);
+    }
+
     currentTimeEl.textContent = formatTime(currentTime);
     totalTimeEl.textContent = formatTime(duration);
 
@@ -739,13 +920,14 @@ function formatTime(seconds) {
 // ── 60-FPS Sync Engine ───────────────────────────────────────────────────────
 function syncLoop() {
     let intensity = 0;
+    let currentAnalysis = null;
     if (PlayerController.getIsPlaying()) {
         updateProgress();
 
         const dataArray = AudioEngine.getByteFrequencyData();
         if (AudioEngine.getAnalyser() && dataArray) {
-            const analysis = FFTAnalyzer.analyze(dataArray);
-            intensity = analysis.intensity;
+            currentAnalysis = FFTAnalyzer.analyze(dataArray);
+            intensity = currentAnalysis.intensity;
             document.documentElement.style.setProperty('--beat-intensity', intensity.toFixed(3));
 
             // Angelic Mode Particle Spawner
@@ -757,7 +939,7 @@ function syncLoop() {
                         angelicParticleTimer = 10;
                     }
                 }
-                if (analysis.climaxSpike) {
+                if (currentAnalysis.climaxSpike) {
                     const artistEl = document.getElementById('song-artist');
                     const artistName = artistEl ? artistEl.textContent.trim() : '';
                     const quantizedCooldown = FFTAnalyzer.getQuantizedCooldownMs();
@@ -778,7 +960,8 @@ function syncLoop() {
             PlayerController.getIsPlaying(),
             cineFireLeft,
             cineFireRight,
-            reactiveDim
+            reactiveDim,
+            currentAnalysis
         );
     }
 
@@ -798,27 +981,85 @@ function openPlayer(index) {
 function closePlayer() {
     if (isPlayerTransitioning) return;
     isPlayerTransitioning = true;
+
+    if (window._idleSetPlayerOpen) window._idleSetPlayerOpen(false);
+
+    // 1. Instantly unhide homeView so it is fully rendered underneath playerView
+    homeView.classList.remove('hidden');
+    void homeView.offsetHeight; // force repaint
+
+    // 2. Start sliding player-view sheet down
     playerView.classList.remove('player-active');
-    const overlay = document.getElementById('fade-overlay');
-    if (overlay) overlay.classList.add('active');
+
+    // 3. Wait for the 280ms CSS slide transition to complete
     setTimeout(() => {
         playerView.classList.add('hidden');
-        const auroraBg = document.getElementById('aurora-bg');
-        if (auroraBg) auroraBg.classList.add('hidden');
-        homeView.classList.remove('hidden');
-        void homeView.offsetHeight;
-        if (overlay) overlay.classList.remove('active');
-        setTimeout(() => {
-            isPlayerTransitioning = false;
-            const currentTrackIndex = PlayerController.getCurrentTrackIndex();
-            if (currentTrackIndex !== -1 && PlayerController.getPlaylist()[currentTrackIndex]) {
-                document.getElementById('mini-player').classList.remove('hidden');
-                updateMiniPlayerUI();
-            }
-        }, 200);
-    }, 200);
+        isPlayerTransitioning = false;
+
+        const currentTrackIndex = PlayerController.getCurrentTrackIndex();
+        if (currentTrackIndex !== -1 && PlayerController.getPlaylist()[currentTrackIndex]) {
+            document.getElementById('mini-player').classList.remove('hidden');
+            updateMiniPlayerUI();
+        }
+    }, 280); // matches the 0.28s CSS transition
 }
 window.closePlayer = closePlayer; // Expose for ESC handler
+
+// ── Cursor + Header Auto-Hide on Mouse Idle ──────────────────────────────────
+(function setupIdleAutoHide() {
+    const header = document.querySelector('.app-header');
+    if (!header) return;
+
+    const IDLE_DELAY = 3000;
+    let idleTimer = null;
+    let _playerOpen = false;
+
+    const fullscreenViews = [
+        document.getElementById('player-view'),
+        document.getElementById('cinematic-view'),
+        document.getElementById('angelic-view'),
+    ].filter(Boolean);
+
+    function showControls() {
+        fullscreenViews.forEach(v => v.classList.remove('cursor-idle'));
+        header.classList.remove('header-hidden');
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(hideControls, IDLE_DELAY);
+    }
+
+    function hideControls() {
+        fullscreenViews.forEach(v => v.classList.add('cursor-idle'));
+        header.classList.add('header-hidden');
+    }
+
+    // Use document-level mousemove — safe, no feedback loop
+    document.addEventListener('mousemove', () => {
+        if (_playerOpen) showControls();
+    }, { passive: true });
+
+    // Keep header visible while mouse is directly over it
+    header.addEventListener('mouseenter', () => {
+        if (!_playerOpen) return;
+        clearTimeout(idleTimer);
+        header.classList.remove('header-hidden');
+    });
+    header.addEventListener('mouseleave', () => {
+        if (!_playerOpen) return;
+        idleTimer = setTimeout(hideControls, IDLE_DELAY);
+    });
+
+    // Public API — called by open/close handlers below
+    window._idleSetPlayerOpen = function(open) {
+        _playerOpen = open;
+        if (open) {
+            showControls();
+        } else {
+            clearTimeout(idleTimer);
+            header.classList.remove('header-hidden');
+            fullscreenViews.forEach(v => v.classList.remove('cursor-idle'));
+        }
+    };
+})();
 
 // ── Mini Player UI ───────────────────────────────────────────────────────────
 function updateMiniPlayerUI() {
@@ -837,6 +1078,10 @@ function updateMiniPlayerUI() {
     const btnMiniPause = document.getElementById('btn-mini-pause');
     if (isPlaying) { btnMiniPlay.classList.add('hidden'); btnMiniPause.classList.remove('hidden'); }
     else { btnMiniPlay.classList.remove('hidden'); btnMiniPause.classList.add('hidden'); }
+
+    // Trigger waveform redraw on miniplayer UI update
+    const pct = isNaN(audio.duration) ? 0 : (audio.currentTime / audio.duration) * 100;
+    drawMiniWaveform(pct);
 
     const btnMiniRepeat = document.getElementById('btn-mini-repeat');
     const btnMiniShuffle = document.getElementById('btn-mini-shuffle');
@@ -930,13 +1175,16 @@ function toggleBoxExpansion(card, boxId, vinylBoxes) {
     const boxSongs = (box.songIds || []).map(id => playlist.find(s => s.id === id)).filter(Boolean);
     let songsHTML = '';
     if (boxSongs.length === 0) {
-        songsHTML = `<div style="padding: 20px; color: var(--text-secondary); font-size: 0.9rem; text-align: center; width: 100%;">This box is empty. Go to Edit Library to add tracks.</div>`;
+        songsHTML = `<div style="padding: 30px 20px; color: var(--text-secondary); font-size: 0.9rem; text-align: center; width: 100%;">This vinyl box is currently empty. Go to <strong>Edit Library</strong> to add tracks.</div>`;
     } else {
         boxSongs.forEach((song, idx) => {
             songsHTML += `
-                <div class="song-card box-slider-song-card" data-idx="${idx}" style="cursor: pointer;">
-                    <div class="song-cover-wrapper" style="width: 100%; position: relative; aspect-ratio: 1/1; border-radius: 8px; overflow: hidden; margin-bottom: 10px;">
-                        <img src="${song.cover || 'assets/images/cover.png'}" alt="${song.title}" style="width: 100%; height: 100%; object-fit: cover;">
+                <div class="song-card box-slider-song-card" data-idx="${idx}">
+                    <div class="song-cover-wrapper">
+                        <img src="${song.cover || 'assets/images/cover.png'}" alt="${song.title}">
+                        <div class="box-song-play-overlay">
+                            <svg viewBox="0 0 24 24" width="22" height="22" fill="#ffffff"><path d="M8 5v14l11-7z"></path></svg>
+                        </div>
                     </div>
                     <div class="song-card-title">${song.title}</div>
                     <div class="song-card-artist">${song.artist}</div>
@@ -945,22 +1193,25 @@ function toggleBoxExpansion(card, boxId, vinylBoxes) {
         });
     }
 
+    const boxColor = box.color || '#ffb300';
     card.innerHTML = `
-        <div class="box-expansion-content" style="width: 100%; animation: fadeIn 0.3s ease;">
-            <div class="box-expansion-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <div>
-                    <h2 style="margin: 0; font-size: 1.5rem; font-weight: 600;">${box.name}</h2>
-                    <span style="color: var(--text-secondary); font-size: 0.9rem;">${boxSongs.length} Tracks</span>
+        <div class="box-expansion-content">
+            <div class="box-expansion-header">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <h2 class="box-expansion-title">${box.name}</h2>
+                    <span class="box-track-badge" style="background: color-mix(in srgb, ${boxColor} 20%, rgba(255,255,255,0.08)); border: 1px solid color-mix(in srgb, ${boxColor} 40%, rgba(255,255,255,0.15)); color: #fff;">${boxSongs.length} Tracks</span>
                 </div>
-                <div class="box-expansion-controls" style="display: flex; gap: 10px;">
-                    <button class="btn-play-box glass-icon-btn primary" title="Play Box">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg>
+                <div class="box-expansion-controls">
+                    <button class="btn-play-box glass-btn primary" style="background: ${boxColor}; color: #000; border: none; font-weight: 700; gap: 6px; padding: 8px 18px;" title="Play All Tracks in Box">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg> Play All
                     </button>
-                    <button class="btn-close-box glass-icon-btn danger" title="Close"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+                    <button class="btn-close-box glass-btn danger" style="padding: 8px 12px;" title="Close Crate">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
                 </div>
             </div>
-            <div class="box-expansion-slider-wrapper" style="overflow-x: auto; overflow-y: hidden; padding-bottom: 10px;">
-                <div class="box-expansion-slider" style="display: flex; gap: 20px; min-width: min-content;">
+            <div class="box-expansion-slider-wrapper">
+                <div class="box-expansion-slider">
                     ${songsHTML}
                 </div>
             </div>
@@ -1147,6 +1398,7 @@ function setupEventListeners() {
     progressSlider.addEventListener('input', (e) => {
         isDraggingSlider = true;
         progressBarFill.style.width = `${e.target.value}%`;
+        if (progressThumb) progressThumb.style.left = `${e.target.value}%`;
         if (!isNaN(audio.duration)) prepareLyricNearTime((e.target.value / 100) * audio.duration);
     });
     progressSlider.addEventListener('change', (e) => {
@@ -1158,6 +1410,35 @@ function setupEventListeners() {
         }
         isDraggingSlider = false;
     });
+
+    // Mini-Player Progress Slider
+    const miniSlider = document.getElementById('mini-progress-slider');
+    const miniCenter = document.querySelector('.mini-center');
+    if (miniSlider) {
+        if (miniCenter) {
+            // Block all mouse interactions from bubbling to parent (which opens player)
+            miniCenter.addEventListener('click', (e) => e.stopPropagation());
+            miniCenter.addEventListener('mousedown', (e) => e.stopPropagation());
+            miniCenter.addEventListener('mouseup', (e) => e.stopPropagation());
+        }
+        
+        miniSlider.addEventListener('input', (e) => {
+            isDraggingMiniSlider = true;
+            const percent = e.target.value;
+            drawMiniWaveform(percent);
+            if (!isNaN(audio.duration)) prepareLyricNearTime((percent / 100) * audio.duration);
+        });
+
+        miniSlider.addEventListener('change', (e) => {
+            if (!isNaN(audio.duration)) {
+                const targetTime = (e.target.value / 100) * audio.duration;
+                prepareLyricNearTime(targetTime);
+                audio.currentTime = targetTime;
+                if (!PlayerController.getIsPlaying()) updateProgress();
+            }
+            isDraggingMiniSlider = false;
+        });
+    }
 
     // Volume
     volumeSlider.addEventListener('input', (e) => {
@@ -1273,18 +1554,40 @@ document.getElementById('mini-player').addEventListener('click', (e) => {
     if (cti !== -1 && !isPlayerTransitioning) {
         document.getElementById('mini-player').classList.add('hidden');
         isPlayerTransitioning = true;
-        const overlay = document.getElementById('fade-overlay');
-        if (overlay) overlay.classList.add('active');
+
+        // 1. Instantly unhide player-view container
+        playerView.classList.remove('hidden');
+        
+        // 2. Force layout repaint to ensure browser computes container geometry
+        void playerView.offsetHeight;
+
+        // 3. Check current lyrics status & sync scroll
+        const currentLyrics = LyricEngine.getCurrentLyrics();
+        const drift = LyricEngine.getDriftRatio();
+        const currentTime = audio.currentTime || 0;
+        
+        LyricEngine.setActiveLyricIndex(-1);
+
+        if (!currentLyrics || currentLyrics.length === 0 || !currentLyrics[0] || currentTime < currentLyrics[0].time * drift) {
+            // Audio is in Intro / Instrumental section -> Force scroll straight to top (0px)
+            if (lyricsContainer) lyricsContainer.scrollTop = 0;
+        } else {
+            // Audio is already in a lyric section -> Sync to current lyric line
+            updateProgress();
+        }
+
+        // 4. Slide up the player sheet
+        playerView.classList.add('player-active');
+        if (window._idleSetPlayerOpen) window._idleSetPlayerOpen(true);
+
+        // 5. Wait for the 280ms transition to complete, then safely hide home-view
         setTimeout(() => {
             homeView.classList.add('hidden');
-            playerView.classList.remove('hidden');
-            const auroraBg = document.getElementById('aurora-bg');
-            if (auroraBg) auroraBg.classList.remove('hidden');
-            void playerView.offsetHeight;
-            playerView.classList.add('player-active');
-            if (overlay) overlay.classList.remove('active');
-            setTimeout(() => { isPlayerTransitioning = false; }, 200);
-        }, 200);
+            if (!currentLyrics || currentLyrics.length === 0 || !currentLyrics[0] || audio.currentTime < currentLyrics[0].time * LyricEngine.getDriftRatio()) {
+                if (lyricsContainer) lyricsContainer.scrollTop = 0;
+            }
+            isPlayerTransitioning = false;
+        }, 280); // matches the 0.28s CSS transition
     }
 });
 document.getElementById('btn-mini-play').addEventListener('click', () => togglePlay());
@@ -1480,13 +1783,56 @@ LibraryModals.bindEvents();
 // ══════════════════════════════════════════════════════════════════════════════
 // IGNITE APPLICATION
 // ══════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
+// IGNITE APPLICATION WITH SPLASH PRELOADER & TUTORIALS
+// ══════════════════════════════════════════════════════════════════════════════
 async function initHome() {
     audio.volume = 0.8;
+    
+    // Bind tutorial modal close button
+    const btnCloseTutorials = document.getElementById('btn-close-tutorials');
+    const modalTutorials = document.getElementById('modal-tutorials');
+    if (btnCloseTutorials && modalTutorials) {
+        btnCloseTutorials.addEventListener('click', () => {
+            modalTutorials.classList.add('hidden');
+        });
+    }
+
+    const splashLoader = document.getElementById('app-splash-loader');
+    const splashBar = document.getElementById('splash-progress-bar');
+    const splashText = document.getElementById('splash-status-text');
+    const splashPct = document.getElementById('splash-status-pct');
+
+    const sillyLoadingJokes = [
+        "Spinning vinyl records real quick...",
+        "Polishing the audio waveforms...",
+        "Warming up the vacuum tubes...",
+        "Reticulating audio splines...",
+        "Is your Wi-Fi feeling okay today?",
+        "Brewing fresh sonic vibes...",
+        "Cranking up the chill levels...",
+        "Waking up the bass drop...",
+        "Dusting off the mini player...",
+        "Dusting the equalizer knobs...",
+        "Checking for high frequencies..."
+    ];
+
+    const currentSplashJoke = sillyLoadingJokes[Math.floor(Math.random() * sillyLoadingJokes.length)];
+
+    function updateSplashProgress(percent) {
+        const rounded = Math.min(100, Math.max(0, Math.floor(percent)));
+        if (splashBar) splashBar.style.width = `${rounded}%`;
+        if (splashPct) splashPct.textContent = `${rounded}%`;
+        if (splashText) splashText.textContent = currentSplashJoke;
+    }
+
+    let loadedPlaylist = [];
     try {
+        updateSplashProgress(15);
         const savedPlaylist = await localforage.getItem('playlist');
-        if (savedPlaylist) {
+        if (savedPlaylist && savedPlaylist.length > 0) {
             let needsSave = false;
-            const playlist = savedPlaylist.map((song, idx) => {
+            loadedPlaylist = savedPlaylist.map((song, idx) => {
                 let url = song.url || '';
                 let cover = song.cover || 'assets/images/cover.png';
                 try {
@@ -1500,15 +1846,35 @@ async function initHome() {
                     drift: song.drift || 1.0, url, cover, audioBlob: song.audioBlob, coverBlob: song.coverBlob
                 };
             });
-            PlayerController.setPlaylist(playlist);
+            PlayerController.setPlaylist(loadedPlaylist);
             if (needsSave) await saveLibraryToDB();
         }
-    } catch (e) { console.error("Error loading library from IndexedDB", e); }
+    } catch (e) { 
+        console.error("Error loading library from IndexedDB", e); 
+    }
+
+    window.appMainContext = {
+        getPlaylist: () => PlayerController.getPlaylist(),
+        showToast: (msg) => showToast(msg),
+        updateBoxCache: (boxes, order) => {
+            cachedVinylBoxes = boxes;
+            cachedLibraryOrder = order;
+            renderSongGrid();
+        },
+        stopPlaybackForEdit: () => {
+            pauseAudio();
+            try { audio.currentTime = 0; } catch(e) {}
+            PlayerController.setCurrentTrackIndex(-1);
+            const miniPlayer = document.getElementById('mini-player');
+            if (miniPlayer) miniPlayer.classList.add('hidden');
+        }
+    };
 
     await renderSongGrid();
     setupEventListeners();
-
     initSettings();
+    BackgroundManager.init();
+
     initEditLibrary(PlayerController.getPlaylist(), async () => {
         try {
             const savedPlaylist = await localforage.getItem('playlist');
@@ -1532,8 +1898,74 @@ async function initHome() {
                 if (needsSave) await saveLibraryToDB();
             }
         } catch (e) { console.error("Error reloading library", e); }
+
+        // Clear stale waveform cache and re-decode updated playlist Blobs
+        waveformCache.clear();
+        const updatedPlaylist = PlayerController.getPlaylist();
+        
+        // Ensure playback is completely stopped and mini-player is hidden when returning from Edit Library
+        pauseAudio();
+        audio.currentTime = 0;
+        PlayerController.setCurrentTrackIndex(-1);
+        const miniPlayerEl = document.getElementById('mini-player');
+        if (miniPlayerEl) miniPlayerEl.classList.add('hidden');
+
+        // Decode tracks in background for instant playback when user picks a song
+        updatedPlaylist.forEach(song => {
+            if (song.url && !waveformCache.has(song.url)) {
+                loadAndDecodeWaveform(song.url);
+            }
+        });
+
         await renderSongGrid();
     });
+
+    // ── KỊCH BẢN PRELOADER & TUTORIALS ──────────────────────────────────────
+    const isFirstTime = !localStorage.getItem('wavr_has_visited') || loadedPlaylist.length === 0;
+
+    if (isFirstTime) {
+        // CASE 1: Lần đầu truy cập / Thư viện chưa có bài nhạc
+        updateSplashProgress(50);
+        await new Promise(res => setTimeout(res, 400));
+        updateSplashProgress(100);
+        await new Promise(res => setTimeout(res, 200));
+
+        // Fade out splash loader
+        if (splashLoader) splashLoader.classList.add('splash-fade-out');
+        
+        // Hiện Modal Tutorial hướng dẫn
+        if (modalTutorials) modalTutorials.classList.remove('hidden');
+        localStorage.setItem('wavr_has_visited', 'true');
+
+    } else {
+        // CASE 2: Người dùng cũ - Preload toàn bộ Waveforms từ Blobs lên RAM cache
+        updateSplashProgress(25);
+        
+        const totalTracks = loadedPlaylist.length;
+        let completed = 0;
+        
+        // Execute batch decoding for all tracks in library
+        const preloadPromises = loadedPlaylist.map(async (song) => {
+            if (song.url) {
+                try {
+                    await loadAndDecodeWaveform(song.url);
+                } catch (err) {
+                    console.warn(`Failed to preload waveform for ${song.title}`, err);
+                }
+            }
+            completed++;
+            const pct = 25 + (completed / totalTracks) * 70; // Map 25% -> 95%
+            updateSplashProgress(pct);
+        });
+
+        await Promise.all(preloadPromises);
+
+        updateSplashProgress(100);
+        await new Promise(res => setTimeout(res, 300));
+        
+        // Fade out splash screen seamlessly
+        if (splashLoader) splashLoader.classList.add('splash-fade-out');
+    }
 }
 
 preloadAngelicAssets();

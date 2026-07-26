@@ -4,6 +4,8 @@
  * Extracted 1:1 from backup_prime/js/main.js (lines 156-157, 2567-2625)
  */
 
+import { LyricEngine } from '../lyrics/LyricEngine.js';
+
 // ── Mode State ───────────────────────────────────────────────────────────────
 let isCinematicMode = false;
 let isAngelicMode   = false;
@@ -44,6 +46,9 @@ export const VisualizerController = {
         cinematicCanvas.width  = winWidth;
         cinematicCanvas.height = winHeight;
 
+        // Force reset active lyric index so O(1) sync re-evaluates active line
+        LyricEngine.setActiveLyricIndex(-1);
+
         // Immediately render the current lyric line
         if (activeLyricIndex !== -1 && currentLyrics[activeLyricIndex]) {
             triggerCinematicLineFn(currentLyrics[activeLyricIndex].text);
@@ -63,6 +68,7 @@ export const VisualizerController = {
         cinematicView.classList.add('hidden');
         playerView.classList.remove('hidden');
         cinematicTextContainer.innerHTML = '';
+        LyricEngine.setActiveLyricIndex(-1);
     },
 
     /**
@@ -83,6 +89,7 @@ export const VisualizerController = {
         playerView.classList.add('hidden');
         angelicView.classList.remove('hidden');
         document.body.classList.add('mouse-active');
+        LyricEngine.setActiveLyricIndex(-1);
 
         // Immediately show current line, but DEFER pre-building the next line
         // to an idle frame so the mode transition frame remains buttery 60 FPS!
@@ -104,17 +111,18 @@ export const VisualizerController = {
      * Exits Angelic Mode.
      * Extracted 1:1 from backup_prime/js/main.js lines 2607-2613.
      *
-     * @param {HTMLElement} angelicView               - #angelic-view
-     * @param {HTMLElement} playerView                - #player-view
-     * @param {HTMLElement} angelicTextContainer      - #angelic-text-container
-     * @param {HTMLElement} angelicParticleContainer  - #angelic-particle-container
+     * @param {HTMLElement} angelicView              - #angelic-view
+     * @param {HTMLElement} playerView               - #player-view
+     * @param {HTMLElement} angelicTextContainer     - #angelic-text-container
+     * @param {HTMLElement} angelicParticleContainer - #angelic-particle-container
      */
     exitAngelicMode(angelicView, playerView, angelicTextContainer, angelicParticleContainer) {
         isAngelicMode = false;
         angelicView.classList.add('hidden');
         playerView.classList.remove('hidden');
-        angelicTextContainer.innerHTML      = '';
-        angelicParticleContainer.innerHTML  = '';
+        angelicTextContainer.innerHTML = '';
+        if (angelicParticleContainer) angelicParticleContainer.innerHTML = '';
+        LyricEngine.setActiveLyricIndex(-1);
     },
 
     /**

@@ -37,6 +37,42 @@ export function initSettings() {
         });
     }
 
+    // Open Tutorials from Settings
+    const btnOpenTutorials = document.getElementById('btn-open-tutorials');
+    const btnRepairLibrary = document.getElementById('btn-repair-library');
+    const modalTutorials = document.getElementById('modal-tutorials');
+
+    if (btnOpenTutorials && settingsModal && modalTutorials) {
+        btnOpenTutorials.addEventListener('click', () => {
+            settingsModal.classList.add('hidden');
+            modalTutorials.classList.remove('hidden');
+        });
+    }
+
+    // Repair Library Tool
+    if (btnRepairLibrary) {
+        btnRepairLibrary.addEventListener('click', async () => {
+            try {
+                if (settingsModal) settingsModal.classList.add('hidden');
+                const saved = await localforage.getItem('playlist');
+                if (saved && Array.isArray(saved)) {
+                    const repaired = saved.filter(s => s && s.title).map((s, idx) => ({
+                        ...s,
+                        id: s.id || ('repaired-' + Date.now() + '-' + idx)
+                    }));
+                    await localforage.setItem('playlist', repaired);
+                }
+                if (window.appMainContext && window.appMainContext.showToast) {
+                    window.appMainContext.showToast("Library successfully repaired!");
+                }
+                setTimeout(() => window.location.reload(), 800);
+            } catch (err) {
+                console.error("Repair failed:", err);
+                window.location.reload();
+            }
+        });
+    }
+
     if (colRange) {
         colRange.addEventListener('input', (e) => {
             const cols = e.target.value;
@@ -76,6 +112,14 @@ export async function initEditLibrary(mainPlaylist, onDone) {
 
     if (btnEditLibrary) {
         btnEditLibrary.addEventListener('click', async () => {
+            // Stop audio playback and hide mini-player completely when entering Edit Library
+            if (window.appMainContext && window.appMainContext.stopPlaybackForEdit) {
+                window.appMainContext.stopPlaybackForEdit();
+            } else {
+                const miniPlayer = document.getElementById('mini-player');
+                if (miniPlayer) miniPlayer.classList.add('hidden');
+            }
+
             // Always sync with the latest playlist before rendering
             if (window.appMainContext && window.appMainContext.getPlaylist) {
                 localPlaylist = [...window.appMainContext.getPlaylist()];
@@ -900,16 +944,15 @@ function toggleEditBoxExpansion(card, boxId) {
     const boxSongs = (box.songIds || []).map(id => localPlaylist.find(s => s.id === id)).filter(Boolean);
     let songsHTML = '';
     if (boxSongs.length === 0) {
-        songsHTML = `<div style="padding: 20px; color: var(--text-secondary); font-size: 0.9rem; text-align: center; width: 100%;">This box is empty. Click "Add Songs" to add tracks!</div>`;
+        songsHTML = `<div style="padding: 30px 20px; color: var(--text-secondary); font-size: 0.9rem; text-align: center; width: 100%;">This vinyl box is currently empty. Click <strong>Add Songs</strong> to add tracks!</div>`;
     } else {
         boxSongs.forEach((song, idx) => {
             songsHTML += `
-                <div class="song-card box-slider-song-card inner-editable-song" data-song-id="${song.id}" data-box-id="${box.id}" draggable="true" style="cursor: grab; position: relative;">
-                    <div class="song-cover-wrapper" style="width: 100%; position: relative; aspect-ratio: 1/1; border-radius: 8px; overflow: hidden; margin-bottom: 10px;">
-                        <img src="${song.cover || 'assets/images/cover.png'}" alt="${song.title}" style="width: 100%; height: 100%; object-fit: cover;">
-
+                <div class="song-card box-slider-song-card inner-editable-song" data-song-id="${song.id}" data-box-id="${box.id}" draggable="true">
+                    <div class="song-cover-wrapper">
+                        <img src="${song.cover || 'assets/images/cover.png'}" alt="${song.title}">
                         <button class="song-options-btn" data-id="${song.id}" title="Options">
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                                 <circle cx="12" cy="5" r="2"></circle>
                                 <circle cx="12" cy="12" r="2"></circle>
                                 <circle cx="12" cy="19" r="2"></circle>
@@ -923,26 +966,27 @@ function toggleEditBoxExpansion(card, boxId) {
         });
     }
 
+    const boxColor = box.color || '#ffb300';
     card.innerHTML = `
-        <div class="box-expansion-content" style="width: 100%; animation: fadeIn 0.3s ease;">
-            <div class="box-expansion-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <div>
-                    <h2 style="margin: 0; font-size: 1.5rem; font-weight: 600;">${box.name}</h2>
-                    <span style="color: var(--text-secondary); font-size: 0.9rem;">${boxSongs.length} Tracks</span>
+        <div class="box-expansion-content">
+            <div class="box-expansion-header">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <h2 class="box-expansion-title">${box.name}</h2>
+                    <span class="box-track-badge" style="background: color-mix(in srgb, ${boxColor} 20%, rgba(255,255,255,0.08)); border: 1px solid color-mix(in srgb, ${boxColor} 40%, rgba(255,255,255,0.15)); color: #fff;">${boxSongs.length} Tracks</span>
                 </div>
-                <div class="box-expansion-controls" style="display: flex; gap: 10px; align-items: center;">
-                    <button class="btn-edit-add-songs" style="background: var(--surface-light); color: var(--text-primary); border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s;">Add Songs</button>
-                    <button class="btn-edit-info" style="background: var(--surface-light); color: var(--text-primary); border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s;">Edit Info</button>
-                    <button class="btn-delete-box glass-btn danger" style="border-radius: 20px;" title="Delete Box"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg> Delete Box</button>
-                    <button class="btn-close-box" title="Close" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 5px;">
-                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
-                        </svg>
+                <div class="box-expansion-controls">
+                    <button class="btn-edit-add-songs glass-btn primary" style="padding: 8px 16px;">Add Songs</button>
+                    <button class="btn-edit-info glass-btn neutral" style="padding: 8px 16px;">Edit Info</button>
+                    <button class="btn-delete-box glass-btn danger" style="padding: 8px 14px;" title="Delete Box">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> Delete Box
+                    </button>
+                    <button class="btn-close-box glass-btn neutral" style="padding: 8px 12px;" title="Close Crate">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </button>
                 </div>
             </div>
-            <div class="box-expansion-slider-wrapper" style="width: 100%; overflow-x: auto; padding-bottom: 10px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent;">
-                <div class="box-expansion-slider" style="display: flex; gap: 20px; min-width: min-content;">
+            <div class="box-expansion-slider-wrapper">
+                <div class="box-expansion-slider">
                     ${songsHTML}
                 </div>
             </div>

@@ -15,7 +15,7 @@ export function extractColorsFromImage(imgEl, updateCSSVariables) {
             const r = data[i], g = data[i+1], b = data[i+2];
             const brightness = (r + g + b) / 3;
             
-            if (brightness > 30 && brightness < 230) {
+            if (brightness > 20 && brightness < 245) {
                 const max = Math.max(r, g, b);
                 const min = Math.min(r, g, b);
                 const saturation = max - min;

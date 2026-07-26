@@ -1,17 +1,18 @@
 /**
  * AudioEngine.js
- * Manages the Web Audio API graph: AudioContext, EQ nodes, AnalyserNode, and MediaElementSource.
- * Extracted from backup_prime/js/main.js (lines 254-289, 168-173)
+ * Manages the Web Audio API graph: AudioContext, EQ nodes, AnalyserNode, AudioWorkletNode, and MediaElementSource.
  */
 
 let audioCtx = null;
 let analyser = null;
 let dataArray = null;
 let eqNodes = [];
+let workletNode = null;
+let audioThreadMetrics = { rmsPower: 0, audioTime: 0 };
 
 export const AudioEngine = {
     /**
-     * Initializes (or resumes) the AudioContext, wires EQ nodes and the AnalyserNode.
+     * Initializes (or resumes) the AudioContext, wires EQ nodes, AudioWorklet, and AnalyserNode.
      * Must be called on first user interaction to satisfy browser autoplay policy.
      * @param {HTMLAudioElement} audioElement - The <audio> element to source from.
      */
@@ -21,7 +22,7 @@ export const AudioEngine = {
             analyser = audioCtx.createAnalyser();
             const source = audioCtx.createMediaElementSource(audioElement);
 
-            // Create 5-band EQ (exact frequencies from prime)
+            // Create 5-band EQ (frequencies: 60Hz, 230Hz, 910Hz, 3.6kHz, 14kHz)
             const freqs = [60, 230, 910, 3600, 14000];
             const sliders = document.querySelectorAll('.eq-slider');
             eqNodes = freqs.map((freq, idx) => {
@@ -45,6 +46,26 @@ export const AudioEngine = {
             analyser.fftSize = 256;
             const bufferLength = analyser.frequencyBinCount;
             dataArray = new Uint8Array(bufferLength);
+
+            // Wire AudioWorklet Processor on the dedicated audio thread
+            if (audioCtx.audioWorklet) {
+                audioCtx.audioWorklet.addModule('js/core/audio/AudioAnalysisWorklet.js')
+                    .then(() => {
+                        workletNode = new AudioWorkletNode(audioCtx, 'audio-analysis-processor');
+                        workletNode.port.onmessage = (event) => {
+                            if (event.data && event.data.type === 'AUDIO_THREAD_METRICS') {
+                                audioThreadMetrics = event.data;
+                            }
+                        };
+                        eqNodes[eqNodes.length - 1].disconnect(analyser);
+                        eqNodes[eqNodes.length - 1].connect(workletNode);
+                        workletNode.connect(analyser);
+                    })
+                    .catch((err) => {
+                        // Silent fallback to AnalyserNode if Worklets are restricted
+                        console.warn('AudioWorklet notice (using fallback analyser):', err.message);
+                    });
+            }
         }
         if (audioCtx.state === 'suspended') {
             audioCtx.resume();
@@ -69,6 +90,11 @@ export const AudioEngine = {
     /** @returns {AudioContext|null} */
     getAudioContext() {
         return audioCtx;
+    },
+
+    /** @returns {{ rmsPower: number, audioTime: number }} Real-time metrics from audio thread */
+    getAudioThreadMetrics() {
+        return audioThreadMetrics;
     },
 
     /**
