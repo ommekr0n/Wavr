@@ -138,8 +138,22 @@ export const CinematicRenderer = {
             reactiveDim.style.opacity = targetOpacity.toFixed(2);
         }
 
-        // ── 2. FIRE PILLARS (CONTINUOUS BEAT-RESPONSIVE + BURST) ──────────────
+        // ── 2. FIRE PILLARS (FESTIVAL BURST) ────────────────────────────────
         if (cineFireLeft && cineFireRight) {
+            // Trigger a new burst if intensity is very high and cooldown passed (4 seconds)
+            if (intensity > 0.8 && nowSec - fireBurstTime > 4.0) {
+                isFireBursting = true;
+                fireBurstTime  = nowSec;
+
+                // Restart GIF from frame 0 using fresh RAM Blob instance
+                if (fireGifBlob) {
+                    if (fireGifBlobUrl !== fireGifUrl) URL.revokeObjectURL(fireGifBlobUrl);
+                    fireGifBlobUrl = URL.createObjectURL(new Blob([fireGifBlob], { type: 'image/gif' }));
+                    cineFireLeft.src  = fireGifBlobUrl;
+                    cineFireRight.src = fireGifBlobUrl;
+                }
+            }
+
             // Live HTMLCollection O(1) cache for word-glitch (reset when DOM changes)
             if (!window._cachedCineWords) {
                 window._cachedCineWords = document.getElementsByClassName('cine-word');
@@ -157,64 +171,42 @@ export const CinematicRenderer = {
                 }
             }
 
-            // Check if high bass trigger occurred
-            const isHighBass = intensity > 0.4 || (analysis && (analysis.climaxSpike || (analysis.bassIntensity && analysis.bassIntensity > 0.45)));
-            if (isHighBass && nowSec - fireBurstTime > 2.5) {
-                isFireBursting = true;
-                fireBurstTime  = nowSec;
+            if (isFireBursting) {
+                const burstElapsed  = nowSec - fireBurstTime;
+                const burstDuration = 1.2;
 
-                // Refresh GIF animation frame on burst
-                if (fireGifBlobUrl) {
-                    cineFireLeft.src  = fireGifBlobUrl;
-                    cineFireRight.src = fireGifBlobUrl;
-                }
-            }
+                if (burstElapsed < burstDuration) {
+                    let translateY = 100;
+                    let op = 1;
 
-            if (isPlaying) {
-                if (isFireBursting) {
-                    const burstElapsed  = nowSec - fireBurstTime;
-                    const burstDuration = 1.2;
-
-                    if (burstElapsed < burstDuration) {
-                        let translateY = 0;
-                        let op = 1.0;
-
-                        if (burstElapsed < 0.15) {
-                            translateY = 30;
-                        } else if (burstElapsed < 0.25) {
-                            translateY = 0;
-                        } else if (burstElapsed < 0.8) {
-                            translateY = Math.random() * 4;
-                            op = 0.9 + Math.random() * 0.1;
-                        } else {
-                            const fadeProgress = (burstElapsed - 0.8) / 0.4;
-                            translateY = fadeProgress * 20;
-                            op = 1.0 - (fadeProgress * 0.3);
-                        }
-
-                        cineFireLeft.style.transform  = `translateY(${translateY.toFixed(1)}%)`;
-                        cineFireLeft.style.opacity    = op.toFixed(2);
-                        cineFireRight.style.transform = `translateY(${translateY.toFixed(1)}%)`;
-                        cineFireRight.style.opacity   = op.toFixed(2);
+                    if (burstElapsed < 0.15) {
+                        // 0. Hold off-screen for 150ms (skip bad GIF start frames)
+                        translateY = 100;
+                    } else if (burstElapsed < 0.25) {
+                        // 1. Shoot up extremely fast
+                        translateY = 100 - ((burstElapsed - 0.15) / 0.10) * 100;
+                    } else if (burstElapsed < 0.8) {
+                        // 2. Hold at peak, roaring/flickering aggressively
+                        translateY = Math.random() * 3;
+                        op = 0.85 + Math.random() * 0.15;
                     } else {
-                        isFireBursting = false;
+                        // 3. Dissipate upwards and fade out
+                        const fadeProgress = (burstElapsed - 0.8) / 0.4;
+                        translateY = -(fadeProgress * 30);
+                        op = 1.0 - fadeProgress;
                     }
-                } else {
-                    // Continuous beat-responsive height & opacity while audio plays
-                    const targetY = Math.max(0, 75 - (intensity * 110)); // 0% full height, 75% idle
-                    const targetOpacity = Math.min(1.0, 0.55 + intensity * 0.45);
 
-                    cineFireLeft.style.transform  = `translateY(${targetY.toFixed(1)}%)`;
-                    cineFireLeft.style.opacity    = targetOpacity.toFixed(2);
-                    cineFireRight.style.transform = `translateY(${targetY.toFixed(1)}%)`;
-                    cineFireRight.style.opacity   = targetOpacity.toFixed(2);
+                    cineFireLeft.style.transform  = `translateY(${translateY}%)`;
+                    cineFireLeft.style.opacity    = op.toFixed(2);
+                    cineFireRight.style.transform = `translateY(${translateY}%)`;
+                    cineFireRight.style.opacity   = op.toFixed(2);
+                } else {
+                    isFireBursting = false;
+                    cineFireLeft.style.transform  = 'translateY(100%)';
+                    cineFireLeft.style.opacity    = '0';
+                    cineFireRight.style.transform = 'translateY(100%)';
+                    cineFireRight.style.opacity   = '0';
                 }
-            } else {
-                // Hide off-screen when paused
-                cineFireLeft.style.transform  = 'translateY(100%)';
-                cineFireLeft.style.opacity    = '0';
-                cineFireRight.style.transform = 'translateY(100%)';
-                cineFireRight.style.opacity   = '0';
             }
         }
 
