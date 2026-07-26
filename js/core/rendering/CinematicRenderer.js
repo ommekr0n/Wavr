@@ -133,8 +133,9 @@ export const CinematicRenderer = {
 
         // ── 2. FIRE PILLARS (FESTIVAL BURST) ────────────────────────────────
         if (cineFireLeft && cineFireRight) {
-            // Trigger a new burst if intensity is very high and cooldown passed (4 seconds)
-            if (intensity > 0.8 && nowSec - fireBurstTime > 4.0) {
+            // Trigger a new burst on bass drops/climax spikes (3s cooldown)
+            const isHighBass = intensity > 0.45 || (analysis && (analysis.climaxSpike || (analysis.bassIntensity && analysis.bassIntensity > 0.5)));
+            if (isHighBass && nowSec - fireBurstTime > 3.0) {
                 isFireBursting = true;
                 fireBurstTime  = nowSec;
 

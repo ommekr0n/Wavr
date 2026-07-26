@@ -968,12 +968,13 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 ========================================= */
 #angelic-view {
     position: relative;
+    z-index: 1000;
+    background: #000000;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    background: transparent; /* aurora-bg is behind */
     will-change: transform, opacity;
     transform: translateZ(0);
     contain: layout style paint;
@@ -1449,14 +1450,13 @@ body.is-recording {
     width: 30vw;
     height: 120vh;
     object-fit: cover;
-    z-index: 5;
+    z-index: 6; /* Render above #reactive-dim (z-index: 5) */
     mix-blend-mode: screen;
     filter: contrast(1.5) brightness(0.8) saturate(1.2);
     transform: translateY(100%);
     opacity: 0;
     will-change: transform, opacity;
     pointer-events: none;
-    will-change: transform, opacity;
 }
 .cine-fire-column:not(.right) { left: 0; }
 .cine-fire-column.right { right: 0; }
@@ -3382,6 +3382,17 @@ body.is-recording .modal-backdrop {
 
 #app-custom-bg-layer.active {
     opacity: 1;
+}
+
+/* Custom Background is EXCLUSIVELY for Main Page & Edit Library — Hide on Visualizer views */
+body:has(#angelic-view:not(.hidden)) #app-custom-bg-layer,
+body:has(#angelic-view:not(.hidden)) #app-bg-dark-overlay,
+body:has(#cinematic-view:not(.hidden)) #app-custom-bg-layer,
+body:has(#cinematic-view:not(.hidden)) #app-bg-dark-overlay,
+body:has(#player-view.player-active) #app-custom-bg-layer,
+body:has(#player-view.player-active) #app-bg-dark-overlay {
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 /* Dark Overlay Tint Layer */
