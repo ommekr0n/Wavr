@@ -1450,11 +1450,12 @@ body.is-recording {
     width: 30vw;
     height: 120vh;
     object-fit: cover;
-    z-index: 6; /* Render above #reactive-dim (z-index: 5) */
+    z-index: 20; /* Render on top of dim and text containers */
     mix-blend-mode: screen;
-    filter: contrast(1.5) brightness(0.8) saturate(1.2);
+    filter: contrast(1.3) brightness(1.2) saturate(1.4);
     transform: translateY(100%);
     opacity: 0;
+    transition: transform 0.15s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 0.2s ease;
     will-change: transform, opacity;
     pointer-events: none;
 }
