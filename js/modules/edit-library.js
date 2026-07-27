@@ -557,8 +557,11 @@ function setupDragAndDrop() {
                 ghost.style.top = `${moveEv.clientY - offsetY}px`;
             }
 
-            // Detect element under pointer
+            // Temporarily hide the dragging card so elementFromPoint sees the card UNDERNEATH it
+            card.style.visibility = 'hidden';
             const elementUnder = document.elementFromPoint(moveEv.clientX, moveEv.clientY);
+            card.style.visibility = '';
+
             if (!elementUnder) return;
 
             // MUST be a direct top-level card child of editGrid
@@ -597,7 +600,9 @@ function setupDragAndDrop() {
             if (!isDraggingStarted) return;
 
             // Check if song dropped INTO a vinyl box
+            card.style.visibility = 'hidden';
             const elementUnder = document.elementFromPoint(upEv.clientX, upEv.clientY);
+            card.style.visibility = '';
             const targetBox = elementUnder?.closest('.vinyl-box-card');
             const isDraggingSong = !card.classList.contains('vinyl-box-card');
 
