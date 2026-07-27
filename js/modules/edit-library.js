@@ -448,16 +448,16 @@ function renderEditGrid() {
                 return;
             }
 
-            // Grid item reordering: swap only when mouse crosses target card's midpoint
+            // Grid item reordering: swap based on cursor position relative to card midpoint
             if (isFlipping) return;
             
             const rect = card.getBoundingClientRect();
-            const midpoint = rect.left + rect.width / 2;
-            const nextSibling = (e.clientX < midpoint) ? card : card.nextSibling;
+            const isAfter = (e.clientX > rect.left + rect.width / 2);
+            const targetSibling = isAfter ? card.nextSibling : card;
 
-            if (nextSibling !== draggingCard && nextSibling !== draggingCard.nextSibling) {
+            if (targetSibling !== draggingCard && targetSibling !== draggingCard.nextSibling) {
                 isFlipping = true;
-                reorderFLIP(grid, draggingCard, nextSibling);
+                reorderFLIP(grid, draggingCard, targetSibling);
                 setTimeout(() => { isFlipping = false; }, 80);
             }
         });
@@ -999,8 +999,9 @@ function toggleEditBoxExpansion(card, boxId) {
         boxSongs.forEach((song, idx) => {
             songsHTML += `
                 <div class="song-card box-slider-song-card inner-editable-song" data-song-id="${song.id}" data-box-id="${box.id}" draggable="true">
-                    <div class="song-cover-wrapper">
-                        <img src="${song.cover || coverImgUrl}" alt="${song.title}">
+                    <div class="card-drag-handle" draggable="true" title="Drag to reorder or unbox">⋮⋮</div>
+                    <div class="song-cover-wrapper" style="position: relative; aspect-ratio: 1/1; border-radius: 8px; overflow: hidden; margin-bottom: 10px;">
+                        <img src="${song.cover || coverImgUrl}" alt="${song.title}" draggable="false" style="width: 100%; height: 100%; object-fit: cover; pointer-events: none; user-select: none;">
                         <button class="song-options-btn" data-id="${song.id}" title="Options">
                             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                                 <circle cx="12" cy="5" r="2"></circle>
@@ -1114,11 +1115,24 @@ function toggleEditBoxExpansion(card, boxId) {
     innerSongs.forEach(songCard => {
         songCard.addEventListener('dragstart', (e) => {
             e.stopPropagation();
+            document.body.classList.add('is-dragging-active');
             songCard.classList.add('inner-dragging');
             const sid = songCard.getAttribute('data-song-id');
             const bid = songCard.getAttribute('data-box-id');
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('application/json', JSON.stringify({ type: 'unbox-song', songId: sid, boxId: bid }));
+            e.dataTransfer.setData('text/plain', sid);
+            
+            try {
+                if (e.dataTransfer && typeof e.dataTransfer.setDragImage === 'function') {
+                    e.dataTransfer.setDragImage(songCard, 40, 40);
+                }
+            } catch (err) {}
+        });
+
+        songCard.addEventListener('dragend', (e) => {
+            document.body.classList.remove('is-dragging-active');
+            songCard.classList.remove('inner-dragging');
         });
         
         songCard.addEventListener('dragover', (e) => {
