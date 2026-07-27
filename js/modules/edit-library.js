@@ -432,7 +432,9 @@ function renderEditGrid() {
         // Card-level Drag Over & FLIP Reordering (Applies to both songs & vinyl boxes)
         card.addEventListener('dragover', (e) => {
             e.preventDefault();
-            const draggingCard = editGrid.querySelector('.song-card.dragging');
+            const grid = document.getElementById('edit-song-grid');
+            if (!grid) return;
+            const draggingCard = grid.querySelector('.song-card.dragging');
             if (!draggingCard || draggingCard === card) return;
 
             const isDraggingSong = !draggingCard.classList.contains('vinyl-box-card');
@@ -453,12 +455,12 @@ function renderEditGrid() {
 
             if (nextSibling !== draggingCard && nextSibling !== draggingCard.nextSibling) {
                 isFlipping = true;
-                reorderFLIP(editGrid, draggingCard, nextSibling);
+                reorderFLIP(grid, draggingCard, nextSibling);
                 setTimeout(() => { isFlipping = false; }, 80);
             }
         });
 
-        editGrid.appendChild(card);
+        grid.appendChild(card);
     });
 }
 
