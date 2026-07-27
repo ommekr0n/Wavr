@@ -168,6 +168,24 @@ body {
     border-radius: 16px; padding: 14px; cursor: pointer;
     transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s ease, border-color 0.3s ease;
     min-width: 0; /* Prevents long text from stretching the grid columns */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-user-drag: element;
+}
+
+.song-cover-wrapper,
+.song-info,
+.song-card-title,
+.song-card-artist {
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.song-options-btn,
+.btn-delete-box,
+.card-drag-handle {
+    pointer-events: auto !important;
 }
 
 /* Card Drag Handle Grip */
