@@ -501,45 +501,46 @@ function setupSelectionBox() {
     }, { signal });
 }
 
-// Reorder elements with butter-smooth FLIP animation
+// Reorder elements with butter-smooth 60FPS FLIP animation using static layout offsets
 function reorderFLIP(editGrid, draggingElement, nextSibling) {
     const cards = [...editGrid.querySelectorAll('.song-card')];
-    const firstPositions = cards.map(card => {
-        const rect = card.getBoundingClientRect();
-        return { el: card, left: rect.left, top: rect.top };
+    
+    // Measure static untransformed layout positions before DOM move
+    const firstPositions = new Map();
+    cards.forEach(card => {
+        firstPositions.set(card, {
+            left: card.offsetLeft,
+            top: card.offsetTop
+        });
     });
 
-    // Move the element in the DOM
+    // Move element in DOM
     if (nextSibling) {
         editGrid.insertBefore(draggingElement, nextSibling);
     } else {
         editGrid.appendChild(draggingElement);
     }
 
-    // Capture post-DOM change rects
-    const lastPositions = cards.map(card => {
-        const rect = card.getBoundingClientRect();
-        return { el: card, left: rect.left, top: rect.top };
-    });
-
-    // Animate transition using CSS transforms
+    // Measure new layout positions after DOM move and animate
     cards.forEach(card => {
-        const first = firstPositions.find(p => p.el === card);
-        const last = lastPositions.find(p => p.el === card);
-        if (!first || !last) return;
+        const first = firstPositions.get(card);
+        if (!first) return;
 
-        const deltaX = first.left - last.left;
-        const deltaY = first.top - last.top;
+        const lastLeft = card.offsetLeft;
+        const lastTop = card.offsetTop;
+
+        const deltaX = first.left - lastLeft;
+        const deltaY = first.top - lastTop;
 
         if (deltaX !== 0 || deltaY !== 0) {
             card.style.transition = 'none';
-            card.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+            card.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`;
             
             // Force reflow
-            card.offsetWidth;
+            void card.offsetWidth;
 
-            card.style.transition = 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
-            card.style.transform = 'translate(0, 0)';
+            card.style.transition = 'transform 0.25s cubic-bezier(0.2, 0, 0, 1)';
+            card.style.transform = 'translate3d(0, 0, 0)';
         }
     });
 }
@@ -603,30 +604,42 @@ function setupDragAndDrop() {
         await window.localforage.setItem('library_order', localLibraryOrder);
     });
 
-    let lastFlipTime = 0;
+    let isFlipping = false;
     editGrid.addEventListener('dragover', (e) => {
         e.preventDefault();
-        const now = Date.now();
-        if (now - lastFlipTime < 120) return; // Prevent rapid jitter by throttling FLIP swaps
+        if (isFlipping) return;
 
         const draggingElement = editGrid.querySelector('.dragging');
         if (!draggingElement) return;
 
         const siblings = [...editGrid.querySelectorAll('.song-card:not(.dragging)')];
         
-        const nextSibling = siblings.find(sibling => {
-            const box = sibling.getBoundingClientRect();
-            // Check vertical row first with 20px tolerance for height variations (e.g. Vinyl Box vs Song Card)
-            if (e.clientY < box.top - 20) return true; // Cursor is in a row above this card
-            if (e.clientY > box.bottom + 20) return false; // Cursor is in a row below this card
+        // Use relative mouse coordinates inside grid for 100% layout accuracy
+        const gridRect = editGrid.getBoundingClientRect();
+        const mouseX = e.clientX - gridRect.left;
+        const mouseY = e.clientY - gridRect.top;
 
-            // Cursor is in the same row -> check horizontal midpoint
-            return e.clientX < box.left + box.width / 2;
+        const nextSibling = siblings.find(sibling => {
+            // Read untransformed layout properties — IMMUNE to mid-animation CSS transforms!
+            const sTop = sibling.offsetTop;
+            const sLeft = sibling.offsetLeft;
+            const sWidth = sibling.offsetWidth;
+            const sHeight = sibling.offsetHeight;
+
+            // Check row alignment with 15px vertical padding
+            if (mouseY < sTop - 15) return true;
+            if (mouseY > sTop + sHeight + 15) return false;
+
+            // Check horizontal midpoint
+            return mouseX < sLeft + sWidth / 2;
         });
-        
+
         if (nextSibling !== draggingElement.nextSibling && nextSibling !== draggingElement) {
-            lastFlipTime = now;
+            isFlipping = true;
             reorderFLIP(editGrid, draggingElement, nextSibling);
+            requestAnimationFrame(() => {
+                setTimeout(() => { isFlipping = false; }, 60);
+            });
         }
     });
 
