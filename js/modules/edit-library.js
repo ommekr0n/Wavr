@@ -290,6 +290,7 @@ function renderEditGrid() {
             }
 
             card.innerHTML = `
+                <div class="card-drag-handle" draggable="true" title="Drag to reorder grid">⋮⋮</div>
                 <div class="song-cover-wrapper" style="position: relative; aspect-ratio: 1/1; border-radius: 8px; overflow: hidden; margin-bottom: 10px;">
                     <img src="${song.cover || coverImgUrl}" alt="${song.title}" draggable="false" style="width: 100%; height: 100%; object-fit: cover; pointer-events: none; user-select: none;">
                     <button class="song-options-btn" data-id="${song.id}" title="Options">
@@ -318,6 +319,7 @@ function renderEditGrid() {
             
             // Toggle selection
             card.addEventListener('click', (e) => {
+                if (e.target.closest('.card-drag-handle')) return;
                 if (card.classList.contains('dragging')) return;
                 if (selectedSongIds.has(song.id)) {
                     selectedSongIds.delete(song.id);
