@@ -546,10 +546,11 @@ function setupDragAndDrop() {
         if (e.button !== 0) return;
         if (e.target.closest('.song-options-btn') || e.target.closest('.btn-delete-box')) return;
 
+        // STRICT: ONLY initiate grid drag when explicitly grabbing the ⋮⋮ drag handle (.card-drag-handle)
         const handle = e.target.closest('.card-drag-handle');
-        const songCardTarget = e.target.closest('.song-card');
+        if (!handle) return;
         
-        const card = handle ? handle.closest('.song-card') : songCardTarget;
+        const card = handle.closest('.song-card');
         if (!card || card.classList.contains('expanded-active')) return;
 
         const rect = card.getBoundingClientRect();
@@ -602,12 +603,14 @@ function setupDragAndDrop() {
             const elementUnder = document.elementFromPoint(moveEv.clientX, moveEv.clientY);
             if (!elementUnder) return;
 
+            // MUST be a direct top-level card child of editGrid
             const targetCard = elementUnder.closest('.song-card');
+            if (!targetCard || targetCard.parentElement !== editGrid || targetCard === card) return;
             
             // Clear previous drag highlights
             editGrid.querySelectorAll('.vinyl-box-visual.drag-over').forEach(v => v.classList.remove('drag-over'));
 
-            if (targetCard && targetCard !== card && !targetCard.classList.contains('expanded-active')) {
+            if (!targetCard.classList.contains('expanded-active')) {
                 const isDraggingSong = !card.classList.contains('vinyl-box-card');
                 const isTargetBox = targetCard.classList.contains('vinyl-box-card');
 

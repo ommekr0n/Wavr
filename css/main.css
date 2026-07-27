@@ -177,15 +177,8 @@ body {
 .song-info,
 .song-card-title,
 .song-card-artist {
-    pointer-events: none;
     user-select: none;
     -webkit-user-select: none;
-}
-
-.song-options-btn,
-.btn-delete-box,
-.card-drag-handle {
-    pointer-events: auto !important;
 }
 
 /* Card Drag Handle Grip */
