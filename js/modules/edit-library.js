@@ -228,10 +228,10 @@ export async function initEditLibrary(mainPlaylist, onDone) {
 
 // Render the edit grid with draggable mixed cards
 function renderEditGrid() {
-    const grid = document.getElementById('edit-song-grid');
-    if (!grid) return;
+    const editGrid = document.getElementById('edit-song-grid');
+    if (!editGrid) return;
 
-    grid.innerHTML = '';
+    editGrid.innerHTML = '';
 
     const boxedSongIds = new Set();
     localVinylBoxes.forEach(box => {
@@ -458,7 +458,7 @@ function renderEditGrid() {
             }
         });
 
-        grid.appendChild(card);
+        editGrid.appendChild(card);
     });
 }
 
