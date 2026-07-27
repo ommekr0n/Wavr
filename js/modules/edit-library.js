@@ -603,8 +603,12 @@ function setupDragAndDrop() {
         await window.localforage.setItem('library_order', localLibraryOrder);
     });
 
+    let lastFlipTime = 0;
     editGrid.addEventListener('dragover', (e) => {
         e.preventDefault();
+        const now = Date.now();
+        if (now - lastFlipTime < 120) return; // Prevent rapid jitter by throttling FLIP swaps
+
         const draggingElement = editGrid.querySelector('.dragging');
         if (!draggingElement) return;
 
@@ -621,6 +625,7 @@ function setupDragAndDrop() {
         });
         
         if (nextSibling !== draggingElement.nextSibling && nextSibling !== draggingElement) {
+            lastFlipTime = now;
             reorderFLIP(editGrid, draggingElement, nextSibling);
         }
     });
