@@ -448,17 +448,16 @@ function renderEditGrid() {
                 return;
             }
 
-            // Grid item reordering: swap based on cursor position relative to card midpoint
+            // Grid item reordering: instant DOM position comparison
             if (isFlipping) return;
             
-            const rect = card.getBoundingClientRect();
-            const isAfter = (e.clientX > rect.left + rect.width / 2);
-            const targetSibling = isAfter ? card.nextSibling : card;
+            const isFollowing = (draggingCard.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING);
+            const targetSibling = isFollowing ? card.nextSibling : card;
 
             if (targetSibling !== draggingCard && targetSibling !== draggingCard.nextSibling) {
                 isFlipping = true;
                 reorderFLIP(grid, draggingCard, targetSibling);
-                setTimeout(() => { isFlipping = false; }, 80);
+                setTimeout(() => { isFlipping = false; }, 50);
             }
         });
 
