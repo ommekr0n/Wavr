@@ -170,7 +170,7 @@ body {
     min-width: 0; /* Prevents long text from stretching the grid columns */
     user-select: none;
     -webkit-user-select: none;
-    -webkit-user-drag: element;
+    -webkit-user-drag: none;
 }
 
 .song-cover-wrapper,
