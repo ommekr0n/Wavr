@@ -235,7 +235,16 @@
                 </div>
                 <div class="form-group">
                     <label for="edit-lrc">Update Lyrics File (.lrc) - Optional</label>
-                    <input type="file" id="edit-lrc" accept=".lrc">
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="file" id="edit-lrc" accept=".lrc" style="flex: 1;">
+                        <button type="button" id="btn-fetch-edit-lrc" class="glass-btn neutral" style="white-space: nowrap; padding: 8px 12px; gap: 6px;" title="Check LRCLIB online database">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg> Check Online
+                        </button>
+                    </div>
+                    <span id="edit-lrc-status" class="lrc-fetch-status" style="display: block; margin-top: 6px; font-size: 0.8rem; color: var(--accent-color);"></span>
                 </div>
                 <div class="form-group">
                     <label for="edit-cover">Update Cover Art (Image) - Optional</label>
@@ -278,8 +287,17 @@
                     <input type="file" id="upload-audio" accept="audio/*" required>
                 </div>
                 <div class="form-group">
-                    <label for="upload-lrc">Lyrics File (.lrc) - Required *</label>
-                    <input type="file" id="upload-lrc" accept=".lrc" required>
+                    <label for="upload-lrc">Lyrics File (.lrc) - Optional</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="file" id="upload-lrc" accept=".lrc" style="flex: 1;">
+                        <button type="button" id="btn-fetch-upload-lrc" class="glass-btn neutral" style="white-space: nowrap; padding: 8px 12px; gap: 6px;" title="Check LRCLIB online database">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg> Check Online
+                        </button>
+                    </div>
+                    <span id="upload-lrc-status" class="lrc-fetch-status" style="display: block; margin-top: 6px; font-size: 0.8rem; color: var(--accent-color);"></span>
                 </div>
                 <div class="form-group">
                     <label for="upload-cover">Cover Art (Image) - Optional</label>

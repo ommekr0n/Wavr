@@ -5,12 +5,15 @@
  * Extracted 1:1 from backup_prime/js/main.js (lines 532-670, 3067-3168)
  */
 
+import { fetchLyricsFromLRCLIB } from '../../modules/lrc-fetcher.js';
+
 // ── Modal State ──────────────────────────────────────────────────────────────
 // These mirror the exact variables scattered in main.js
 let trackToDeleteIndex = null;
 let trackToEditIndex   = null;
 let currentBoxIdForAdd     = null;
 let currentVinylBoxesArray = null;
+let pendingEditLrcText     = null;
 
 // Injected at init() time
 let _renderSongGrid   = null;
@@ -25,6 +28,7 @@ let _loadTrack             = null;
 let _updateMiniPlayerUI    = null;
 let _getIsPlaying          = null;
 let _playAudio             = null;
+let _showToast             = null;
 
 export const LibraryModals = {
 
@@ -47,6 +51,7 @@ export const LibraryModals = {
         _updateMiniPlayerUI     = deps.updateMiniPlayerUI;
         _getIsPlaying           = deps.getIsPlaying;
         _playAudio              = deps.playAudio;
+        _showToast              = deps.showToast;
 
         // ── window.appMainContext bridge ─────────────────────────────────────
         // MUST expose these exact keys to preserve compatibility with edit-library.js
@@ -124,9 +129,55 @@ export const LibraryModals = {
         });
 
         // ── Edit Modal ───────────────────────────────────────────────────────
+        // ── Edit Modal LRCLIB Fetch Button ────────────────────────────────────
+        const btnFetchEditLrc = document.getElementById('btn-fetch-edit-lrc');
+        const editLrcStatus = document.getElementById('edit-lrc-status');
+
+        if (btnFetchEditLrc) {
+            btnFetchEditLrc.addEventListener('click', async () => {
+                const title = document.getElementById('edit-title').value.trim();
+                const artist = document.getElementById('edit-artist').value.trim();
+
+                if (!title) {
+                    if (_showToast) _showToast('Please enter Track Title first.');
+                    return;
+                }
+
+                btnFetchEditLrc.disabled = true;
+                btnFetchEditLrc.innerHTML = `Searching...`;
+                if (editLrcStatus) {
+                    editLrcStatus.textContent = '🔍 Connecting to LRCLIB database...';
+                    editLrcStatus.style.color = 'var(--accent-color)';
+                }
+
+                const syncedLyrics = await fetchLyricsFromLRCLIB(title, artist);
+                btnFetchEditLrc.disabled = false;
+                btnFetchEditLrc.innerHTML = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Check Online`;
+
+                if (syncedLyrics) {
+                    pendingEditLrcText = syncedLyrics;
+                    if (editLrcStatus) {
+                        editLrcStatus.textContent = '✓ Synced lyrics found & attached from LRCLIB!';
+                        editLrcStatus.style.color = '#4caf50';
+                    }
+                    if (_showToast) _showToast('Lyrics found and attached successfully from LRCLIB!');
+                } else {
+                    pendingEditLrcText = null;
+                    if (editLrcStatus) {
+                        editLrcStatus.textContent = '❌ No online lyrics found. Please upload a .lrc file manually.';
+                        editLrcStatus.style.color = '#ef5350';
+                    }
+                    if (_showToast) _showToast('No online lyrics found for this song. Please upload a .lrc file manually.');
+                }
+            });
+        }
+
+        // ── Cancel Edit Handler ──────────────────────────────────────────────
         document.getElementById('btn-cancel-edit').addEventListener('click', () => {
             document.getElementById('edit-modal').classList.add('hidden');
             trackToEditIndex = null;
+            pendingEditLrcText = null;
+            if (editLrcStatus) editLrcStatus.textContent = '';
         });
 
         const editForm = document.getElementById('edit-form');
@@ -183,11 +234,17 @@ export const LibraryModals = {
                                 finishEdit();
                             };
                             reader.readAsText(lrcFile);
+                        } else if (pendingEditLrcText) {
+                            song.lyrics = pendingEditLrcText;
+                            if (_parseLyrics && _getCurrentTrackIndex() === idx) {
+                                _parseLyrics(song.lyrics);
+                            }
+                            finishEdit();
                         } else {
                             finishEdit();
                         }
                     } else {
-                        alert('Vui lòng điền đầy đủ Tiêu đề và Tên nghệ sĩ.');
+                        alert('Please fill in Title and Artist fields.');
                     }
                 }
             });
@@ -232,8 +289,11 @@ export const LibraryModals = {
      */
     showEditModal(index) {
         trackToEditIndex = index;
+        pendingEditLrcText = null;
         const song = _getPlaylist()[index];
         document.getElementById('edit-form').reset();
+        const editLrcStatus = document.getElementById('edit-lrc-status');
+        if (editLrcStatus) editLrcStatus.textContent = '';
         document.getElementById('edit-title').value  = song.title  || '';
         document.getElementById('edit-artist').value = song.artist || '';
         document.getElementById('edit-modal').classList.remove('hidden');

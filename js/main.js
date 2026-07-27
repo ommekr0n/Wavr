@@ -15,6 +15,7 @@ import { DOM } from './modules/dom.js';
 import { initSettings, initEditLibrary } from './modules/edit-library.js';
 import { startScreenRecording } from './modules/recorder.js';
 import { BackgroundManager } from './modules/background-manager.js';
+import { fetchLyricsFromLRCLIB, createLrcBlob } from './modules/lrc-fetcher.js';
 import coverImgUrl from '../assets/images/cover.png';
 
 import './floral-templates.js';
@@ -1106,21 +1107,21 @@ function updateMiniPlayerUI() {
 }
 
 // ── Upload Form Handler ──────────────────────────────────────────────────────
+let pendingUploadLrcBlob = null;
+
 function handleUploadForm(e) {
     e.preventDefault();
     const playlist = PlayerController.getPlaylist();
     const audioFile = uploadAudio.files[0];
-    const lrcFile = uploadLrc.files[0];
+    const lrcFile = uploadLrc.files[0] || pendingUploadLrcBlob;
     let coverFile = uploadCover.files[0];
     const title = uploadTitle.value.trim() || `Song #${playlist.length + 1}`;
     const artist = uploadArtist.value.trim() || "Unknown Artist";
-    if (!audioFile || !lrcFile) { alert("Vui lòng tải lên ít nhất tệp Audio và Lyrics."); return; }
+    if (!audioFile) { alert("Please select an Audio file."); return; }
 
     const audioUrl = URL.createObjectURL(audioFile);
     const processUpload = async (coverBlob, coverUrl) => {
-        const reader = new FileReader();
-        reader.onload = async function(event) {
-            const lrcText = event.target.result;
+        const createSongObject = async (lrcText) => {
             let persistBlob = coverBlob;
             if (coverBlob instanceof File) {
                 const ab = await coverBlob.arrayBuffer();
@@ -1128,16 +1129,28 @@ function handleUploadForm(e) {
             }
             const newSong = {
                 id: 'song-' + Date.now() + '-' + Math.floor(Math.random() * 100000),
-                title, artist, url: audioUrl, cover: coverUrl, lyrics: lrcText,
+                title, artist, url: audioUrl, cover: coverUrl, lyrics: lrcText || '',
                 drift: 1.0, audioBlob: audioFile, coverBlob: persistBlob
             };
             playlist.push(newSong);
             await saveLibraryToDB();
             await renderSongGrid();
             uploadForm.reset();
+            pendingUploadLrcBlob = null;
+            const uploadLrcStatus = document.getElementById('upload-lrc-status');
+            if (uploadLrcStatus) uploadLrcStatus.textContent = '';
             uploadModal.classList.add('hidden');
         };
-        reader.readAsText(lrcFile);
+
+        if (lrcFile) {
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                await createSongObject(event.target.result);
+            };
+            reader.readAsText(lrcFile);
+        } else {
+            await createSongObject('');
+        }
     };
 
     if (coverFile) processUpload(coverFile, URL.createObjectURL(coverFile));
@@ -1284,9 +1297,62 @@ function setupEventListeners() {
         }
     });
 
-    btnAddSong.addEventListener('click', () => { uploadForm.reset(); uploadModal.classList.remove('hidden'); });
+    btnAddSong.addEventListener('click', () => {
+        uploadForm.reset();
+        pendingUploadLrcBlob = null;
+        const uploadLrcStatus = document.getElementById('upload-lrc-status');
+        if (uploadLrcStatus) uploadLrcStatus.textContent = '';
+        uploadModal.classList.remove('hidden');
+    });
     btnCloseModal.addEventListener('click', () => uploadModal.classList.add('hidden'));
     uploadForm.addEventListener('submit', handleUploadForm);
+
+    const btnFetchUploadLrc = document.getElementById('btn-fetch-upload-lrc');
+    const uploadLrcStatus = document.getElementById('upload-lrc-status');
+
+    if (btnFetchUploadLrc) {
+        btnFetchUploadLrc.addEventListener('click', async () => {
+            const audioFile = uploadAudio.files[0];
+            let title = uploadTitle.value.trim();
+            let artist = uploadArtist.value.trim();
+
+            if (!title && audioFile) {
+                title = audioFile.name.replace(/\.[^/.]+$/, '');
+            }
+
+            if (!title) {
+                showToast('Please enter Track Title or select Audio file first.');
+                return;
+            }
+
+            btnFetchUploadLrc.disabled = true;
+            btnFetchUploadLrc.innerHTML = `Searching...`;
+            if (uploadLrcStatus) {
+                uploadLrcStatus.textContent = '🔍 Connecting to LRCLIB database...';
+                uploadLrcStatus.style.color = 'var(--accent-color)';
+            }
+
+            const syncedLyrics = await fetchLyricsFromLRCLIB(title, artist);
+            btnFetchUploadLrc.disabled = false;
+            btnFetchUploadLrc.innerHTML = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Check Online`;
+
+            if (syncedLyrics) {
+                pendingUploadLrcBlob = createLrcBlob(syncedLyrics);
+                if (uploadLrcStatus) {
+                    uploadLrcStatus.textContent = '✓ Synced lyrics found & attached from LRCLIB!';
+                    uploadLrcStatus.style.color = '#4caf50';
+                }
+                showToast('Lyrics found and attached successfully from LRCLIB!');
+            } else {
+                pendingUploadLrcBlob = null;
+                if (uploadLrcStatus) {
+                    uploadLrcStatus.textContent = '❌ No online lyrics found. Please upload a .lrc file manually.';
+                    uploadLrcStatus.style.color = '#ef5350';
+                }
+                showToast('No online lyrics found for this song. Please upload a .lrc file manually.');
+            }
+        });
+    }
 
     // Auto-fill from ID3 tags
     uploadAudio.addEventListener('change', (e) => {
