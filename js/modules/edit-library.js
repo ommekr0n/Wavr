@@ -612,6 +612,14 @@ function setupDragAndDrop() {
         const draggingElement = editGrid.querySelector('.dragging');
         if (!draggingElement) return;
 
+        const isDraggingSong = !draggingElement.classList.contains('vinyl-box-card');
+        const targetBox = e.target.closest('.vinyl-box-card');
+
+        // If dragging a song over a vinyl box -> pause grid reordering so box stays steady for dropping
+        if (isDraggingSong && targetBox && !targetBox.classList.contains('dragging')) {
+            return;
+        }
+
         const siblings = [...editGrid.querySelectorAll('.song-card:not(.dragging)')];
         
         // Use relative mouse coordinates inside grid for 100% layout accuracy
