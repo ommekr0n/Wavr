@@ -431,35 +431,7 @@ function renderEditGrid() {
             });
         }
 
-        // Card-level Drag Over & FLIP Reordering (Applies to both songs & vinyl boxes)
-        card.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            const grid = document.getElementById('edit-song-grid');
-            if (!grid) return;
-            const draggingCard = grid.querySelector('.song-card.dragging');
-            if (!draggingCard || draggingCard === card) return;
-
-            const isDraggingSong = !draggingCard.classList.contains('vinyl-box-card');
-            const isTargetBox = card.classList.contains('vinyl-box-card');
-
-            if (isDraggingSong && isTargetBox) {
-                // Highlight target vinyl box while allowing grid FLIP reordering
-                card.querySelector('.vinyl-box-visual')?.classList.add('drag-over');
-            }
-
-            // Grid item reordering: instant DOM position comparison
-            if (isFlipping) return;
-            
-            const isFollowing = (draggingCard.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING);
-            const targetSibling = isFollowing ? card.nextSibling : card;
-
-            if (targetSibling !== draggingCard && targetSibling !== draggingCard.nextSibling) {
-                isFlipping = true;
-                reorderFLIP(grid, draggingCard, targetSibling);
-                setTimeout(() => { isFlipping = false; }, 50);
-            }
-        });
-
+        // Clear inline dragover listener — handled by Pointer Drag engine
         editGrid.appendChild(card);
     });
 }
@@ -564,98 +536,154 @@ function reorderFLIP(editGrid, draggingElement, nextSibling) {
     });
 }
 
-// Set up HTML5 Drag and Drop for Reordering
+// Set up Pointer Events Drag and Drop for 100% Reliable Reordering
 function setupDragAndDrop() {
     const editGrid = document.getElementById('edit-song-grid');
     if (!editGrid) return;
 
-    editGrid.addEventListener('dragstart', (e) => {
-        const card = e.target.closest('.song-card');
-        if (!card) return;
+    editGrid.addEventListener('pointerdown', (e) => {
+        // Ignore right clicks or clicks on interactive buttons
+        if (e.button !== 0) return;
+        if (e.target.closest('.song-options-btn') || e.target.closest('.btn-delete-box')) return;
 
-        if (card.classList.contains('expanded-active')) {
-            e.preventDefault();
-            return;
-        }
-
-        document.body.classList.add('is-dragging-active');
-        card.classList.add('dragging');
-        card.setAttribute('data-was-dragged', 'true');
-        e.dataTransfer.setData('text/plain', card.getAttribute('data-id'));
-        e.dataTransfer.effectAllowed = 'move';
-
-        // Custom drag ghost preview: ensure full card element follows cursor
-        try {
-            if (e.dataTransfer && typeof e.dataTransfer.setDragImage === 'function') {
-                e.dataTransfer.setDragImage(card, 40, 40);
-            }
-        } catch (err) {
-            // Ignore setDragImage fallback errors
-        }
-    });
-
-    editGrid.addEventListener('dragend', async (e) => {
-        document.body.classList.remove('is-dragging-active');
-        const card = e.target.closest('.song-card');
-        if (card) {
-            card.classList.remove('dragging');
-            setTimeout(() => {
-                card.setAttribute('data-was-dragged', 'false');
-            }, 250);
-
-            // Clean inline transition styles to prevent hover side effects
-            setTimeout(() => {
-                const cards = editGrid.querySelectorAll('.song-card');
-                cards.forEach(c => {
-                    c.style.transition = '';
-                    c.style.transform = '';
-                });
-            }, 300);
-        }
+        const handle = e.target.closest('.card-drag-handle');
+        const songCardTarget = e.target.closest('.song-card');
         
-        // Save new mixed order
-        const currentCards = [...editGrid.querySelectorAll('.song-card')];
-        const newOrder = [];
-        currentCards.forEach(cardEl => {
-            newOrder.push(cardEl.getAttribute('data-id'));
-        });
-        localLibraryOrder = newOrder;
-        await window.localforage.setItem('library_order', localLibraryOrder);
-    });
+        const card = handle ? handle.closest('.song-card') : songCardTarget;
+        if (!card || card.classList.contains('expanded-active')) return;
 
-    // Simple grid-level dragover to enable HTML5 drop targets
-    editGrid.addEventListener('dragover', (e) => {
-        e.preventDefault();
-    });
+        const rect = card.getBoundingClientRect();
+        const offsetX = e.clientX - rect.left;
+        const offsetY = e.clientY - rect.top;
 
-    editGrid.addEventListener('drop', async (e) => {
-        const jsonData = e.dataTransfer.getData('application/json');
-        if (jsonData) {
-            try {
-                const data = JSON.parse(jsonData);
-                if (data.type === 'unbox-song') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    const box = localVinylBoxes.find(b => b.id === data.boxId);
-                    if (box && box.songIds) {
-                        box.songIds = box.songIds.filter(id => id !== data.songId);
-                        await window.localforage.setItem('vinyl_boxes', localVinylBoxes);
-                        
-                        // Close expansion, save order, and re-render
-                        closeEditBoxExpansion();
-                        renderEditGrid();
-                        
-                        if (window.appMainContext && window.appMainContext.renderSongGrid) {
-                            window.appMainContext.updateBoxCache && window.appMainContext.updateBoxCache([...localVinylBoxes], localLibraryOrder);
-                            window.appMainContext.renderSongGrid();
-                        }
+        let ghost = null;
+        let isDraggingStarted = false;
+        let isSwapping = false;
+        let droppedIntoBox = false;
+
+        const startPointerDrag = () => {
+            isDraggingStarted = true;
+            document.body.classList.add('is-dragging-active');
+            card.classList.add('dragging');
+            card.setAttribute('data-was-dragged', 'true');
+
+            // Floating drag ghost preview
+            ghost = card.cloneNode(true);
+            ghost.className = 'song-card drag-floating-ghost';
+            ghost.style.position = 'fixed';
+            ghost.style.left = `${e.clientX - offsetX}px`;
+            ghost.style.top = `${e.clientY - offsetY}px`;
+            ghost.style.width = `${rect.width}px`;
+            ghost.style.height = `${rect.height}px`;
+            ghost.style.zIndex = '9999';
+            ghost.style.pointerEvents = 'none';
+            ghost.style.transform = 'scale(1.04)';
+            ghost.style.boxShadow = '0 16px 40px rgba(0, 229, 255, 0.4)';
+            ghost.style.opacity = '0.9';
+            document.body.appendChild(ghost);
+        };
+
+        const onPointerMove = (moveEv) => {
+            const dist = Math.hypot(moveEv.clientX - e.clientX, moveEv.clientY - e.clientY);
+            if (!isDraggingStarted) {
+                if (dist > 5) {
+                    startPointerDrag();
+                } else {
+                    return;
+                }
+            }
+
+            if (ghost) {
+                ghost.style.left = `${moveEv.clientX - offsetX}px`;
+                ghost.style.top = `${moveEv.clientY - offsetY}px`;
+            }
+
+            // Detect element under pointer
+            const elementUnder = document.elementFromPoint(moveEv.clientX, moveEv.clientY);
+            if (!elementUnder) return;
+
+            const targetCard = elementUnder.closest('.song-card');
+            
+            // Clear previous drag highlights
+            editGrid.querySelectorAll('.vinyl-box-visual.drag-over').forEach(v => v.classList.remove('drag-over'));
+
+            if (targetCard && targetCard !== card && !targetCard.classList.contains('expanded-active')) {
+                const isDraggingSong = !card.classList.contains('vinyl-box-card');
+                const isTargetBox = targetCard.classList.contains('vinyl-box-card');
+
+                if (isDraggingSong && isTargetBox) {
+                    targetCard.querySelector('.vinyl-box-visual')?.classList.add('drag-over');
+                }
+
+                if (!isSwapping) {
+                    const isFollowing = (card.compareDocumentPosition(targetCard) & Node.DOCUMENT_POSITION_FOLLOWING);
+                    const targetSibling = isFollowing ? targetCard.nextSibling : targetCard;
+
+                    if (targetSibling !== card && targetSibling !== card.nextSibling) {
+                        isSwapping = true;
+                        reorderFLIP(editGrid, card, targetSibling);
+                        setTimeout(() => { isSwapping = false; }, 50);
                     }
                 }
-            } catch (err) {
-                // Ignore parse errors
             }
-        }
+        };
+
+        const onPointerUp = async (upEv) => {
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerup', onPointerUp);
+            window.removeEventListener('pointercancel', onPointerUp);
+
+            if (!isDraggingStarted) return;
+
+            // Check if song dropped INTO a vinyl box
+            const elementUnder = document.elementFromPoint(upEv.clientX, upEv.clientY);
+            const targetBox = elementUnder?.closest('.vinyl-box-card');
+            const isDraggingSong = !card.classList.contains('vinyl-box-card');
+
+            if (isDraggingSong && targetBox && targetBox !== card) {
+                const songId = card.getAttribute('data-id');
+                const boxId = targetBox.getAttribute('data-id');
+                const box = localVinylBoxes.find(b => b.id === boxId);
+                
+                if (box && songId) {
+                    const existingSet = new Set(box.songIds || []);
+                    existingSet.add(songId);
+                    box.songIds = Array.from(existingSet);
+                    await window.localforage.setItem('vinyl_boxes', localVinylBoxes);
+                    droppedIntoBox = true;
+                }
+            }
+
+            if (ghost) {
+                ghost.remove();
+                ghost = null;
+            }
+
+            card.classList.remove('dragging');
+            document.body.classList.remove('is-dragging-active');
+            editGrid.querySelectorAll('.vinyl-box-visual.drag-over').forEach(v => v.classList.remove('drag-over'));
+
+            setTimeout(() => {
+                card.setAttribute('data-was-dragged', 'false');
+            }, 200);
+
+            if (droppedIntoBox) {
+                renderEditGrid();
+                if (window.appMainContext && window.appMainContext.renderSongGrid) {
+                    window.appMainContext.updateBoxCache && window.appMainContext.updateBoxCache([...localVinylBoxes], localLibraryOrder);
+                    window.appMainContext.renderSongGrid();
+                }
+            } else {
+                // Save updated grid order
+                const currentCards = [...editGrid.querySelectorAll('.song-card')];
+                localLibraryOrder = currentCards.map(c => c.getAttribute('data-id'));
+                await window.localforage.setItem('library_order', localLibraryOrder);
+            }
+        };
+
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('pointercancel', onPointerUp);
     });
 }
 
