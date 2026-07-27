@@ -19,24 +19,28 @@ class AudioAnalysisWorkletProcessor extends AudioWorkletProcessor {
         const input = inputs[0];
         const output = outputs[0];
 
-        if (input && input.length > 0) {
-            const channel = input[0];
-            const numSamples = channel.length;
-
-            // Pass-through audio signal to output destination
-            if (output && output.length > 0 && output[0]) {
-                output[0].set(channel);
-            }
-
-            // Calculate Root Mean Square (RMS) audio power on the hardware thread
+        if (input && input.length > 0 && output && output.length > 0) {
+            const numChannels = Math.min(input.length, output.length);
             let pcmPowerSum = 0;
-            for (let i = 0; i < numSamples; i++) {
-                const sample = channel[i];
-                pcmPowerSum += sample * sample;
-            }
-            const rmsPower = Math.sqrt(pcmPowerSum / numSamples);
+            let totalSamples = 0;
 
-            this.sampleCounter += numSamples;
+            // Pass-through ALL channels (Left + Right stereo) to output
+            for (let c = 0; c < numChannels; c++) {
+                const inChannel = input[c];
+                const outChannel = output[c];
+                if (inChannel && outChannel) {
+                    outChannel.set(inChannel);
+                    const len = inChannel.length;
+                    for (let i = 0; i < len; i++) {
+                        const sample = inChannel[i];
+                        pcmPowerSum += sample * sample;
+                    }
+                    totalSamples += len;
+                }
+            }
+
+            const rmsPower = totalSamples > 0 ? Math.sqrt(pcmPowerSum / totalSamples) : 0;
+            this.sampleCounter += (input[0] ? input[0].length : 0);
 
             // Report high-precision audio thread metrics to main thread every ~16ms (~1 frame)
             if (currentTime - this.lastReportTime >= 0.016) {
