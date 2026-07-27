@@ -291,7 +291,7 @@ function renderEditGrid() {
 
             card.innerHTML = `
                 <div class="song-cover-wrapper" style="position: relative; aspect-ratio: 1/1; border-radius: 8px; overflow: hidden; margin-bottom: 10px;">
-                    <img src="${song.cover || coverImgUrl}" alt="${song.title}" style="width: 100%; height: 100%; object-fit: cover;">
+                    <img src="${song.cover || coverImgUrl}" alt="${song.title}" draggable="false" style="width: 100%; height: 100%; object-fit: cover; pointer-events: none; user-select: none;">
                     <button class="song-options-btn" data-id="${song.id}" title="Options">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                             <circle cx="12" cy="5" r="2"></circle>
