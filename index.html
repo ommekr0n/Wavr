@@ -235,13 +235,13 @@
                 </div>
                 <div class="form-group">
                     <label for="edit-lrc">Update Lyrics File (.lrc) - Optional</label>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <input type="file" id="edit-lrc" accept=".lrc" style="flex: 1;">
-                        <button type="button" id="btn-fetch-edit-lrc" class="glass-btn neutral" style="white-space: nowrap; padding: 8px 12px; gap: 6px;" title="Check LRCLIB online database">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="11" cy="11" r="8"></circle>
-                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                            </svg> Check Online
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <input type="file" id="edit-lrc" accept=".lrc" style="flex: 1; min-width: 180px;">
+                        <button type="button" id="btn-auto-edit-lrc" class="glass-btn primary" style="white-space: nowrap; padding: 8px 12px; gap: 6px; font-size: 0.82rem;" title="Auto-match best lyrics from LRCLIB">
+                            ⚡ Auto Match
+                        </button>
+                        <button type="button" id="btn-pick-edit-lrc" class="glass-btn neutral" style="white-space: nowrap; padding: 8px 12px; gap: 6px; font-size: 0.82rem;" title="Browse all available versions on LRCLIB">
+                            📋 Pick Version
                         </button>
                     </div>
                     <span id="edit-lrc-status" class="lrc-fetch-status" style="display: block; margin-top: 6px; font-size: 0.8rem; color: var(--accent-color);"></span>
@@ -269,7 +269,7 @@
         </div>
     </div>
 
-    <!-- 2. Upload Modal -->
+    <!-- Upload Modal -->
     <div id="upload-modal" class="modal hidden">
         <div class="modal-content">
             <button id="btn-close-modal" class="close-btn glass-icon-btn danger" title="Close">
@@ -288,17 +288,54 @@
                 </div>
                 <div class="form-group">
                     <label for="upload-lrc">Lyrics File (.lrc) - Optional</label>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <input type="file" id="upload-lrc" accept=".lrc" style="flex: 1;">
-                        <button type="button" id="btn-fetch-upload-lrc" class="glass-btn neutral" style="white-space: nowrap; padding: 8px 12px; gap: 6px;" title="Check LRCLIB online database">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="11" cy="11" r="8"></circle>
-                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                            </svg> Check Online
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <input type="file" id="upload-lrc" accept=".lrc" style="flex: 1; min-width: 180px;">
+                        <button type="button" id="btn-auto-upload-lrc" class="glass-btn primary" style="white-space: nowrap; padding: 8px 12px; gap: 6px; font-size: 0.82rem;" title="Auto-match best lyrics from LRCLIB">
+                            ⚡ Auto Match
+                        </button>
+                        <button type="button" id="btn-pick-upload-lrc" class="glass-btn neutral" style="white-space: nowrap; padding: 8px 12px; gap: 6px; font-size: 0.82rem;" title="Browse all available versions on LRCLIB">
+                            📋 Pick Version
                         </button>
                     </div>
                     <span id="upload-lrc-status" class="lrc-fetch-status" style="display: block; margin-top: 6px; font-size: 0.8rem; color: var(--accent-color);"></span>
                 </div>
+                <div class="form-group">
+                    <label for="upload-cover">Cover Art (Image) - Optional</label>
+                    <input type="file" id="upload-cover" accept="image/*">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label for="upload-title">Track Title - Optional</label>
+                        <input type="text" id="upload-title" placeholder="Auto-detect from file">
+                    </div>
+                    <div class="form-group half">
+                        <label for="upload-artist">Artist - Optional</label>
+                        <input type="text" id="upload-artist" placeholder="Auto-detect from file">
+                    </div>
+                </div>
+                
+                <button type="submit" class="submit-btn">Upload & Save to Library</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Multi-Version Lyrics Picker Modal -->
+    <div id="lrc-picker-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 650px; max-height: 85vh; display: flex; flex-direction: column;">
+            <button id="btn-close-lrc-picker" class="close-btn glass-icon-btn danger" title="Close">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+            <h2>Select Lyrics Version</h2>
+            <p class="modal-subtitle">Found multiple synced lyrics versions on LRCLIB. Pick the one that matches your audio track.</p>
+            <div id="lrc-picker-list" style="overflow-y: auto; display: flex; flex-direction: column; gap: 12px; margin-top: 15px; padding-right: 5px; max-height: 60vh;">
+                <!-- Dynamically populated LRCLIB cards -->
+            </div>
+        </div>
+    </div>v>
                 <div class="form-group">
                     <label for="upload-cover">Cover Art (Image) - Optional</label>
                     <input type="file" id="upload-cover" accept="image/*">

@@ -15,7 +15,7 @@ import { DOM } from './modules/dom.js';
 import { initSettings, initEditLibrary } from './modules/edit-library.js';
 import { startScreenRecording } from './modules/recorder.js';
 import { BackgroundManager } from './modules/background-manager.js';
-import { fetchLyricsFromLRCLIB, createLrcBlob } from './modules/lrc-fetcher.js';
+import { searchLRCLIB, autoSelectBestMatch, createLrcBlob, openLrcPickerModal } from './modules/lrc-fetcher.js';
 import coverImgUrl from '../assets/images/cover.png';
 
 import './floral-templates.js';
@@ -1307,50 +1307,94 @@ function setupEventListeners() {
     btnCloseModal.addEventListener('click', () => uploadModal.classList.add('hidden'));
     uploadForm.addEventListener('submit', handleUploadForm);
 
-    const btnFetchUploadLrc = document.getElementById('btn-fetch-upload-lrc');
+    const btnAutoUploadLrc = document.getElementById('btn-auto-upload-lrc');
+    const btnPickUploadLrc = document.getElementById('btn-pick-upload-lrc');
     const uploadLrcStatus = document.getElementById('upload-lrc-status');
 
-    if (btnFetchUploadLrc) {
-        btnFetchUploadLrc.addEventListener('click', async () => {
-            const audioFile = uploadAudio.files[0];
-            let title = uploadTitle.value.trim();
-            let artist = uploadArtist.value.trim();
+    const getSearchTargetInfo = () => {
+        const audioFile = uploadAudio.files[0];
+        let title = uploadTitle.value.trim();
+        let artist = uploadArtist.value.trim();
+        if (!title && audioFile) {
+            title = audioFile.name.replace(/\.[^/.]+$/, '');
+        }
+        return { title, artist, audioFile };
+    };
 
-            if (!title && audioFile) {
-                title = audioFile.name.replace(/\.[^/.]+$/, '');
-            }
-
+    if (btnAutoUploadLrc) {
+        btnAutoUploadLrc.addEventListener('click', async () => {
+            const { title, artist } = getSearchTargetInfo();
             if (!title) {
                 showToast('Please enter Track Title or select Audio file first.');
                 return;
             }
 
-            btnFetchUploadLrc.disabled = true;
-            btnFetchUploadLrc.innerHTML = `Searching...`;
+            btnAutoUploadLrc.disabled = true;
+            btnAutoUploadLrc.innerHTML = '⚡ Searching...';
             if (uploadLrcStatus) {
                 uploadLrcStatus.textContent = '🔍 Connecting to LRCLIB database...';
                 uploadLrcStatus.style.color = 'var(--accent-color)';
             }
 
-            const syncedLyrics = await fetchLyricsFromLRCLIB(title, artist);
-            btnFetchUploadLrc.disabled = false;
-            btnFetchUploadLrc.innerHTML = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Check Online`;
+            const results = await searchLRCLIB(title, artist);
+            btnAutoUploadLrc.disabled = false;
+            btnAutoUploadLrc.innerHTML = '⚡ Auto Match';
 
-            if (syncedLyrics) {
-                pendingUploadLrcBlob = createLrcBlob(syncedLyrics);
+            const best = autoSelectBestMatch(results);
+            if (best && best.syncedLyrics) {
+                pendingUploadLrcBlob = createLrcBlob(best.syncedLyrics);
                 if (uploadLrcStatus) {
-                    uploadLrcStatus.textContent = '✓ Synced lyrics found & attached from LRCLIB!';
+                    uploadLrcStatus.textContent = `✓ Auto-attached: ${best.trackName} (${best.albumName || 'Single'})`;
                     uploadLrcStatus.style.color = '#4caf50';
                 }
-                showToast('Lyrics found and attached successfully from LRCLIB!');
+                showToast('Lyrics auto-matched and attached from LRCLIB!');
             } else {
                 pendingUploadLrcBlob = null;
                 if (uploadLrcStatus) {
-                    uploadLrcStatus.textContent = '❌ No online lyrics found. Please upload a .lrc file manually.';
+                    uploadLrcStatus.textContent = '❌ No online lyrics found. Please upload .lrc manually.';
                     uploadLrcStatus.style.color = '#ef5350';
                 }
                 showToast('No online lyrics found for this song. Please upload a .lrc file manually.');
             }
+        });
+    }
+
+    if (btnPickUploadLrc) {
+        btnPickUploadLrc.addEventListener('click', async () => {
+            const { title, artist } = getSearchTargetInfo();
+            if (!title) {
+                showToast('Please enter Track Title or select Audio file first.');
+                return;
+            }
+
+            btnPickUploadLrc.disabled = true;
+            btnPickUploadLrc.innerHTML = '📋 Searching...';
+            if (uploadLrcStatus) {
+                uploadLrcStatus.textContent = '🔍 Fetching available versions from LRCLIB...';
+                uploadLrcStatus.style.color = 'var(--accent-color)';
+            }
+
+            const results = await searchLRCLIB(title, artist);
+            btnPickUploadLrc.disabled = false;
+            btnPickUploadLrc.innerHTML = '📋 Pick Version';
+
+            if (!results || results.length === 0) {
+                if (uploadLrcStatus) {
+                    uploadLrcStatus.textContent = '❌ No online lyrics found. Please upload .lrc manually.';
+                    uploadLrcStatus.style.color = '#ef5350';
+                }
+                showToast('No online lyrics found on LRCLIB.');
+                return;
+            }
+
+            openLrcPickerModal(results, (selectedItem) => {
+                pendingUploadLrcBlob = createLrcBlob(selectedItem.syncedLyrics);
+                if (uploadLrcStatus) {
+                    uploadLrcStatus.textContent = `✓ Selected version: ${selectedItem.trackName} (${selectedItem.albumName || 'Single'})`;
+                    uploadLrcStatus.style.color = '#4caf50';
+                }
+                showToast('Selected lyrics version attached successfully!');
+            });
         });
     }
 

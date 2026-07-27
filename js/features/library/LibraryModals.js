@@ -5,7 +5,7 @@
  * Extracted 1:1 from backup_prime/js/main.js (lines 532-670, 3067-3168)
  */
 
-import { fetchLyricsFromLRCLIB } from '../../modules/lrc-fetcher.js';
+import { searchLRCLIB, autoSelectBestMatch, openLrcPickerModal } from '../../modules/lrc-fetcher.js';
 
 // ── Modal State ──────────────────────────────────────────────────────────────
 // These mirror the exact variables scattered in main.js
@@ -130,11 +130,12 @@ export const LibraryModals = {
 
         // ── Edit Modal ───────────────────────────────────────────────────────
         // ── Edit Modal LRCLIB Fetch Button ────────────────────────────────────
-        const btnFetchEditLrc = document.getElementById('btn-fetch-edit-lrc');
+        const btnAutoEditLrc = document.getElementById('btn-auto-edit-lrc');
+        const btnPickEditLrc = document.getElementById('btn-pick-edit-lrc');
         const editLrcStatus = document.getElementById('edit-lrc-status');
 
-        if (btnFetchEditLrc) {
-            btnFetchEditLrc.addEventListener('click', async () => {
+        if (btnAutoEditLrc) {
+            btnAutoEditLrc.addEventListener('click', async () => {
                 const title = document.getElementById('edit-title').value.trim();
                 const artist = document.getElementById('edit-artist').value.trim();
 
@@ -143,32 +144,74 @@ export const LibraryModals = {
                     return;
                 }
 
-                btnFetchEditLrc.disabled = true;
-                btnFetchEditLrc.innerHTML = `Searching...`;
+                btnAutoEditLrc.disabled = true;
+                btnAutoEditLrc.innerHTML = '⚡ Searching...';
                 if (editLrcStatus) {
                     editLrcStatus.textContent = '🔍 Connecting to LRCLIB database...';
                     editLrcStatus.style.color = 'var(--accent-color)';
                 }
 
-                const syncedLyrics = await fetchLyricsFromLRCLIB(title, artist);
-                btnFetchEditLrc.disabled = false;
-                btnFetchEditLrc.innerHTML = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Check Online`;
+                const results = await searchLRCLIB(title, artist);
+                btnAutoEditLrc.disabled = false;
+                btnAutoEditLrc.innerHTML = '⚡ Auto Match';
 
-                if (syncedLyrics) {
-                    pendingEditLrcText = syncedLyrics;
+                const best = autoSelectBestMatch(results);
+                if (best && best.syncedLyrics) {
+                    pendingEditLrcText = best.syncedLyrics;
                     if (editLrcStatus) {
-                        editLrcStatus.textContent = '✓ Synced lyrics found & attached from LRCLIB!';
+                        editLrcStatus.textContent = `✓ Auto-attached: ${best.trackName} (${best.albumName || 'Single'})`;
                         editLrcStatus.style.color = '#4caf50';
                     }
-                    if (_showToast) _showToast('Lyrics found and attached successfully from LRCLIB!');
+                    if (_showToast) _showToast('Lyrics auto-matched and attached from LRCLIB!');
                 } else {
                     pendingEditLrcText = null;
                     if (editLrcStatus) {
-                        editLrcStatus.textContent = '❌ No online lyrics found. Please upload a .lrc file manually.';
+                        editLrcStatus.textContent = '❌ No online lyrics found. Please upload .lrc manually.';
                         editLrcStatus.style.color = '#ef5350';
                     }
                     if (_showToast) _showToast('No online lyrics found for this song. Please upload a .lrc file manually.');
                 }
+            });
+        }
+
+        if (btnPickEditLrc) {
+            btnPickEditLrc.addEventListener('click', async () => {
+                const title = document.getElementById('edit-title').value.trim();
+                const artist = document.getElementById('edit-artist').value.trim();
+
+                if (!title) {
+                    if (_showToast) _showToast('Please enter Track Title first.');
+                    return;
+                }
+
+                btnPickEditLrc.disabled = true;
+                btnPickEditLrc.innerHTML = '📋 Searching...';
+                if (editLrcStatus) {
+                    editLrcStatus.textContent = '🔍 Fetching available versions from LRCLIB...';
+                    editLrcStatus.style.color = 'var(--accent-color)';
+                }
+
+                const results = await searchLRCLIB(title, artist);
+                btnPickEditLrc.disabled = false;
+                btnPickEditLrc.innerHTML = '📋 Pick Version';
+
+                if (!results || results.length === 0) {
+                    if (editLrcStatus) {
+                        editLrcStatus.textContent = '❌ No online lyrics found. Please upload .lrc manually.';
+                        editLrcStatus.style.color = '#ef5350';
+                    }
+                    if (_showToast) _showToast('No online lyrics found on LRCLIB.');
+                    return;
+                }
+
+                openLrcPickerModal(results, (selectedItem) => {
+                    pendingEditLrcText = selectedItem.syncedLyrics;
+                    if (editLrcStatus) {
+                        editLrcStatus.textContent = `✓ Selected version: ${selectedItem.trackName} (${selectedItem.albumName || 'Single'})`;
+                        editLrcStatus.style.color = '#4caf50';
+                    }
+                    if (_showToast) _showToast('Selected lyrics version attached successfully!');
+                });
             });
         }
 

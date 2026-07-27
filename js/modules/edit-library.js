@@ -379,8 +379,13 @@ function renderEditGrid() {
                 toggleEditBoxExpansion(card, box.id);
             });
             
-            // Allow drag over to add items to box
+            // Allow drag over to add items to box ONLY if dragging a song card
             card.addEventListener('dragover', (e) => {
+                const draggingElement = editGrid ? editGrid.querySelector('.dragging') : null;
+                if (draggingElement && draggingElement.classList.contains('vinyl-box-card')) {
+                    // Dragging a box -> let editGrid handle grid reordering
+                    return;
+                }
                 e.preventDefault();
                 card.querySelector('.vinyl-box-visual').classList.add('drag-over');
             });
@@ -390,10 +395,17 @@ function renderEditGrid() {
             });
 
             card.addEventListener('drop', async (e) => {
+                const draggedId = e.dataTransfer.getData('text/plain');
+                if (draggedId && draggedId.startsWith('box-')) {
+                    // Dropping a box -> let editGrid handle reordering
+                    card.querySelector('.vinyl-box-visual').classList.remove('drag-over');
+                    return;
+                }
+
                 e.preventDefault();
+                e.stopPropagation();
                 card.querySelector('.vinyl-box-visual').classList.remove('drag-over');
 
-                const draggedId = e.dataTransfer.getData('text/plain');
                 let songIdsToAdd = [];
                 
                 if (selectedSongIds.size > 0) {
