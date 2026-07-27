@@ -443,9 +443,8 @@ function renderEditGrid() {
             const isTargetBox = card.classList.contains('vinyl-box-card');
 
             if (isDraggingSong && isTargetBox) {
-                // Hovering song over vinyl box -> add drop glow highlight, do not reorder grid
+                // Highlight target vinyl box while allowing grid FLIP reordering
                 card.querySelector('.vinyl-box-visual')?.classList.add('drag-over');
-                return;
             }
 
             // Grid item reordering: instant DOM position comparison
