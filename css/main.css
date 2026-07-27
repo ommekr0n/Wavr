@@ -86,14 +86,14 @@ body {
 
 
 /* 1. HOME VIEW */
-#home-view {
+#home-view, #edit-library-view {
     height: 100vh;
     position: relative;
     background-image: conic-gradient(rgba(255, 255, 255, 0.05) 90deg, rgba(255, 255, 255, 0.01) 90deg 180deg, rgba(255, 255, 255, 0.05) 180deg 270deg, rgba(255, 255, 255, 0.01) 270deg);
     background-size: 240px 240px;
     background-position: center center;
 }
-#home-view::before {
+#home-view::before, #edit-library-view::before {
     content: '';
     position: absolute;
     inset: 0;
@@ -163,11 +163,93 @@ body {
 }
 
 .song-card {
+    position: relative;
     background: #0a0a0c; border: 1px solid var(--glass-border);
     border-radius: 16px; padding: 14px; cursor: pointer;
     transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s ease, border-color 0.3s ease;
     min-width: 0; /* Prevents long text from stretching the grid columns */
 }
+
+/* Card Drag Handle Grip */
+.card-drag-handle {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 28px;
+    height: 28px;
+    background: rgba(0, 0, 0, 0.65);
+    color: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    z-index: 12;
+    font-size: 0.95rem;
+    line-height: 1;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(8px);
+    user-select: none;
+}
+.card-drag-handle:hover {
+    color: var(--accent-color, #00e5ff);
+    border-color: var(--accent-color, #00e5ff);
+    background: rgba(0, 229, 255, 0.18);
+    transform: scale(1.08);
+}
+.card-drag-handle:active {
+    cursor: grabbing;
+    transform: scale(0.95);
+}
+
+.song-card.dragging {
+    opacity: 0.45 !important;
+    border: 2px dashed var(--accent-color, #00e5ff) !important;
+}
+
+/* ── ACTIVE DRAGGING GLOBAL STATE OVERRIDES ────────────────────────── */
+body.is-dragging-active .song-options-btn,
+.song-grid:has(.dragging) .song-options-btn {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Force-hide ALL trash delete buttons on ALL boxes during active drag */
+body.is-dragging-active .btn-delete-box,
+body.is-dragging-active .song-card.vinyl-box-card:hover .btn-delete-box,
+body.is-dragging-active .song-card.vinyl-box-card:focus-within .btn-delete-box,
+.song-grid:has(.dragging) .btn-delete-box,
+.song-grid:has(.dragging) .song-card.vinyl-box-card:hover .btn-delete-box {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Hide drag handles on ALL OTHER vinyl box cards during dragging */
+body.is-dragging-active .card-drag-handle,
+.song-grid:has(.dragging) .card-drag-handle {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* ONLY keep active dragging vinyl box card's drag handle visible */
+body.is-dragging-active .song-card.dragging .card-drag-handle,
+.song-grid:has(.dragging) .song-card.dragging .card-drag-handle {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+/* Disable card hover elevation, background brightening, and box-shadow on all cards while dragging */
+body.is-dragging-active .song-card:hover,
+body.is-dragging-active .song-card.vinyl-box-card:hover,
+.song-grid:has(.dragging) .song-card:hover,
+.song-grid:has(.dragging) .song-card.vinyl-box-card:hover {
+    transform: none !important;
+    background: #0a0a0c !important;
+    border-color: color-mix(in srgb, var(--box-color, #ffb300) 25%, transparent) !important;
+    box-shadow: none !important;
+}
+
 .song-card:hover { 
     transform: translateY(-4px) scale(1.015); 
     background: #15151a; 
@@ -1959,7 +2041,32 @@ body.is-recording {
 }
 
 .vinyl-box-visual.drag-over {
-    transform: scale(1.1);
+    transform: scale(1.08);
+    outline: 3px solid var(--accent-color, #00e5ff);
+    outline-offset: 4px;
+    border-radius: 12px;
+    box-shadow: 0 0 30px rgba(0, 229, 255, 0.6), inset 0 0 15px rgba(0, 229, 255, 0.3);
+    animation: boxDragPulse 1.2s infinite alternate ease-in-out;
+}
+.vinyl-box-visual.drag-over::after {
+    content: '📥 Add to Box';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 229, 255, 0.9);
+    color: #000000;
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    z-index: 20;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+@keyframes boxDragPulse {
+    0% { transform: scale(1.04); }
+    100% { transform: scale(1.10); }
 }
 
 .vinyl-box-name {
@@ -3405,8 +3512,9 @@ body:has(#player-view.player-active) #app-bg-dark-overlay {
     pointer-events: none;
 }
 
-/* Hide Checkerboard Pattern on Home View when toggled */
-body.hide-checkerboard #home-view {
+/* Hide Checkerboard Pattern on Home & Edit Library Views when toggled */
+body.hide-checkerboard #home-view,
+body.hide-checkerboard #edit-library-view {
     background-image: none !important;
 }
 

@@ -347,6 +347,7 @@ function renderEditGrid() {
             }
 
             card.innerHTML = `
+                <div class="card-drag-handle" draggable="true" title="Drag to reorder grid">⋮⋮</div>
                 <button class="btn-delete-box" title="Delete Box" aria-label="Delete box">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                         <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
@@ -375,37 +376,45 @@ function renderEditGrid() {
 
             card.addEventListener('click', (e) => {
                 if (e.target.closest('.btn-delete-box')) return;
+                if (e.target.closest('.card-drag-handle')) return;
                 if (card.classList.contains('expanded-active')) return;
+                if (card.getAttribute('data-was-dragged') === 'true') return;
                 toggleEditBoxExpansion(card, box.id);
             });
             
-            // Allow drag over to add items to box ONLY if dragging a song card
+            // Allow drag over
             card.addEventListener('dragover', (e) => {
-                const draggingElement = editGrid ? editGrid.querySelector('.dragging') : null;
-                if (draggingElement && draggingElement.classList.contains('vinyl-box-card')) {
-                    // Dragging a box -> let editGrid handle grid reordering
-                    return;
+                e.preventDefault(); // REQUIRED by HTML5 DnD to allow dragover & drop on grid!
+                const draggingElement = document.querySelector('.song-card.dragging');
+                const visual = card.querySelector('.vinyl-box-visual');
+                if (draggingElement && !draggingElement.classList.contains('vinyl-box-card')) {
+                    // Only add visual glow when dragging a SONG card over a box
+                    visual?.classList.add('drag-over');
+                } else {
+                    visual?.classList.remove('drag-over');
                 }
-                e.preventDefault();
-                card.querySelector('.vinyl-box-visual').classList.add('drag-over');
             });
 
             card.addEventListener('dragleave', () => {
-                card.querySelector('.vinyl-box-visual').classList.remove('drag-over');
+                card.querySelector('.vinyl-box-visual')?.classList.remove('drag-over');
             });
 
             card.addEventListener('drop', async (e) => {
-                const draggedId = e.dataTransfer.getData('text/plain');
-                if (draggedId && draggedId.startsWith('box-')) {
+                const draggingElement = document.querySelector('.song-card.dragging');
+                const isDraggingBox = draggingElement && draggingElement.classList.contains('vinyl-box-card');
+
+                card.querySelector('.vinyl-box-visual')?.classList.remove('drag-over');
+
+                if (isDraggingBox) {
                     // Dropping a box -> let editGrid handle reordering
-                    card.querySelector('.vinyl-box-visual').classList.remove('drag-over');
                     return;
                 }
 
+                // It's a Song being dropped INTO this Vinyl Box!
                 e.preventDefault();
                 e.stopPropagation();
-                card.querySelector('.vinyl-box-visual').classList.remove('drag-over');
 
+                const draggedId = e.dataTransfer.getData('text/plain');
                 let songIdsToAdd = [];
                 
                 if (selectedSongIds.size > 0) {
@@ -416,7 +425,6 @@ function renderEditGrid() {
 
                 if (songIdsToAdd.length === 0) return;
 
-                // Simple push for now without animation since they are in grid
                 const existingSet = new Set(box.songIds || []);
                 songIdsToAdd.forEach(id => existingSet.add(id));
                 box.songIds = Array.from(existingSet);
@@ -545,15 +553,36 @@ function setupDragAndDrop() {
         const card = e.target.closest('.song-card');
         if (!card) return;
 
+        if (card.classList.contains('expanded-active')) {
+            e.preventDefault();
+            return;
+        }
+
+        document.body.classList.add('is-dragging-active');
         card.classList.add('dragging');
+        card.setAttribute('data-was-dragged', 'true');
         e.dataTransfer.setData('text/plain', card.getAttribute('data-id'));
         e.dataTransfer.effectAllowed = 'move';
+
+        // Custom drag ghost preview: ensure full card element follows cursor
+        try {
+            if (e.dataTransfer && typeof e.dataTransfer.setDragImage === 'function') {
+                e.dataTransfer.setDragImage(card, 40, 40);
+            }
+        } catch (err) {
+            // Ignore setDragImage fallback errors
+        }
     });
 
     editGrid.addEventListener('dragend', async (e) => {
+        document.body.classList.remove('is-dragging-active');
         const card = e.target.closest('.song-card');
         if (card) {
             card.classList.remove('dragging');
+            setTimeout(() => {
+                card.setAttribute('data-was-dragged', 'false');
+            }, 250);
+
             // Clean inline transition styles to prevent hover side effects
             setTimeout(() => {
                 const cards = editGrid.querySelectorAll('.song-card');
@@ -583,8 +612,11 @@ function setupDragAndDrop() {
         
         const nextSibling = siblings.find(sibling => {
             const box = sibling.getBoundingClientRect();
-            // BUG 23 FIX: Use OR instead of AND so horizontal reorder works in multi-column grid
-            // The card whose left-center is to the right of the cursor is the insert point
+            // Check vertical row first with 20px tolerance for height variations (e.g. Vinyl Box vs Song Card)
+            if (e.clientY < box.top - 20) return true; // Cursor is in a row above this card
+            if (e.clientY > box.bottom + 20) return false; // Cursor is in a row below this card
+
+            // Cursor is in the same row -> check horizontal midpoint
             return e.clientX < box.left + box.width / 2;
         });
         
