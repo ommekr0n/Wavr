@@ -460,7 +460,7 @@ function renderEditGrid() {
             }
         });
 
-        grid.appendChild(card);
+        editGrid.appendChild(card);
     });
 }
 
