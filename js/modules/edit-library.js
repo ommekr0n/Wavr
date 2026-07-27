@@ -11,6 +11,7 @@ let selectedSongIds = new Set();
 let onDoneCallback = null;
 let _dragDropInitialized = false;
 let _selectionAbortController = null;  // Tracks lasso selection window listeners
+let isFlipping = false;
 
 // Initialize Settings
 export function initSettings() {
@@ -382,19 +383,6 @@ function renderEditGrid() {
                 toggleEditBoxExpansion(card, box.id);
             });
             
-            // Allow drag over
-            card.addEventListener('dragover', (e) => {
-                e.preventDefault(); // REQUIRED by HTML5 DnD to allow dragover & drop on grid!
-                const draggingElement = document.querySelector('.song-card.dragging');
-                const visual = card.querySelector('.vinyl-box-visual');
-                if (draggingElement && !draggingElement.classList.contains('vinyl-box-card')) {
-                    // Only add visual glow when dragging a SONG card over a box
-                    visual?.classList.add('drag-over');
-                } else {
-                    visual?.classList.remove('drag-over');
-                }
-            });
-
             card.addEventListener('dragleave', () => {
                 card.querySelector('.vinyl-box-visual')?.classList.remove('drag-over');
             });
@@ -440,6 +428,35 @@ function renderEditGrid() {
                 }
             });
         }
+
+        // Card-level Drag Over & FLIP Reordering (Applies to both songs & vinyl boxes)
+        card.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const draggingCard = editGrid.querySelector('.song-card.dragging');
+            if (!draggingCard || draggingCard === card) return;
+
+            const isDraggingSong = !draggingCard.classList.contains('vinyl-box-card');
+            const isTargetBox = card.classList.contains('vinyl-box-card');
+
+            if (isDraggingSong && isTargetBox) {
+                // Hovering song over vinyl box -> add drop glow highlight, do not reorder grid
+                card.querySelector('.vinyl-box-visual')?.classList.add('drag-over');
+                return;
+            }
+
+            // Grid item reordering: swap only when mouse crosses target card's midpoint
+            if (isFlipping) return;
+            
+            const rect = card.getBoundingClientRect();
+            const midpoint = rect.left + rect.width / 2;
+            const nextSibling = (e.clientX < midpoint) ? card : card.nextSibling;
+
+            if (nextSibling !== draggingCard && nextSibling !== draggingCard.nextSibling) {
+                isFlipping = true;
+                reorderFLIP(editGrid, draggingCard, nextSibling);
+                setTimeout(() => { isFlipping = false; }, 80);
+            }
+        });
 
         grid.appendChild(card);
     });
@@ -604,51 +621,9 @@ function setupDragAndDrop() {
         await window.localforage.setItem('library_order', localLibraryOrder);
     });
 
-    let isFlipping = false;
+    // Simple grid-level dragover to enable HTML5 drop targets
     editGrid.addEventListener('dragover', (e) => {
         e.preventDefault();
-        if (isFlipping) return;
-
-        const draggingElement = editGrid.querySelector('.dragging');
-        if (!draggingElement) return;
-
-        const isDraggingSong = !draggingElement.classList.contains('vinyl-box-card');
-        const targetBox = e.target.closest('.vinyl-box-card');
-
-        // If dragging a song over a vinyl box -> pause grid reordering so box stays steady for dropping
-        if (isDraggingSong && targetBox && !targetBox.classList.contains('dragging')) {
-            return;
-        }
-
-        const siblings = [...editGrid.querySelectorAll('.song-card:not(.dragging)')];
-        
-        // Use relative mouse coordinates inside grid for 100% layout accuracy
-        const gridRect = editGrid.getBoundingClientRect();
-        const mouseX = e.clientX - gridRect.left;
-        const mouseY = e.clientY - gridRect.top;
-
-        const nextSibling = siblings.find(sibling => {
-            // Read untransformed layout properties — IMMUNE to mid-animation CSS transforms!
-            const sTop = sibling.offsetTop;
-            const sLeft = sibling.offsetLeft;
-            const sWidth = sibling.offsetWidth;
-            const sHeight = sibling.offsetHeight;
-
-            // Check row alignment with 15px vertical padding
-            if (mouseY < sTop - 15) return true;
-            if (mouseY > sTop + sHeight + 15) return false;
-
-            // Check horizontal midpoint
-            return mouseX < sLeft + sWidth / 2;
-        });
-
-        if (nextSibling !== draggingElement.nextSibling && nextSibling !== draggingElement) {
-            isFlipping = true;
-            reorderFLIP(editGrid, draggingElement, nextSibling);
-            requestAnimationFrame(() => {
-                setTimeout(() => { isFlipping = false; }, 60);
-            });
-        }
     });
 
     editGrid.addEventListener('drop', async (e) => {
