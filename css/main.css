@@ -170,7 +170,13 @@ body {
     min-width: 0; /* Prevents long text from stretching the grid columns */
     user-select: none;
     -webkit-user-select: none;
-    -webkit-user-drag: none;
+    -webkit-user-drag: none !important;
+}
+
+.inner-editable-song {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-user-drag: element !important;
 }
 
 .song-cover-wrapper,
@@ -179,10 +185,12 @@ body {
 .song-card-artist {
     user-select: none;
     -webkit-user-select: none;
+    -webkit-user-drag: none !important;
 }
 
-/* Card Drag Handle Grip */
+/* Card Drag Handle Grip - ONLY place allowed for dragging */
 .card-drag-handle {
+    -webkit-user-drag: element !important;
     position: absolute;
     top: 8px;
     left: 8px;
@@ -215,8 +223,10 @@ body {
 }
 
 .song-card.dragging {
-    opacity: 0.45 !important;
-    border: 2px dashed var(--accent-color, #00e5ff) !important;
+    opacity: 0.4 !important;
+    transform: scale(0.95) !important;
+    border-color: rgba(255,255,255,0.1) !important;
+    box-shadow: none !important;
 }
 
 /* ── ACTIVE DRAGGING GLOBAL STATE OVERRIDES ────────────────────────── */
@@ -925,6 +935,7 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     src: url('../assets/fonts/dearpix-2-01.otf') format('opentype');
     font-weight: normal;
     font-style: normal;
+    font-display: swap;
 }
 
 .cinematic-line {
@@ -2052,32 +2063,8 @@ body.is-recording {
 }
 
 .vinyl-box-visual.drag-over {
-    transform: scale(1.08);
-    outline: 3px solid var(--accent-color, #00e5ff);
-    outline-offset: 4px;
-    border-radius: 12px;
-    box-shadow: 0 0 30px rgba(0, 229, 255, 0.6), inset 0 0 15px rgba(0, 229, 255, 0.3);
-    animation: boxDragPulse 1.2s infinite alternate ease-in-out;
-}
-.vinyl-box-visual.drag-over::after {
-    content: '📥 Add to Box';
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 229, 255, 0.9);
-    color: #000000;
-    font-weight: 700;
-    font-size: 0.85rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px;
-    z-index: 20;
-    backdrop-filter: blur(4px);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-}
-@keyframes boxDragPulse {
-    0% { transform: scale(1.04); }
-    100% { transform: scale(1.10); }
+    transform: scale(1.04);
+    box-shadow: 0 0 25px rgba(0, 229, 255, 0.7), inset 0 0 15px rgba(0, 229, 255, 0.3);
 }
 
 .vinyl-box-name {

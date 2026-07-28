@@ -55,7 +55,7 @@ export const LibraryModals = {
 
         // ── window.appMainContext bridge ─────────────────────────────────────
         // MUST expose these exact keys to preserve compatibility with edit-library.js
-        window.appMainContext = {
+        Object.assign(window.appMainContext || (window.appMainContext = {}), {
             renderSongGrid:         _renderSongGrid,
             openAddSongsModal:      (box, vinylBoxesArray) => LibraryModals.openAddSongsModal(box, vinylBoxesArray),
             showEditModalBySongId:  (songId) => LibraryModals.showEditModalBySongId(songId),
@@ -72,7 +72,7 @@ export const LibraryModals = {
             openPlaylistNameModal: (box, boxes, cb) => {
                 document.dispatchEvent(new CustomEvent('wavr:openEditBox', { detail: { boxId: box.id, cb } }));
             }
-        };
+        });
     },
 
     /**
@@ -309,7 +309,9 @@ export const LibraryModals = {
      */
     showDeleteModal(index) {
         trackToDeleteIndex = index;
-        document.getElementById('delete-modal').classList.remove('hidden');
+        const modal = document.getElementById('delete-modal');
+        if (!modal) return;
+        modal.classList.remove('hidden');
     },
 
     /**
@@ -334,6 +336,7 @@ export const LibraryModals = {
         trackToEditIndex = index;
         pendingEditLrcText = null;
         const song = _getPlaylist()[index];
+        if (!song) return;
         document.getElementById('edit-form').reset();
         const editLrcStatus = document.getElementById('edit-lrc-status');
         if (editLrcStatus) editLrcStatus.textContent = '';
