@@ -432,9 +432,9 @@ function updateProgress() {
                 }
             }
         },
-        (text) => {
+        (text, deltaSec) => {
             if (VisualizerController.getIsCinematicMode()) {
-                triggerCinematicLine(text, cinematicTextContainer);
+                triggerCinematicLine(text, cinematicTextContainer, deltaSec);
             }
         }
     );

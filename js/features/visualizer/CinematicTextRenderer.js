@@ -1,26 +1,34 @@
 /**
  * CinematicTextRenderer.js
- * Handles 3D animated typography for Cinematic Mode.
+ * Handles 3D animated typography for Cinematic Mode with adaptive fluid sizing & timing.
  */
-export function triggerCinematicLine(text, cinematicTextContainer) {
+import { calculateFluidLyricStyle } from './AdaptiveLyricSizer.js';
+
+export function triggerCinematicLine(text, cinematicTextContainer, deltaSec = 3.0) {
     if (!text || !cinematicTextContainer) return;
+
+    // Fast transition duration for quick rap/EDM lyrics vs smooth drift for slow ballads
+    const exitDurationMs = deltaSec < 1.5 ? 450 : 900;
 
     const oldLines = cinematicTextContainer.querySelectorAll('.cinematic-line-wrapper');
     oldLines.forEach(line => {
         line.classList.remove('cine-enter');
         line.classList.add('cine-exit');
+        line.style.animationDuration = `${exitDurationMs}ms`;
+
         const exitingWords = line.querySelectorAll('.cine-word');
         exitingWords.forEach(w => { w.classList.add('glitched'); w.classList.remove('glitch-word-anim'); });
-        const rot = (Math.random() - 0.5) * 80;
-        const tx = (Math.random() - 0.5) * 60;
+        const rot = (Math.random() - 0.5) * 60;
+        const tx = (Math.random() - 0.5) * 50;
         line.style.setProperty('--exit-rot', `${rot}deg`);
         line.style.setProperty('--exit-tx', `${tx}vw`);
-        setTimeout(() => { if (line.parentNode) line.remove(); }, 1200);
+        setTimeout(() => { if (line.parentNode) line.remove(); }, exitDurationMs + 50);
     });
 
     const newWrapper = document.createElement('div');
     newWrapper.className = 'cinematic-line-wrapper cine-enter';
 
+    // Particle sparks
     const sparkContainer = document.createElement('div');
     sparkContainer.className = 'sparkle-container';
     const wordCount = text.split(' ').length;
@@ -48,6 +56,11 @@ export function triggerCinematicLine(text, cinematicTextContainer) {
 
     const newLine = document.createElement('div');
     newLine.className = 'cinematic-line';
+
+    // Consistent, uniform lyric styling handled by CSS & AdaptiveLyricSizer
+    const fluidStyle = calculateFluidLyricStyle();
+    newLine.style.fontSize = fluidStyle.fontSize;
+    newLine.style.lineHeight = fluidStyle.lineHeight;
 
     const processedText = preventOrphanWords(text);
     const textLines = processedText.split('\n');
