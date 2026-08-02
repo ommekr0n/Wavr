@@ -173,8 +173,8 @@ export const FFTAnalyzer = {
         const statsUltraHigh = getBufferStats(ultraHighFluxHistory, windowFilled, windowIdx);
 
         // ── 6. Dynamic Anomaly Detection (Adaptive Thresholding) ─────────────
-        const subBassThreshold = Math.max(0.04, statsSubBass.mean + 2.3 * statsSubBass.stdDev);
-        const subBassOnset     = subBassFlux > subBassThreshold && intensity > 0.25;
+        const subBassThreshold = Math.max(0.06, statsSubBass.mean + 2.8 * statsSubBass.stdDev);
+        const subBassOnset     = subBassFlux > subBassThreshold && intensity > 0.28;
 
         const ultraHighThreshold = Math.max(0.008, statsUltraHigh.mean + 2.6 * statsUltraHigh.stdDev);
         const ultraHighOnset     = ultraHighFlux > ultraHighThreshold && highIntensity > 0.03;
@@ -229,10 +229,11 @@ export const FFTAnalyzer = {
      */
     getQuantizedCooldownMs() {
         const beatMs = estimatedBeatIntervalMs;
-        let quantizedMs = beatMs * 16;
-        if (quantizedMs < 4000) quantizedMs = beatMs * 24;
-        if (quantizedMs > 9000) quantizedMs = beatMs * 8;
-        return Math.min(Math.max(quantizedMs, 4000), 9000);
+        let quantizedMs = beatMs * 32; // Tối thiểu 32 nhịp (khoảng 16s với bài 120bpm)
+        if (quantizedMs < 15000) quantizedMs = beatMs * 64; 
+        
+        // Cố định giới hạn từ 15 đến 30 giây để tránh tình trạng climax liên tục gây nhàm chán
+        return Math.min(Math.max(quantizedMs, 15000), 30000);
     },
 
     /** Resets rolling history, statistical state, and frame buffers. */

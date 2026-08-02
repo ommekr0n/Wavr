@@ -31,6 +31,17 @@ import { renderSongGrid, saveLibraryToDB, updateBoxCache, getCachedVinylBoxes, g
 import { setupBoxExpansionListeners, closeBoxExpansion } from './features/library/HomeBoxExpansion.js';
 import { setupUploadHandler } from './features/library/UploadHandler.js';
 import { triggerCinematicLine } from './features/visualizer/CinematicTextRenderer.js';
+import {
+    updateLyricBreath,
+    updateParallax,
+    updateVignette,
+    attachParallax,
+    createVignetteOverlay,
+    removeVignetteOverlay,
+    triggerBeatZoom,
+    tickZoomCooldown,
+    getReactiveParticleTimer
+} from './features/visualizer/VisualFX.js';
 
 // ── Global Security Rules ────────────────────────────────────────────────────
 document.addEventListener('copy', (e) => {
@@ -156,6 +167,7 @@ let animationFrameId = null;
 let lastVolume = 0.8;
 let isMuted = false;
 let angelicParticleTimer = 0;
+let angelicIdleParticleTimer = 0;
 let isPlayerTransitioning = false;
 let toastTimeout = null;
 
@@ -170,6 +182,9 @@ window.addEventListener('resize', () => {
 window.localforage.config({ name: 'AppleMusicClone', storeName: 'songs_library' });
 CinematicRenderer.init();
 initWaveform(audio);
+
+// ── VisualFX boot-up (one-time) ──────────────────────────────────────────────
+attachParallax(); // Passive mousemove listener — zero cost when mode inactive
 
 function updateVolumeIcon(volume) {
     if (!btnMute) return;
@@ -432,9 +447,9 @@ function updateProgress() {
                 }
             }
         },
-        (text, deltaSec) => {
+        (text) => {
             if (VisualizerController.getIsCinematicMode()) {
-                triggerCinematicLine(text, cinematicTextContainer, deltaSec);
+                triggerCinematicLine(text, cinematicTextContainer);
             }
         }
     );
@@ -449,7 +464,11 @@ function formatTime(seconds) {
 
 function syncLoop() {
     let intensity = 0;
+    let energy = 0;
     let currentAnalysis = null;
+    const isAngelic  = VisualizerController.getIsAngelicMode();
+    const isCinematic = VisualizerController.getIsCinematicMode();
+
     if (PlayerController.getIsPlaying()) {
         updateProgress();
 
@@ -457,16 +476,22 @@ function syncLoop() {
         if (AudioEngine.getAnalyser() && dataArray) {
             currentAnalysis = FFTAnalyzer.analyze(dataArray);
             intensity = currentAnalysis.intensity;
+            energy    = currentAnalysis.energy;
             document.documentElement.style.setProperty('--beat-intensity', intensity.toFixed(3));
 
-            if (VisualizerController.getIsAngelicMode()) {
-                if (intensity > 0.3) {
+            if (isAngelic) {
+                // ── 1. Lyric Breathing (scale nhẹ theo bass) ──────────────────
+                updateLyricBreath(intensity, angelicTextContainer);
+
+                // ── 8. Reactive Particle Spawn ─────────────────────────────────
+                if (intensity > 0.12) {
                     angelicParticleTimer--;
                     if (angelicParticleTimer <= 0) {
                         AngelicRenderer.spawnParticle(angelicParticleContainer, true);
-                        angelicParticleTimer = 10;
+                        angelicParticleTimer = getReactiveParticleTimer(energy, intensity);
                     }
                 }
+
                 if (currentAnalysis.climaxSpike) {
                     const artistEl = document.getElementById('song-artist');
                     const artistName = artistEl ? artistEl.textContent.trim() : '';
@@ -474,10 +499,35 @@ function syncLoop() {
                     AngelicRenderer.spawnClimaxCombo(true, angelicParticleContainer, angelicView, artistName, quantizedCooldown);
                 }
             }
+
+            if (isCinematic) {
+                // ── 5. Beat Zoom Pulse ─────────────────────────────────────────
+                if (currentAnalysis.subBassOnset) {
+                    triggerBeatZoom(cinematicTextContainer, intensity);
+                }
+                tickZoomCooldown();
+
+                // ── 7. Vignette Pulse ──────────────────────────────────────────
+                updateVignette(energy);
+            }
         }
     }
 
-    if (VisualizerController.getIsCinematicMode() && cinematicCanvas) {
+    // ── 3. Parallax Depth (Angelic Mode) ──────────────────────────────────────
+    if (isAngelic) {
+        updateParallax(angelicTextContainer);
+
+        // Idle particles khi đang dạo nhạc (không phát)
+        if (!PlayerController.getIsPlaying()) {
+            angelicIdleParticleTimer--;
+            if (angelicIdleParticleTimer <= 0) {
+                AngelicRenderer.spawnParticle(angelicParticleContainer, true);
+                angelicIdleParticleTimer = 25;
+            }
+        }
+    }
+
+    if (isCinematic && cinematicCanvas) {
         CinematicRenderer.renderFrame(
             cinematicCanvas,
             AudioEngine.getByteFrequencyData(),
@@ -824,9 +874,12 @@ function setupEventListeners() {
             LyricEngine.getActiveLyricIndex(), LyricEngine.getCurrentLyrics(),
             (text) => triggerCinematicLine(text, cinematicTextContainer)
         );
+        // ── 7. Vignette overlay (cinematic) ────────────────────────────────
+        createVignetteOverlay(cinematicView);
     });
     btnExitCinematic.addEventListener('click', () => {
         VisualizerController.exitCinematicMode(cinematicView, playerView, cinematicTextContainer);
+        removeVignetteOverlay();
     });
 
     btnAngelic.addEventListener('click', () => {

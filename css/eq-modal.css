@@ -1,0 +1,145 @@
+/* Equalizer (EQ) Modal */
+.modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.modal-backdrop.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.eq-panel {
+    position: relative;
+    background: rgba(20, 20, 25, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    padding: 30px;
+    width: 450px;
+    text-align: center;
+    color: #fff;
+    transform: scale(1);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.modal-backdrop.hidden .eq-panel {
+    transform: scale(0.9);
+}
+
+.eq-panel h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+.eq-panel .close-btn {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 24px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.eq-panel .close-btn:hover {
+    color: #fff;
+}
+
+.eq-preset-wrapper {
+    margin-bottom: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.eq-preset-wrapper label {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.eq-preset-wrapper select {
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 6px 12px;
+    border-radius: 8px;
+    outline: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.eq-preset-wrapper select:focus {
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.eq-sliders {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px;
+}
+
+.eq-band {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.eq-val {
+    font-size: 12px;
+    color: var(--accent-color);
+    font-weight: 500;
+    min-width: 40px;
+}
+
+.eq-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.eq-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 6px;
+    height: 120px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    outline: none;
+    writing-mode: vertical-lr;
+    direction: rtl;
+}
+
+.eq-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    transition: transform 0.1s;
+}
+
+.eq-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}

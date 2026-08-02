@@ -113,7 +113,7 @@ window.WavrFloral = {
         const branchLen = ((chord + poly) / 2) * 1.15; // 15% safety margin
         const branchWidth = 1.5 + Math.random();
         
-        const branchStr = `<path d="M 0,0 C ${p1x},${p1y} ${p2x},${p2y} ${p3x},${p3y}" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="${branchWidth}" stroke-linecap="round" class="angelic-branch" style="--blen: ${branchLen}; animation-delay: ${branchDelay}s; animation-duration: ${branchDuration}s;" />`;
+        const branchStr = `<path d="M 0,0 C ${p1x},${p1y} ${p2x},${p2y} ${p3x},${p3y}" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="${branchWidth}" stroke-linecap="round" class="angelic-branch" style="--blen: ${branchLen}px; --branch-delay: ${branchDelay}s; --branch-dur: ${branchDuration}s;" />`;
         
         const isFlower = forceFlower;
         // Base size scales proportionally with the branch scale
@@ -135,7 +135,7 @@ window.WavrFloral = {
         return `<g transform="rotate(${angleOffset})">
                     ${branchStr}
                     <g transform="translate(${dx}, ${dy}) rotate(${rot})">
-                        <g class="angelic-bloom" style="animation-delay: ${bloomDelay}s">
+                        <g class="angelic-bloom" style="--bloom-delay: ${bloomDelay}s">
                             ${shape}
                         </g>
                     </g>

@@ -42,6 +42,12 @@ export const VisualizerController = {
         cinematicView.classList.remove('hidden');
         document.body.classList.add('mouse-active');
 
+        // Start auto-hide timeout immediately on mode entrance so button fades out when idle
+        clearTimeout(mouseTimeout);
+        mouseTimeout = setTimeout(() => {
+            document.body.classList.remove('mouse-active');
+        }, 2000);
+
         // Resize canvas using cached values
         cinematicCanvas.width  = winWidth;
         cinematicCanvas.height = winHeight;
@@ -89,6 +95,12 @@ export const VisualizerController = {
         playerView.classList.add('hidden');
         angelicView.classList.remove('hidden');
         document.body.classList.add('mouse-active');
+
+        // Start auto-hide timeout immediately on mode entrance so button fades out when idle
+        clearTimeout(mouseTimeout);
+        mouseTimeout = setTimeout(() => {
+            document.body.classList.remove('mouse-active');
+        }, 2000);
         LyricEngine.setActiveLyricIndex(-1);
 
         // Immediately show current line, but DEFER pre-building the next line

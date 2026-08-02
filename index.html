@@ -530,13 +530,21 @@
     <!-- Hidden Audio Element -->
     <audio id="audio-player" crossorigin="anonymous"></audio>
 
-    <!-- 4. Cinematic View (Isolated Canvas + 3D Text) -->
+    <!-- 4. Cinematic View (Hyper-Realistic Full Bleed CRT Glass Screen) -->
     <div id="cinematic-view" class="view-container hidden">
-        <canvas id="cinematic-canvas"></canvas>
-        <img id="cine-fire-left" class="cine-fire-column" src="assets/images/fire.gif" alt="Fire" />
-        <img id="cine-fire-right" class="cine-fire-column right" src="assets/images/fire.gif" alt="Fire" />
-        <div id="reactive-dim"></div>
-        <div id="cinematic-text-container"></div>
+        <div class="crt-screen-container">
+            <canvas id="cinematic-canvas"></canvas>
+            <img id="cine-fire-left" class="cine-fire-column" src="assets/images/fire.gif" alt="Fire" />
+            <img id="cine-fire-right" class="cine-fire-column right" src="assets/images/fire.gif" alt="Fire" />
+            <div id="reactive-dim"></div>
+            <div id="cinematic-text-container"></div>
+            <!-- CRT Hyper-Realistic Overlays -->
+            <div class="crt-aperture-grille"></div>
+            <div class="crt-scanlines"></div>
+            <div class="crt-noise"></div>
+            <div class="crt-glass-glare"></div>
+            <div class="crt-corner-vignette"></div>
+        </div>
         <button id="btn-exit-cinematic" class="auto-hide-btn" title="Exit Cinematic">
             <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"></line>

@@ -3,6 +3,7 @@
  * Handles 3D animated typography for Cinematic Mode with adaptive fluid sizing & timing.
  */
 import { calculateFluidLyricStyle } from './AdaptiveLyricSizer.js';
+import { applyChromaAberration } from './VisualFX.js';
 
 export function triggerCinematicLine(text, cinematicTextContainer, deltaSec = 3.0) {
     if (!text || !cinematicTextContainer) return;
@@ -18,8 +19,8 @@ export function triggerCinematicLine(text, cinematicTextContainer, deltaSec = 3.
 
         const exitingWords = line.querySelectorAll('.cine-word');
         exitingWords.forEach(w => { w.classList.add('glitched'); w.classList.remove('glitch-word-anim'); });
-        const rot = (Math.random() - 0.5) * 60;
-        const tx = (Math.random() - 0.5) * 50;
+        const rot = (Math.random() - 0.5) * 12;
+        const tx = (Math.random() - 0.5) * 10;
         line.style.setProperty('--exit-rot', `${rot}deg`);
         line.style.setProperty('--exit-tx', `${tx}vw`);
         setTimeout(() => { if (line.parentNode) line.remove(); }, exitDurationMs + 50);
@@ -105,10 +106,15 @@ export function triggerCinematicLine(text, cinematicTextContainer, deltaSec = 3.
 
     newWrapper.appendChild(newLine);
     cinematicTextContainer.appendChild(newWrapper);
+
+    // ── Chromatic aberration on enter ──
+    applyChromaAberration(newWrapper);
 }
 
 export function preventOrphanWords(text) {
     if (!text) return '';
+
+    // Match AngelicLyricBuilder: extract (...) parenthesis text to its own line
     let processedText = text.replace(/([^\n(]*?)\s*\(([^)]*)\)\s*([.,;:!?]?)\s*/g, (match, before, inside, punc) => {
         const parenthesisText = `(${inside})`;
         if (parenthesisText.length > 3) {
@@ -118,12 +124,29 @@ export function preventOrphanWords(text) {
         return before + ' ' + parenthesisText + (punc ? punc : '') + ' ';
     });
     processedText = processedText.replace(/\n+/g, '\n').trim();
-    const lines = processedText.split('\n');
-    const processedLines = lines.map(line => {
-        const words = line.trim().split(/ +/);
-        if (words.length <= 3) return line;
-        const lastWords = words.splice(-3).join('\u00A0');
-        return words.join(' ') + ' ' + lastWords;
+
+    const rawLines = processedText.split('\n');
+    const resultLines = [];
+
+    rawLines.forEach(lineText => {
+        const trimmed = lineText.trim();
+        if (!trimmed) return;
+
+        if (trimmed.startsWith('(')) {
+            // Parenthesis backing vocals: keep intact on its own line
+            resultLines.push(trimmed);
+        } else {
+            // Main lyric text: if long (> 7 words), split into 2 balanced lines
+            const words = trimmed.split(/\s+/);
+            if (words.length > 7) {
+                const mid = Math.ceil(words.length / 2);
+                resultLines.push(words.slice(0, mid).join(' '));
+                resultLines.push(words.slice(mid).join(' '));
+            } else {
+                resultLines.push(trimmed);
+            }
+        }
     });
-    return processedLines.join('\n');
+
+    return resultLines.join('\n');
 }

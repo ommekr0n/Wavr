@@ -5,7 +5,7 @@
 
 export function calculateFluidLyricStyle() {
     return {
-        fontSize: 'clamp(3.2rem, 10.5vmin, 7.5rem)',
+        fontSize: 'clamp(3.0rem, 9.8vmin, 7.2rem)',
         scale: 1.0,
         lineHeight: 1.2
     };

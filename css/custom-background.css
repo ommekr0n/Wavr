@@ -1,0 +1,52 @@
+/* Custom Background Wallpaper & Glass Frost Overlay System */
+:root {
+    --bg-glass-blur: 16px;
+    --bg-overlay-opacity: 0.35;
+}
+
+/* Background Image Layer */
+#app-custom-bg-layer {
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: transparent;
+    filter: blur(var(--bg-glass-blur));
+    transform: scale(1.06); /* Prevent blur white edges */
+    transition: filter 0.4s ease, opacity 0.4s ease;
+    opacity: 0;
+    pointer-events: none;
+}
+
+#app-custom-bg-layer.active {
+    opacity: 1;
+}
+
+/* Custom Background is EXCLUSIVELY for Main Page & Edit Library — Hide on Visualizer views */
+body:has(#angelic-view:not(.hidden)) #app-custom-bg-layer,
+body:has(#angelic-view:not(.hidden)) #app-bg-dark-overlay,
+body:has(#cinematic-view:not(.hidden)) #app-custom-bg-layer,
+body:has(#cinematic-view:not(.hidden)) #app-bg-dark-overlay,
+body:has(#player-view.player-active) #app-custom-bg-layer,
+body:has(#player-view.player-active) #app-bg-dark-overlay {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Dark Overlay Tint Layer */
+#app-bg-dark-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: rgba(0, 0, 0, var(--bg-overlay-opacity));
+    transition: background 0.4s ease;
+    pointer-events: none;
+}
+
+/* Hide Checkerboard Pattern on Home & Edit Library Views when toggled */
+body.hide-checkerboard #home-view,
+body.hide-checkerboard #edit-library-view {
+    background-image: none !important;
+}

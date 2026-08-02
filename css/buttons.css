@@ -1,0 +1,130 @@
+/* Glassmorphism Buttons & Modal Action Buttons */
+.glass-btn {
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 500;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+}
+.glass-btn:hover {
+    background: rgba(255,255,255,0.2);
+    filter: brightness(1.2);
+}
+.glass-btn.primary {
+    background: rgba(0, 229, 255, 0.15);
+    color: var(--accent-color);
+}
+.glass-btn.primary:hover {
+    background: rgba(0, 229, 255, 0.25);
+    filter: brightness(1.2);
+}
+.glass-btn.danger {
+    background: rgba(239, 83, 80, 0.15);
+    color: #ef5350;
+}
+.glass-btn.danger:hover {
+    background: rgba(239, 83, 80, 0.25);
+    filter: brightness(1.2);
+}
+.glass-btn svg {
+    flex-shrink: 0;
+}
+
+.modal-actions .glass-btn { flex: 1; }
+
+.glass-icon-btn {
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 50%;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    flex-shrink: 0;
+}
+.glass-icon-btn:hover {
+    background: rgba(255,255,255,0.2);
+    filter: brightness(1.2);
+}
+.glass-icon-btn.primary {
+    background: rgba(0, 229, 255, 0.15);
+    color: var(--accent-color);
+}
+.glass-icon-btn.primary:hover {
+    background: rgba(0, 229, 255, 0.25);
+    filter: brightness(1.2);
+}
+.glass-icon-btn.danger {
+    background: rgba(239, 83, 80, 0.15);
+    color: #ef5350;
+}
+.glass-icon-btn.danger:hover {
+    background: rgba(239, 83, 80, 0.25);
+    filter: brightness(1.2);
+}
+.glass-icon-btn.transparent {
+    background: transparent;
+    border: none;
+}
+.glass-icon-btn.transparent:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.secondary-btn, .danger-btn, .primary-btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+}
+
+.secondary-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+.secondary-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.danger-btn {
+    background: #FF2A6D;
+    color: #fff;
+}
+.danger-btn:hover {
+    background: #ff4d79;
+}
+
+.primary-btn {
+    background: var(--accent-color);
+    color: #000;
+    box-shadow: 0 4px 15px var(--accent-glow);
+}
+.primary-btn:hover {
+    background: #00ffff;
+    transform: scale(1.05);
+}
+
+.danger-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(255, 42, 109, 0.4);
+}

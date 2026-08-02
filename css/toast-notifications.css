@@ -1,0 +1,291 @@
+/* Toast Notifications, Popovers & Preloader */
+.wavr-toast {
+    position: fixed;
+    bottom: 110px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(10, 10, 12, 0.7);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #fff;
+    padding: 10px 24px;
+    border-radius: 30px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    z-index: 11000;
+    pointer-events: none;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 12px var(--accent-glow, rgba(0, 255, 255, 0.1));
+    opacity: 0;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.25s ease;
+}
+.wavr-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.record-popover {
+    position: absolute;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 8px 0;
+    min-width: 180px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    z-index: 101;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.record-popover.active {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+}
+
+.record-popover.hidden {
+    display: none;
+}
+
+.record-option-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 12px 18px;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.9rem;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    gap: 10px;
+}
+
+.record-option-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--accent-color);
+}
+
+.record-option-item svg {
+    flex-shrink: 0;
+}
+
+/* App Splash & Preloader */
+#app-splash-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #08080c;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.5s;
+}
+
+#app-splash-loader.splash-fade-out {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+}
+
+.splash-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    max-width: 420px;
+    width: 90%;
+}
+
+.splash-logo-wrapper {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    margin-bottom: 24px;
+}
+
+.splash-logo {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    z-index: 2;
+    filter: drop-shadow(0 0 16px rgba(0, 229, 255, 0.6));
+    animation: splashPulse 2s infinite ease-in-out;
+}
+
+.splash-logo-glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 120px;
+    height: 120px;
+    background: radial-gradient(circle, rgba(0, 229, 255, 0.35) 0%, rgba(168, 85, 247, 0.15) 50%, transparent 70%);
+    border-radius: 50%;
+    z-index: 1;
+    animation: glowPulse 2s infinite ease-in-out alternate;
+}
+
+@keyframes splashPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+}
+
+@keyframes glowPulse {
+    0% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.9); }
+    100% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+}
+
+.splash-title {
+    font-size: 2.4rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    background: linear-gradient(135deg, #ffffff 0%, #00e5ff 60%, #a855f7 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 6px;
+}
+
+.splash-subtitle {
+    font-size: 0.9rem;
+    color: var(--text-secondary, #8e8e93);
+    margin-bottom: 32px;
+    font-weight: 400;
+}
+
+.splash-progress-container {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.splash-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #00e5ff, #a855f7);
+    border-radius: 10px;
+    transition: width 0.15s ease-out;
+    box-shadow: 0 0 12px rgba(0, 229, 255, 0.8);
+}
+
+.splash-status-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.6);
+    gap: 12px;
+}
+
+#splash-status-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    text-align: left;
+}
+
+/* Welcome Tutorials Modal */
+.tutorial-modal-content {
+    max-width: 680px !important;
+    padding: 36px 32px !important;
+}
+
+.tutorial-header {
+    text-align: center;
+    margin-bottom: 28px;
+}
+
+.tutorial-logo {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 12px;
+    filter: drop-shadow(0 0 12px rgba(0, 229, 255, 0.5));
+}
+
+.tutorial-header h2 {
+    font-size: 1.8rem;
+    margin-bottom: 6px;
+}
+
+.tutorial-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 10px;
+}
+
+@media (max-width: 600px) {
+    .tutorial-cards-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.tutorial-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 18px;
+    transition: transform 0.2s, background 0.2s;
+}
+
+.tutorial-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+    transform: translateY(-2px);
+    border-color: rgba(0, 229, 255, 0.3);
+}
+
+.tutorial-card-icon {
+    font-size: 1.6rem;
+    margin-bottom: 10px;
+}
+
+.tutorial-card h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 6px;
+}
+
+.tutorial-card p {
+    font-size: 0.82rem;
+    color: var(--text-secondary, #8e8e93);
+    line-height: 1.6;
+}
+
+.tutor-btn-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    background: rgba(0, 229, 255, 0.12);
+    border: 1px solid rgba(0, 229, 255, 0.3);
+    border-radius: 6px;
+    color: var(--accent-color, #00e5ff);
+    font-weight: 600;
+    font-size: 0.78rem;
+    vertical-align: middle;
+    margin: 0 2px;
+}
+
+.tutor-btn-badge svg {
+    vertical-align: middle;
+    flex-shrink: 0;
+}

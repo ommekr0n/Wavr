@@ -16,30 +16,24 @@ export const MoshpitCameraShake = {
      * @returns {{x: number, y: number}}
      */
     update(bassEnergy, climaxSpike, dt) {
-        // Micro-displacement target threshold: only kick in when bass energy > 0.6
         let targetIntensity = 0;
         if (climaxSpike) {
-            targetIntensity = 3.5; // Max 3.5px on peak drop
-        } else if (bassEnergy > 0.6) {
-            targetIntensity = 1.5 + (bassEnergy - 0.6) * 4.5; // 1.5px to 3.3px
-        }
-
-        if (targetIntensity > 0) {
-            const angle = Math.random() * Math.PI * 2;
-            const targetX = Math.cos(angle) * targetIntensity;
-            const targetY = Math.sin(angle) * targetIntensity;
-
-            // Fast lerp to target
-            currentShakeX += (targetX - currentShakeX) * 0.35;
-            currentShakeY += (targetY - currentShakeY) * 0.35;
+            targetIntensity = 2.2; // Max 2.2px smooth climax drop (no harsh shock)
+        } else if (bassEnergy > 0.45) {
+            targetIntensity = 1.0 + (bassEnergy - 0.45) * 1.8; // 1.0px to 2.0px smooth scale
         } else {
-            // Smooth Damped Decay (Euler lerp)
-            currentShakeX *= Math.pow(0.05, dt);
-            currentShakeY *= Math.pow(0.05, dt);
-
-            if (Math.abs(currentShakeX) < 0.05) currentShakeX = 0;
-            if (Math.abs(currentShakeY) < 0.05) currentShakeY = 0;
+            // Ambient organic camera float at idle (clearly visible 0.8px - 1.2px)
+            const time = Date.now() * 0.002;
+            targetIntensity = 0.8 + Math.sin(time) * 0.4;
         }
+
+        const angle = Math.random() * Math.PI * 2;
+        const targetX = Math.cos(angle) * targetIntensity;
+        const targetY = Math.sin(angle) * targetIntensity;
+
+        // Smooth 0.18 lerp for fluid cinematic motion (no harsh snap)
+        currentShakeX += (targetX - currentShakeX) * 0.18;
+        currentShakeY += (targetY - currentShakeY) * 0.18;
 
         return { x: currentShakeX, y: currentShakeY };
     },

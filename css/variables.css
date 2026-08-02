@@ -1,0 +1,81 @@
+/* Core Variables & Resets */
+:root {
+    --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --bg-color: #000000;
+    --surface-1: rgba(255, 255, 255, 0.03);
+    --surface-2: rgba(255, 255, 255, 0.06);
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255, 255, 255, 0.6);
+    --text-muted: rgba(255, 255, 255, 0.25);
+    --accent-color: #00E5FF;
+    --accent-glow: rgba(0, 229, 255, 0.35);
+    --glass-bg: rgba(12, 12, 24, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --transition-speed: 0.3s;
+    /* dynamic theme colors */
+    --blob-1-color: #ff2d55;
+    --blob-2-color: #5856d6;
+    --blob-3-color: #ff9500;
+    --blob-4-color: #ff2d55;
+}
+
+/* Reset and Base */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+*::-webkit-scrollbar {
+    width: 2px;
+    height: 2px;
+}
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 1px;
+}
+*::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+body {
+    font-family: var(--font-primary);
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    -webkit-font-smoothing: antialiased;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* View Containers */
+.view-container {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.view-container.hidden {
+    opacity: 0; pointer-events: none;
+    transform: scale(0.95);
+}
+
+/* Fade Overlay */
+#fade-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background: #000;
+    opacity: 0; pointer-events: none;
+    z-index: 50;
+    transition: opacity 0.3s ease;
+}
+#fade-overlay.active {
+    opacity: 1; pointer-events: auto;
+}

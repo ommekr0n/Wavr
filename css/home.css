@@ -1,0 +1,220 @@
+/* 1. HOME VIEW */
+#home-view, #edit-library-view {
+    height: 100vh;
+    position: relative;
+    background-image: conic-gradient(rgba(255, 255, 255, 0.05) 90deg, rgba(255, 255, 255, 0.01) 90deg 180deg, rgba(255, 255, 255, 0.05) 180deg 270deg, rgba(255, 255, 255, 0.01) 270deg);
+    background-size: 240px 240px;
+    background-position: center center;
+}
+#home-view::before, #edit-library-view::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.12;
+    background-image: url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)"/%3E%3C/svg%3E');
+    mix-blend-mode: overlay;
+}
+.home-header { 
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: 24px 60px; 
+    z-index: 10;
+    background: #000000;
+    border-bottom: 1px solid var(--glass-border);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+.home-header-content {
+    display: flex; justify-content: space-between; align-items: center;
+}
+.home-brand { display: flex; align-items: center; gap: 16px; }
+.brand-logo {
+    width: 44px; height: 44px; border-radius: 10px;
+    box-shadow: 0 4px 20px var(--accent-glow);
+}
+.home-header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; color: var(--text-primary); }
+.add-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--glass-border);
+    border-radius: 50%;
+    width: 40px; height: 40px; color: var(--text-secondary); cursor: pointer;
+    display: flex; justify-content: center; align-items: center;
+    transition: all 0.2s;
+}
+.add-btn:hover { background: var(--accent-color); border-color: transparent; color: #fff; transform: scale(1.08); box-shadow: 0 4px 16px var(--accent-glow); }
+
+.song-grid {
+    position: absolute;
+    inset: 0;
+    display: grid; 
+    grid-template-columns: repeat(var(--grid-columns, 6), 1fr);
+    grid-auto-rows: max-content;
+    gap: 20px; 
+    padding: 112px 60px 120px; 
+    overflow-y: auto;
+    z-index: 1; 
+    align-content: start;
+}
+
+.song-grid::-webkit-scrollbar {
+    width: 2px;
+}
+.song-grid::-webkit-scrollbar-track {
+    background: transparent;
+}
+.song-grid::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 1px;
+}
+.song-grid::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+.song-grid {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.05) transparent;
+}
+
+.song-card {
+    position: relative;
+    background: #0a0a0c; border: 1px solid var(--glass-border);
+    border-radius: 16px; padding: 14px; cursor: pointer;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s ease, border-color 0.3s ease;
+    min-width: 0; /* Prevents long text from stretching the grid columns */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-user-drag: none !important;
+}
+
+.inner-editable-song {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-user-drag: element !important;
+}
+
+.song-cover-wrapper,
+.song-info,
+.song-card-title,
+.song-card-artist {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-user-drag: none !important;
+}
+
+/* Card Drag Handle Grip - ONLY place allowed for dragging */
+.card-drag-handle {
+    -webkit-user-drag: element !important;
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 28px;
+    height: 28px;
+    background: rgba(0, 0, 0, 0.65);
+    color: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    z-index: 12;
+    font-size: 0.95rem;
+    line-height: 1;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(8px);
+    user-select: none;
+}
+.card-drag-handle:hover {
+    color: var(--accent-color, #00e5ff);
+    border-color: var(--accent-color, #00e5ff);
+    background: rgba(0, 229, 255, 0.18);
+    transform: scale(1.08);
+}
+.card-drag-handle:active {
+    cursor: grabbing;
+    transform: scale(0.95);
+}
+
+.song-card.dragging {
+    opacity: 0.4 !important;
+    transform: scale(0.95) !important;
+    border-color: rgba(255,255,255,0.1) !important;
+    box-shadow: none !important;
+}
+
+/* ── ACTIVE DRAGGING GLOBAL STATE OVERRIDES ────────────────────────── */
+body.is-dragging-active .song-options-btn,
+.song-grid:has(.dragging) .song-options-btn {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Force-hide ALL trash delete buttons on ALL boxes during active drag */
+body.is-dragging-active .btn-delete-box,
+body.is-dragging-active .song-card.vinyl-box-card:hover .btn-delete-box,
+body.is-dragging-active .song-card.vinyl-box-card:focus-within .btn-delete-box,
+.song-grid:has(.dragging) .btn-delete-box,
+.song-grid:has(.dragging) .song-card.vinyl-box-card:hover .btn-delete-box {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Hide drag handles on ALL OTHER vinyl box cards during dragging */
+body.is-dragging-active .card-drag-handle,
+.song-grid:has(.dragging) .card-drag-handle {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* ONLY keep active dragging vinyl box card's drag handle visible */
+body.is-dragging-active .song-card.dragging .card-drag-handle,
+.song-grid:has(.dragging) .song-card.dragging .card-drag-handle {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+/* Disable card hover elevation, background brightening, and box-shadow on all cards while dragging */
+body.is-dragging-active .song-card:hover,
+body.is-dragging-active .song-card.vinyl-box-card:hover,
+.song-grid:has(.dragging) .song-card:hover,
+.song-grid:has(.dragging) .song-card.vinyl-box-card:hover {
+    transform: none !important;
+    background: #0a0a0c !important;
+    border-color: color-mix(in srgb, var(--box-color, #ffb300) 25%, transparent) !important;
+    box-shadow: none !important;
+}
+
+.song-card:hover { 
+    transform: translateY(-4px) scale(1.015); 
+    background: #15151a; 
+    border-color: var(--accent-color); 
+    box-shadow: 0 4px 14px rgba(0, 229, 255, 0.22); 
+}
+.song-card-inner { position: relative; }
+.song-card img { width: 100%; aspect-ratio: 1/1; border-radius: 12px; object-fit: cover; margin-bottom: 15px; box-shadow: 0 8px 25px rgba(0,0,0,0.5); pointer-events: none; user-select: none; }
+.song-options-btn {
+    position: absolute; top: 8px; right: 8px;
+    background: rgba(0,0,0,0.6); color: #fff;
+    border: none; border-radius: 50%;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; opacity: 0; transition: all 0.2s; z-index: 10;
+}
+.song-card:hover .song-options-btn { opacity: 1; }
+.song-options-btn.active { opacity: 1; background: var(--accent-color); }
+.song-options-btn:hover { background: var(--accent-color); filter: brightness(1.2); opacity: 1 !important; }
+
+.remove-song-btn {
+    position: absolute; top: 8px; right: 8px;
+    background: rgba(255, 60, 60, 0.8); color: #fff;
+    border: none; border-radius: 50%;
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; opacity: 0; transition: all 0.2s; z-index: 10;
+    font-weight: bold; font-size: 0.8rem;
+}
+.inner-editable-song:hover .remove-song-btn { opacity: 1; }
+.remove-song-btn:hover { background: #ff2222; transform: scale(1.1); }
+
+.song-card-title { font-size: clamp(0.75rem, 1.2vw, 1.05rem); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+.song-card-artist { font-size: clamp(0.65rem, 1vw, 0.85rem); color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
