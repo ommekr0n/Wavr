@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enhanced LRC Studio — Fast Rap & Lyric Aligner</title>
+  <link rel="stylesheet" href="studio.css">
+</head>
+<body>
+
+  <!-- Minimal Header -->
+  <header class="app-header">
+    <div class="brand-title">
+      🎙️ Enhanced LRC Studio
+      <span class="brand-badge">Nhạc Việt & Fast Rap</span>
+    </div>
+    <div class="status-indicator">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">Whisper Engine Ready (Fast Rap Tuning)</span>
+    </div>
+  </header>
+
+  <!-- App Container -->
+  <main class="app-container">
+
+    <!-- Left Input Panel -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">Audio & Plain Text Lyrics</h2>
+      </div>
+
+      <!-- Audio Dropzone -->
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="audioInput" accept="audio/*" style="display: none;">
+        <div class="dropzone-text">🎵 Chọn hoặc kéo thả tệp âm thanh</div>
+        <div class="dropzone-subtext">Hỗ trợ MP3, WAV, FLAC, M4A, OGG</div>
+      </div>
+
+      <div class="file-info" id="fileInfo" style="display: none;">
+        <span>Tệp:</span>
+        <span class="file-name" id="fileName">...</span>
+      </div>
+
+      <!-- Plain Text Lyrics -->
+      <div>
+        <label for="lyricsInput" style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.3rem; display: block;">
+          Plain Text Lyrics (Chưa có mốc thời gian):
+        </label>
+        <textarea id="lyricsInput" class="lyrics-textarea" placeholder="Nhập hoặc dán lời bài hát tại đây...
+Ví dụ:
+Anh ghi tên em trên những con đường dài
+Điệu rap vang lên trong đêm mưa rơi vội
+Chỉ muốn nắm lấy tay em lần nữa thôi..."></textarea>
+      </div>
+
+
+      <!-- Custom API Endpoint Setting for Colab / Cloud Backend -->
+      <div style="margin-bottom: 0.8rem;">
+        <label for="apiUrlInput" style="font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 0.2rem;">
+          🔗 Server API URL (Mặc định local / Paste link Colab):
+        </label>
+        <input type="text" id="apiUrlInput" class="select-input" value="/api/align" placeholder="https://xxx.trycloudflare.com/api/align" style="width: 100%; font-family: monospace;">
+      </div>
+
+      <!-- Action Button -->
+      <button id="alignBtn" class="btn-primary">
+        🚀 Tự động Bắt Lời & Tạo Enhanced LRC
+      </button>
+
+      <!-- Progress Bar -->
+      <div class="progress-box" id="progressBox">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-status">
+          <span id="progressText">Đang xử lý...</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Studio Main Panel -->
+    <section class="panel studio-main">
+      <div class="panel-header">
+        <h2 class="panel-title">Karaoke Preview & Word Timeline Editor</h2>
+      </div>
+
+      <!-- Audio Player Control Bar -->
+      <div class="player-card">
+        <div class="player-controls">
+          <button id="playBtn" class="play-btn" title="Phát / Tạm dừng">▶</button>
+          <div class="timeline-slider-box">
+            <input type="range" id="timelineRange" class="timeline-range" min="0" max="100" value="0">
+            <div class="time-display">
+              <span id="currentTime">00:00.000</span>
+              <span id="totalTime">00:00.000</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Clean Karaoke Display -->
+      <div class="karaoke-display-box">
+        <div class="karaoke-prev-line" id="karaokePrev"></div>
+        <div class="karaoke-current-line" id="karaokeCurrent">
+          <span style="color: var(--text-muted); font-size: 1rem; font-weight: normal;">
+            Bấm "🚀 Tự động Bắt Lời" để xem chữ chạy Karaoke 60fps mượt mà
+          </span>
+        </div>
+        <div class="karaoke-next-line" id="karaokeNext"></div>
+      </div>
+
+      <!-- Editor Tabs -->
+      <div class="editor-tabs">
+        <button id="tabEditor" class="tab-btn active">Timeline Editor (Chỉnh mốc từ)</button>
+        <button id="tabRaw" class="tab-btn">Raw Enhanced LRC File</button>
+      </div>
+
+      <!-- Tab Content: Timeline List -->
+      <div id="timelineList" class="lrc-timeline-list">
+        <div style="text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.9rem;">
+          Chưa có mốc thời gian. Vui lòng nạp âm thanh và dán lời bài hát để bắt đầu.
+        </div>
+      </div>
+
+      <!-- Tab Content: Raw LRC -->
+      <div id="rawLrcBox" style="display: none;">
+        <textarea id="rawLrcTextarea" class="raw-lrc-textarea" readonly placeholder="Nội dung file .lrc nâng cao..."></textarea>
+      </div>
+
+      <!-- Export Actions -->
+      <div class="action-row">
+        <button id="copyLrcBtn" class="btn-secondary">Sao chép LRC</button>
+        <button id="downloadLrcBtn" class="btn-secondary" style="border-color: var(--primary); color: #a5b4fc;">
+          Tải xuống tệp .lrc
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="studio.js"></script>
+</body>
+</html>
