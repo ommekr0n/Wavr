@@ -340,6 +340,21 @@ def generate_enhanced_lrc(aligned_lines, decimals: int = 3) -> str:
 
     return "\n".join(lrc_lines)
 
+def warmup_models():
+    """
+    Pre-downloads and loads HDemucs and Meta MMS-300M model weights on server startup
+    to prevent first-request timeout.
+    """
+    try:
+        import torch
+        import torchaudio.pipelines as pipelines
+        print("[Warmup] Pre-loading HDemucs & Meta MMS-300M model weights into GPU/RAM...", file=sys.stderr)
+        pipelines.HDEMUCS_HIGH_MUSDB.get_model()
+        pipelines.MMS_FA.get_model()
+        print("[Warmup] All SOTA AI Models successfully cached and ready!", file=sys.stderr)
+    except Exception as e:
+        print(f"[Warmup Warning] Pre-load skipped: {e}", file=sys.stderr)
+
 def main():
     parser = argparse.ArgumentParser(description="Vietnamese Rap Meta MMS-300M Enhanced LRC Aligner")
     parser.add_argument("--audio", required=True, help="Path to input audio file")

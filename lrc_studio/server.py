@@ -146,7 +146,16 @@ def main():
     print("=" * 60)
     print(f" 🚀 Enhanced LRC Studio đang chạy tại: {url}")
     print("=" * 60)
-    webbrowser.open(url)
+    
+    # Pre-warm AI models in background
+    import threading
+    threading.Thread(target=aligner_engine.warmup_models, daemon=True).start()
+
+    try:
+        webbrowser.open(url)
+    except Exception:
+        pass
+
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
