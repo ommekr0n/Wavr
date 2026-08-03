@@ -141,6 +141,7 @@ class LRCStudioHandler(SimpleHTTPRequestHandler):
 
 def main():
     server_address = ('', PORT)
+    HTTPServer.allow_reuse_address = True
     httpd = HTTPServer(server_address, LRCStudioHandler)
     url = f"http://localhost:{PORT}/studio.html"
     print("=" * 60)
