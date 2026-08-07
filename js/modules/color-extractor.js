@@ -55,7 +55,14 @@ export function extractColorsFromImage(imgEl, updateCSSVariables) {
         updateCSSVariables(uiColors, spotlightColors);
         return spotlightColors;
     } catch (e) {
-        console.log("Could not extract colors, CORS issue likely.");
-        return null;
+        // Fallback default vibrant theme colors if cross-origin image canvas is tainted
+        const defaultColors = [
+            { r: 0, g: 229, b: 255 },
+            { r: 120, g: 80, b: 255 },
+            { r: 255, g: 0, b: 128 },
+            { r: 0, g: 255, b: 180 }
+        ];
+        updateCSSVariables(defaultColors.slice(0, 2), defaultColors.slice(2, 4));
+        return defaultColors;
     }
 }

@@ -272,6 +272,7 @@ function loadTrack(index) {
         document.documentElement.style.setProperty('--blob-4-size', `${Math.floor(Math.random() * 20 + 30)}vw`);
         CinematicRenderer.updateConcertColors(spotlightColors.map(c => [c.r, c.g, c.b]));
     };
+    coverArt.crossOrigin = 'anonymous';
     if (coverArt.complete) extractColorsFromImage(coverArt, applyColors);
     else coverArt.onload = () => extractColorsFromImage(coverArt, applyColors);
 
