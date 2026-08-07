@@ -1,4 +1,15 @@
 export function extractColorsFromImage(imgEl, updateCSSVariables) {
+    if (!imgEl) {
+        const defaultColors = [
+            { r: 0, g: 229, b: 255 },
+            { r: 120, g: 80, b: 255 },
+            { r: 255, g: 0, b: 128 },
+            { r: 0, g: 255, b: 180 }
+        ];
+        if (updateCSSVariables) updateCSSVariables(defaultColors.slice(0, 2), defaultColors.slice(2, 4));
+        return defaultColors;
+    }
+
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     
