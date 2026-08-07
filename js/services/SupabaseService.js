@@ -111,10 +111,6 @@ export const SupabaseService = {
 
         if (error) throw error;
 
-        if (R2_PUBLIC_DOMAIN) {
-            return `${R2_PUBLIC_DOMAIN}/${fullPath}`;
-        }
-
         const { data: publicUrlData } = supabase.storage
             .from('wavr-media')
             .getPublicUrl(fullPath);
