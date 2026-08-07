@@ -51,8 +51,8 @@ export function initCloudVaultUI(showToast) {
             } else {
                 if (vaultAuthSection) vaultAuthSection.classList.remove('hidden');
                 if (vaultStatusSection) vaultStatusSection.classList.add('hidden');
-                if (homeVaultText) homeVaultText.textContent = 'Sign In / Register';
-                if (btnAuthVault) btnAuthVault.title = 'Sign In / Register to Personal Cloud Vault';
+                if (homeVaultText) homeVaultText.textContent = 'Log In / Sign Up';
+                if (btnAuthVault) btnAuthVault.title = 'Log In / Sign Up to Personal Cloud Vault';
             }
         } catch (err) {
             console.warn('Vault UI update error:', err);
@@ -60,12 +60,22 @@ export function initCloudVaultUI(showToast) {
     }
 
     const openVaultModal = () => {
-        modalCloudVault.classList.remove('hidden');
-        updateVaultUIState();
+        if (modalCloudVault) {
+            modalCloudVault.classList.remove('hidden');
+            updateVaultUIState();
+        }
     };
 
+    // Direct event listeners
     if (btnAuthVault) btnAuthVault.addEventListener('click', openVaultModal);
     if (btnCloudVaultHome) btnCloudVaultHome.addEventListener('click', openVaultModal);
+
+    // Global event delegation (fail-safe fallback)
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('#btn-cloud-vault-home') || e.target.closest('#btn-auth-vault') || e.target.closest('.vault-header-btn')) {
+            openVaultModal();
+        }
+    });
 
     if (btnCloseCloudVault) {
         btnCloseCloudVault.addEventListener('click', () => {
@@ -78,7 +88,7 @@ export function initCloudVaultUI(showToast) {
             isSignUpMode = false;
             tabLogin.classList.add('active');
             tabSignup.classList.remove('active');
-            if (btnVaultSubmit) btnVaultSubmit.textContent = 'Connect to Private Vault';
+            if (btnVaultSubmit) btnVaultSubmit.textContent = 'Log In to Vault';
             if (vaultAuthError) vaultAuthError.classList.add('hidden');
             if (vaultAuthSuccess) vaultAuthSuccess.classList.add('hidden');
         });
@@ -87,7 +97,7 @@ export function initCloudVaultUI(showToast) {
             isSignUpMode = true;
             tabSignup.classList.add('active');
             tabLogin.classList.remove('active');
-            if (btnVaultSubmit) btnVaultSubmit.textContent = 'Create Private Vault';
+            if (btnVaultSubmit) btnVaultSubmit.textContent = 'Sign Up for Vault';
             if (vaultAuthError) vaultAuthError.classList.add('hidden');
             if (vaultAuthSuccess) vaultAuthSuccess.classList.add('hidden');
         });
