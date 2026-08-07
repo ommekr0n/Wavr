@@ -4,6 +4,7 @@
  * and Row Level Security (RLS) operations for Wavr Personal Vault.
  */
 import { createClient } from '@supabase/supabase-js';
+import { R2Service } from './R2Service.js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://stbzeroodquuevmrwfyi.supabase.co';
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_DTIzsD_0Qwotf4MZWsHs4w_N6uj-UQh';
@@ -105,6 +106,15 @@ export const SupabaseService = {
         if (!user) throw new Error('User not authenticated. Please sign in to your Cloud Vault.');
 
         const fullPath = `${user.id}/${path}`;
+
+        if (R2Service.isConfigured()) {
+            try {
+                return await R2Service.uploadMediaFile(file, fullPath);
+            } catch (r2Err) {
+                console.warn('Cloudflare R2 upload fallback to Supabase Storage:', r2Err);
+            }
+        }
+
         const { data, error } = await supabase.storage
             .from('wavr-media')
             .upload(fullPath, file, { upsert: true });
