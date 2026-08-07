@@ -8,8 +8,8 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client
 const R2_ENDPOINT = import.meta.env.VITE_R2_ENDPOINT || 'https://97b1f534fd6446064a0695ea52401718.r2.cloudflarestorage.com';
 const R2_PUBLIC_DOMAIN = (import.meta.env.VITE_R2_PUBLIC_DOMAIN || 'https://pub-ad9d2da16833484899017a239642b570.r2.dev').replace(/\/$/, '');
 const R2_BUCKET = import.meta.env.VITE_R2_BUCKET || 'wavr-media';
-const R2_ACCESS_KEY_ID = import.meta.env.VITE_R2_ACCESS_KEY_ID || '';
-const R2_SECRET_ACCESS_KEY = import.meta.env.VITE_R2_SECRET_ACCESS_KEY || '';
+const R2_ACCESS_KEY_ID = import.meta.env.VITE_R2_ACCESS_KEY_ID || 'c43af393765c95568fd9a2dc6b929a1e';
+const R2_SECRET_ACCESS_KEY = import.meta.env.VITE_R2_SECRET_ACCESS_KEY || 'b03cafebe66dae577cc2e4f4946c5faabf5d6fea6ced1de3c0913d8f17003120';
 
 export const isR2Configured = Boolean(R2_ENDPOINT && R2_PUBLIC_DOMAIN && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY);
 
