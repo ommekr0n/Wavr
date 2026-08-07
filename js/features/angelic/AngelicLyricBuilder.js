@@ -68,7 +68,7 @@ export const AngelicLyricBuilder = {
                 wordsHTML += `<div style="display: block; line-height: 1.1;">`;
             }
 
-            const words = lineText.split(/[\s\u00A0]+/).filter(w => w.length > 0);
+            const words = lineText.split(/[ \t\r\n]+/).filter(w => w.length > 0);
             const butterflyChance = safeText.length > 60 ? 0.15 : 0.3;
 
             words.forEach((word) => {
