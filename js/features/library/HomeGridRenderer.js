@@ -109,19 +109,5 @@ export async function renderSongGrid({ homeSongGrid, setupBoxExpansionListeners 
 }
 
 export async function saveLibraryToDB() {
-    try {
-        const playlist = PlayerController.getPlaylist();
-        const playlistToSave = playlist.map(song => ({
-            id: song.id || 'song-' + Date.now() + '-' + Math.floor(Math.random() * 100000),
-            title: song.title,
-            artist: song.artist,
-            lyrics: song.lyrics,
-            drift: song.drift || 1.0,
-            audioBlob: song.audioBlob,
-            coverBlob: song.coverBlob
-        }));
-        await window.localforage.setItem('playlist', playlistToSave);
-    } catch (e) {
-        console.error("Error saving library to IndexedDB", e);
-    }
+    // 100% Pure Cloud Storage Architecture - No localforage / IndexedDB
 }

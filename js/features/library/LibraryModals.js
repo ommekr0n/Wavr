@@ -6,6 +6,7 @@
  */
 
 import { searchLRCLIB, autoSelectBestMatch, openLrcPickerModal } from '../../modules/lrc-fetcher.js';
+import { SupabaseService } from '../../services/SupabaseService.js';
 
 // ── Modal State ──────────────────────────────────────────────────────────────
 // These mirror the exact variables scattered in main.js
@@ -90,7 +91,14 @@ export const LibraryModals = {
             try {
                 if (trackToDeleteIndex !== null) {
                     const idx = parseInt(trackToDeleteIndex);
-                    const playlist = _getPlaylist();
+                    const song = playlist[idx];
+                    if (SupabaseService.isConfigured() && song && song.id) {
+                        try {
+                            await SupabaseService.deleteTrack(song.id);
+                        } catch (sErr) {
+                            console.warn('Supabase cloud track delete error:', sErr);
+                        }
+                    }
 
                     // Clean up Blob URLs
                     if (playlist[idx].url   && playlist[idx].url.startsWith('blob:'))   URL.revokeObjectURL(playlist[idx].url);
@@ -409,12 +417,10 @@ export const LibraryModals = {
                         // Update in-memory cache immediately
                         _setCachedVinylBoxes(currentVinylBoxesArray);
 
-                        localforage.setItem('vinyl_boxes', currentVinylBoxesArray).then(() => {
-                            _renderSongGrid();
-                            if (window.appEditLibraryContext && window.appEditLibraryContext.syncBoxes) {
-                                window.appEditLibraryContext.syncBoxes([...currentVinylBoxesArray]);
-                            }
-                        });
+                        _renderSongGrid();
+                        if (window.appEditLibraryContext && window.appEditLibraryContext.syncBoxes) {
+                            window.appEditLibraryContext.syncBoxes([...currentVinylBoxesArray]);
+                        }
                     }
 
                     item.remove();

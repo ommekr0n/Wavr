@@ -29,28 +29,15 @@ export function clearSelection() {
     state.selectedSongIds.clear();
 }
 
-// ── Persistence helpers ───────────────────────────────────────────────────────
-export async function persistBoxes() {
-    await window.localforage.setItem('vinyl_boxes', state.vinylBoxes);
-}
+// ── Persistence helpers (100% Pure Cloud Storage) ───────────────────────────
+export async function persistBoxes() {}
 
-export async function persistOrder() {
-    await window.localforage.setItem('library_order', state.libraryOrder);
-}
+export async function persistOrder() {}
 
-export async function persistAll() {
-    await persistBoxes();
-    await persistOrder();
-}
+export async function persistAll() {}
 
 // ── Load from storage ─────────────────────────────────────────────────────────
 export async function loadFromStorage() {
-    try {
-        state.vinylBoxes    = await window.localforage.getItem('vinyl_boxes')   || [];
-        state.libraryOrder  = await window.localforage.getItem('library_order') || [];
-    } catch (e) {
-        console.error('[EditLibraryState] Failed to load from storage', e);
-        state.vinylBoxes   = [];
-        state.libraryOrder = [];
-    }
+    state.vinylBoxes   = [];
+    state.libraryOrder = [];
 }

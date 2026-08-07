@@ -405,6 +405,13 @@
             </div>
 
             <div class="header-right">
+                <button id="btn-auth-vault" class="icon-btn idle-hideable" title="Personal Cloud Vault (Supabase)">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
+                </button>
                 <button id="fullscreen-btn" class="icon-btn idle-hideable" title="Fullscreen">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
@@ -604,7 +611,6 @@
     </div>
 
     <!-- Dependencies -->
-    <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
     <script type="module" src="js/main.js"></script>
     <!-- EQ Modal -->
@@ -856,6 +862,71 @@
                         <polyline points="20 6 9 17 4 12"></polyline>
                     </svg> Start Experience
                 </button>
+            </div>
+        </div>
+    <!-- Personal Cloud Vault (Supabase Auth & Sync Modal) -->
+    <div id="modal-cloud-vault" class="modal hidden">
+        <div class="modal-content cloud-vault-modal-content">
+            <div class="vault-header">
+                <div class="vault-icon-badge">☁️</div>
+                <h2>Wavr Personal Cloud Vault</h2>
+                <p class="modal-subtitle">Private, end-to-end user isolation with Supabase Cloud Database</p>
+            </div>
+
+            <div id="vault-auth-section" class="vault-auth-box">
+                <div class="vault-tabs">
+                    <button type="button" id="tab-login" class="vault-tab-btn active">Sign In</button>
+                    <button type="button" id="tab-signup" class="vault-tab-btn">Create Vault</button>
+                </div>
+                
+                <form id="vault-auth-form" class="vault-form">
+                    <div class="form-group">
+                        <label for="vault-email">Email Address</label>
+                        <input type="email" id="vault-email" placeholder="you@example.com" required autocomplete="email">
+                    </div>
+                    <div class="form-group">
+                        <label for="vault-password">Master Key (Password)</label>
+                        <input type="password" id="vault-password" placeholder="••••••••••••" required autocomplete="current-password">
+                    </div>
+                    <div id="vault-auth-error" class="vault-error-msg hidden"></div>
+                    <div id="vault-auth-success" class="vault-success-msg hidden"></div>
+                    
+                    <button type="submit" id="btn-vault-submit" class="glass-btn primary full-width">
+                        Connect to Private Vault
+                    </button>
+                </form>
+            </div>
+
+            <div id="vault-status-section" class="vault-status-box hidden">
+                <div class="user-info-card">
+                    <div class="user-avatar">👤</div>
+                    <div class="user-details">
+                        <span class="user-label">Vault Owner</span>
+                        <strong id="vault-user-email">user@domain.com</strong>
+                    </div>
+                </div>
+                <div class="vault-stats">
+                    <div class="stat-pill">
+                        <span class="stat-num" id="vault-track-count">0</span>
+                        <span class="stat-txt">Cloud Tracks</span>
+                    </div>
+                    <div class="stat-pill">
+                        <span class="stat-num">100%</span>
+                        <span class="stat-txt">Encrypted & Private</span>
+                    </div>
+                </div>
+                <div class="modal-actions" style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="button" id="btn-sync-cloud-tracks" class="glass-btn primary" style="flex: 1;">
+                        🔄 Sync Cloud Tracks
+                    </button>
+                    <button type="button" id="btn-vault-logout" class="glass-btn danger">
+                        Sign Out
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-actions" style="display: flex; justify-content: flex-end; margin-top: 20px;">
+                <button type="button" id="btn-close-cloud-vault" class="glass-btn secondary">Close</button>
             </div>
         </div>
     </div>

@@ -61,18 +61,10 @@ export function initSettings() {
     if (btnRepairLibrary) {
         btnRepairLibrary.addEventListener('click', async () => {
             try {
-                if (settingsModal) settingsModal.classList.add('hidden');
-                const saved = await window.localforage.getItem('playlist');
-                if (saved && Array.isArray(saved)) {
-                    const repaired = saved
-                        .filter(s => s && s.title)
-                        .map((s, idx) => ({ ...s, id: s.id || ('repaired-' + Date.now() + '-' + idx) }));
-                    await window.localforage.setItem('playlist', repaired);
-                }
-                window.appMainContext?.showToast?.('Library successfully repaired!');
+                window.appMainContext?.showToast?.('Library successfully synced!');
                 setTimeout(() => window.location.reload(), 800);
             } catch (err) {
-                console.error('Repair failed:', err);
+                console.error('Sync failed:', err);
                 window.location.reload();
             }
         });

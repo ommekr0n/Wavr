@@ -178,8 +178,7 @@ window.addEventListener('resize', () => {
     winHeight = window.innerHeight;
 });
 
-// IndexedDB Config & Waveform Init
-window.localforage.config({ name: 'AppleMusicClone', storeName: 'songs_library' });
+// Cloud Storage & Waveform Init
 CinematicRenderer.init();
 initWaveform(audio);
 
@@ -1177,28 +1176,23 @@ async function initHome() {
     let loadedPlaylist = [];
     try {
         updateSplashProgress(15);
-        const savedPlaylist = await window.localforage.getItem('playlist');
-        if (savedPlaylist && savedPlaylist.length > 0) {
-            let needsSave = false;
-            loadedPlaylist = savedPlaylist.map((song, idx) => {
-                let url = song.url || '';
-                let cover = song.cover || coverImgUrl;
-                try {
-                    if (song.audioBlob instanceof Blob) url = URL.createObjectURL(song.audioBlob);
-                    if (song.coverBlob instanceof Blob) cover = URL.createObjectURL(song.coverBlob);
-                } catch (blobErr) { console.warn('Blob URL error', blobErr); }
-                if (!song.id) needsSave = true;
-                return {
-                    id: song.id || 'song-' + Date.now() + '-' + idx + '-' + Math.floor(Math.random() * 1000),
-                    title: song.title, artist: song.artist, lyrics: song.lyrics,
-                    drift: song.drift || 1.0, url, cover, audioBlob: song.audioBlob, coverBlob: song.coverBlob
-                };
-            });
-            PlayerController.setPlaylist(loadedPlaylist);
-            if (needsSave) await saveLibraryToDB();
+        if (SupabaseService.isConfigured() && (await SupabaseService.getCurrentUser())) {
+            const cloudTracks = await SupabaseService.fetchUserTracks();
+            if (cloudTracks && cloudTracks.length > 0) {
+                loadedPlaylist = cloudTracks.map((song) => ({
+                    id: song.id,
+                    title: song.title,
+                    artist: song.artist,
+                    lyrics: song.lrc_text || '',
+                    drift: 1.0,
+                    url: song.audio_url,
+                    cover: song.cover_url || coverImgUrl
+                }));
+                PlayerController.setPlaylist(loadedPlaylist);
+            }
         }
     } catch (e) { 
-        console.error("Error loading library from IndexedDB", e); 
+        console.error("Error loading library from Supabase Cloud DB", e); 
     }
 
     Object.assign(window.appMainContext || (window.appMainContext = {}), {
@@ -1223,29 +1217,6 @@ async function initHome() {
     BackgroundManager.init();
 
     initEditLibrary(PlayerController.getPlaylist(), async () => {
-        try {
-            const savedPlaylist = await window.localforage.getItem('playlist');
-            if (savedPlaylist) {
-                let needsSave = false;
-                const playlist = savedPlaylist.map((song, idx) => {
-                    let url = song.url || '';
-                    let cover = song.cover || coverImgUrl;
-                    try {
-                        if (song.audioBlob instanceof Blob) url = URL.createObjectURL(song.audioBlob);
-                        if (song.coverBlob instanceof Blob) cover = URL.createObjectURL(song.coverBlob);
-                    } catch (blobErr) { console.warn('Blob URL error', blobErr); }
-                    if (!song.id) needsSave = true;
-                    return {
-                        id: song.id || 'song-' + Date.now() + '-' + idx + '-' + Math.floor(Math.random() * 1000),
-                        title: song.title, artist: song.artist, lyrics: song.lyrics,
-                        drift: song.drift || 1.0, url, cover, audioBlob: song.audioBlob, coverBlob: song.coverBlob
-                    };
-                });
-                PlayerController.setPlaylist(playlist);
-                if (needsSave) await saveLibraryToDB();
-            }
-        } catch (e) { console.error("Error reloading library", e); }
-
         clearWaveformCache();
         const updatedPlaylist = PlayerController.getPlaylist();
         
@@ -1303,7 +1274,147 @@ async function initHome() {
     }
 }
 
+function initCloudVaultUI() {
+    const btnAuthVault = document.getElementById('btn-auth-vault');
+    const modalCloudVault = document.getElementById('modal-cloud-vault');
+    const btnCloseCloudVault = document.getElementById('btn-close-cloud-vault');
+    const tabLogin = document.getElementById('tab-login');
+    const tabSignup = document.getElementById('tab-signup');
+    const vaultAuthForm = document.getElementById('vault-auth-form');
+    const vaultEmail = document.getElementById('vault-email');
+    const vaultPassword = document.getElementById('vault-password');
+    const vaultAuthError = document.getElementById('vault-auth-error');
+    const vaultAuthSuccess = document.getElementById('vault-auth-success');
+    const btnVaultSubmit = document.getElementById('btn-vault-submit');
+    const vaultAuthSection = document.getElementById('vault-auth-section');
+    const vaultStatusSection = document.getElementById('vault-status-section');
+    const vaultUserEmail = document.getElementById('vault-user-email');
+    const vaultTrackCount = document.getElementById('vault-track-count');
+    const btnVaultLogout = document.getElementById('btn-vault-logout');
+    const btnSyncCloudTracks = document.getElementById('btn-sync-cloud-tracks');
+
+    if (!btnAuthVault || !modalCloudVault) return;
+
+    let isSignUpMode = false;
+
+    async function updateVaultUIState() {
+        if (!SupabaseService.isConfigured()) {
+            vaultAuthError.textContent = 'Supabase keys not detected in .env file.';
+            vaultAuthError.classList.remove('hidden');
+            return;
+        }
+
+        try {
+            const user = await SupabaseService.getCurrentUser();
+            if (user) {
+                vaultAuthSection.classList.add('hidden');
+                vaultStatusSection.classList.remove('hidden');
+                if (vaultUserEmail) vaultUserEmail.textContent = user.email;
+                const tracks = await SupabaseService.fetchUserTracks();
+                if (vaultTrackCount) vaultTrackCount.textContent = tracks.length;
+            } else {
+                vaultAuthSection.classList.remove('hidden');
+                vaultStatusSection.classList.add('hidden');
+            }
+        } catch (err) {
+            console.warn('Vault UI update error:', err);
+        }
+    }
+
+    btnAuthVault.addEventListener('click', () => {
+        modalCloudVault.classList.remove('hidden');
+        updateVaultUIState();
+    });
+
+    if (btnCloseCloudVault) {
+        btnCloseCloudVault.addEventListener('click', () => {
+            modalCloudVault.classList.add('hidden');
+        });
+    }
+
+    if (tabLogin && tabSignup) {
+        tabLogin.addEventListener('click', () => {
+            isSignUpMode = false;
+            tabLogin.classList.add('active');
+            tabSignup.classList.remove('active');
+            btnVaultSubmit.textContent = 'Connect to Private Vault';
+            vaultAuthError.classList.add('hidden');
+            vaultAuthSuccess.classList.add('hidden');
+        });
+
+        tabSignup.addEventListener('click', () => {
+            isSignUpMode = true;
+            tabSignup.classList.add('active');
+            tabLogin.classList.remove('active');
+            btnVaultSubmit.textContent = 'Create Private Vault';
+            vaultAuthError.classList.add('hidden');
+            vaultAuthSuccess.classList.add('hidden');
+        });
+    }
+
+    if (vaultAuthForm) {
+        vaultAuthForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            vaultAuthError.classList.add('hidden');
+            vaultAuthSuccess.classList.add('hidden');
+            btnVaultSubmit.disabled = true;
+
+            const email = vaultEmail.value.trim();
+            const password = vaultPassword.value;
+
+            try {
+                if (isSignUpMode) {
+                    await SupabaseService.signUp(email, password);
+                    vaultAuthSuccess.textContent = 'Vault created! Check your email or sign in.';
+                    vaultAuthSuccess.classList.remove('hidden');
+                } else {
+                    await SupabaseService.signIn(email, password);
+                    vaultAuthSuccess.textContent = 'Vault connected successfully!';
+                    vaultAuthSuccess.classList.remove('hidden');
+                    setTimeout(() => updateVaultUIState(), 600);
+                }
+            } catch (err) {
+                vaultAuthError.textContent = err.message || 'Authentication failed.';
+                vaultAuthError.classList.remove('hidden');
+            } finally {
+                btnVaultSubmit.disabled = false;
+            }
+        });
+    }
+
+    if (btnVaultLogout) {
+        btnVaultLogout.addEventListener('click', async () => {
+            await SupabaseService.signOut();
+            updateVaultUIState();
+        });
+    }
+
+    if (btnSyncCloudTracks) {
+        btnSyncCloudTracks.addEventListener('click', async () => {
+            btnSyncCloudTracks.disabled = true;
+            btnSyncCloudTracks.textContent = 'Syncing...';
+            try {
+                const tracks = await SupabaseService.fetchUserTracks();
+                if (vaultTrackCount) vaultTrackCount.textContent = tracks.length;
+                showToast(`Synced ${tracks.length} private cloud tracks!`, 'info');
+            } catch (err) {
+                showToast('Failed to sync cloud tracks.', 'error');
+            } finally {
+                btnSyncCloudTracks.disabled = false;
+                btnSyncCloudTracks.textContent = '🔄 Sync Cloud Tracks';
+            }
+        });
+    }
+
+    SupabaseService.onAuthStateChange(() => {
+        updateVaultUIState();
+    });
+}
+
+import { SupabaseService } from './services/SupabaseService.js';
+
 preloadAngelicAssets();
 preloadCinematicAssets();
 initHome();
+initCloudVaultUI();
 requestAnimationFrame(syncLoop);

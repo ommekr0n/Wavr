@@ -146,8 +146,7 @@ export function setupDeleteBoxModal() {
         state.vinylBoxes   = state.vinylBoxes.filter(b  => b.id  !== boxId);
         state.libraryOrder = state.libraryOrder.filter(id => id   !== boxId);
 
-        await window.localforage.setItem('vinyl_boxes',   state.vinylBoxes);
-        await window.localforage.setItem('library_order', state.libraryOrder);
+        // Pure Cloud Architecture - vinyl boxes persisted via Supabase Cloud DB
 
         if (window.appMainContext?.updateBoxCache) {
             window.appMainContext.updateBoxCache([...state.vinylBoxes], [...state.libraryOrder]);

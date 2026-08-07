@@ -289,3 +289,144 @@
     vertical-align: middle;
     flex-shrink: 0;
 }
+
+/* ── Personal Cloud Vault Modal Styling ── */
+.cloud-vault-modal-content {
+    max-width: 440px !important;
+    padding: 28px !important;
+}
+.vault-header {
+    text-align: center;
+    margin-bottom: 22px;
+}
+.vault-icon-badge {
+    font-size: 2.2rem;
+    margin-bottom: 8px;
+}
+.vault-tabs {
+    display: flex;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    padding: 4px;
+    border-radius: 10px;
+    margin-bottom: 18px;
+}
+.vault-tab-btn {
+    flex: 1;
+    padding: 8px;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.88rem;
+    font-weight: 600;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.vault-tab-btn.active {
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+.vault-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+    text-align: left;
+}
+.vault-form label {
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+}
+.vault-form input {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: #ffffff;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.vault-form input:focus {
+    border-color: var(--accent-color, #00e5ff);
+}
+.full-width {
+    width: 100%;
+    margin-top: 10px;
+    padding: 11px !important;
+}
+.vault-error-msg {
+    background: rgba(255, 59, 48, 0.15);
+    border: 1px solid rgba(255, 59, 48, 0.4);
+    color: #ff453a;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    margin-bottom: 12px;
+    text-align: left;
+}
+.vault-success-msg {
+    background: rgba(48, 209, 88, 0.15);
+    border: 1px solid rgba(48, 209, 88, 0.4);
+    color: #30d158;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    margin-bottom: 12px;
+    text-align: left;
+}
+.user-info-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.07);
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    margin-bottom: 16px;
+}
+.user-avatar {
+    font-size: 1.6rem;
+}
+.user-details {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+.user-label {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.user-details strong {
+    color: #ffffff;
+    font-size: 0.92rem;
+}
+.vault-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.stat-pill {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.stat-num {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--accent-color, #00e5ff);
+}
+.stat-txt {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin-top: 2px;
+}
