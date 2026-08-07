@@ -91,7 +91,8 @@ export const LibraryModals = {
             try {
                 if (trackToDeleteIndex !== null) {
                     const idx = parseInt(trackToDeleteIndex);
-                    const song = playlist[idx];
+                    const playlist = _getPlaylist();
+                    const song = playlist ? playlist[idx] : null;
                     if (SupabaseService.isConfigured() && song && song.id) {
                         try {
                             await SupabaseService.deleteTrack(song.id);
