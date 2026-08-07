@@ -23,25 +23,9 @@ export const AngelicLyricBuilder = {
             }
             return before + ' ' + parenthesisText + (punc ? punc : '') + ' ';
         });
-        processedText = processedText.replace(/\n+/g, '\n').trim();
-
-        const lines = processedText.split('\n');
-        const processedLines = lines.map(line => {
-            const words = line.trim().split(/ +/);
-            if (words.length <= 3) return line;
-            const lastWords = words.splice(-2).join('\u00A0');
-            return words.join(' ') + ' ' + lastWords;
-        });
-
-        return processedLines.join('\n');
+        return processedText.replace(/\n+/g, '\n').trim();
     },
 
-    /**
-     * Builds the HTML for the lyric words with syllable-level animation.
-     * Supports both Enhanced LRC (exact vocal timestamps) and Standard LRC (synthetic syllable steps).
-     * @param {string|Object} inputData - Processed lyric text or rich lyric object
-     * @returns {string} HTML string of lyric words
-     */
     buildWordsHTML(inputData) {
         const isObj = typeof inputData === 'object' && inputData !== null;
         const rawText = isObj ? inputData.text : inputData;
@@ -68,10 +52,10 @@ export const AngelicLyricBuilder = {
                 wordsHTML += `<div style="display: block; line-height: 1.1;">`;
             }
 
-            const words = lineText.split(/[ \t\r\n]+/).filter(w => w.length > 0);
+            const words = lineText.split(/\s+/).filter(w => w.length > 0);
             const butterflyChance = safeText.length > 60 ? 0.15 : 0.3;
 
-            words.forEach((word) => {
+            words.forEach((word, wIdx) => {
                 const STAFF_DRAW_DURATION = 0.15;
                 const isRecording = document.body.classList.contains('is-recording');
                 const syllableStep = isRecording ? 0.025 : 0.018;
@@ -103,6 +87,14 @@ export const AngelicLyricBuilder = {
                     bFly = `<div class="sprite-butterfly" style="${styleStr}"></div>`;
                 }
 
+                // Prevent orphan words: wrap the last 2 words of a line in a white-space: nowrap container
+                const isOrphanPairStart = words.length > 3 && wIdx === words.length - 2;
+                const isOrphanPairEnd = words.length > 3 && wIdx === words.length - 1;
+
+                if (isOrphanPairStart) {
+                    wordsHTML += `<span class="no-orphan-pair" style="white-space: nowrap; display: inline-block;">`;
+                }
+
                 if (syllables.length <= 1) {
                     wordsHTML += `<span class="angelic-word-sway" style="animation-delay: ${wordPopDelay}s">
                         <span class="angelic-word-pop ${wObj ? 'has-enhanced-word' : ''}" ${dataAttrs} style="animation-delay: ${wordPopDelay}s">${word}</span>
@@ -117,6 +109,10 @@ export const AngelicLyricBuilder = {
                         globalSyllableIdx++;
                     });
                     wordsHTML += `${bFly}</span> `;
+                }
+
+                if (isOrphanPairEnd) {
+                    wordsHTML += `</span>`;
                 }
             });
 
