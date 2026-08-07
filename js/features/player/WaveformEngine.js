@@ -88,21 +88,26 @@ export async function loadAndDecodeWaveform(url) {
     }
 }
 
+let cachedCanvasWidth = 0;
+let cachedCanvasHeight = 0;
+let cachedAccentColor = '#00e5ff';
+let lastAccentCheckTime = 0;
+
 export function drawMiniWaveform(percent) {
     const canvas = document.getElementById('mini-waveform-canvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    const rect    = canvas.getBoundingClientRect();
-    const targetW = Math.max(300, Math.floor(rect.width  || canvas.offsetWidth  || 500));
-    const targetH = Math.max(36,  Math.floor(rect.height || canvas.offsetHeight || 48));
-
-    if (canvas.width !== targetW || canvas.height !== targetH) {
+    if (!cachedCanvasWidth || canvas.width !== cachedCanvasWidth) {
+        const targetW = Math.max(300, Math.floor(canvas.offsetWidth || 500));
+        const targetH = Math.max(36,  Math.floor(canvas.offsetHeight || 48));
         canvas.width  = targetW;
         canvas.height = targetH;
+        cachedCanvasWidth = targetW;
+        cachedCanvasHeight = targetH;
     }
 
-    const w = canvas.width, h = canvas.height;
+    const w = cachedCanvasWidth, h = cachedCanvasHeight;
     ctx.clearRect(0, 0, w, h);
     if (!currentWaveformData || w === 0 || h === 0) return;
 
@@ -128,9 +133,13 @@ export function drawMiniWaveform(percent) {
 
     const progressWidth = (percent / 100) * w;
     if (progressWidth > 0) {
-        const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-color').trim() || '#00e5ff';
+        const now = performance.now();
+        if (now - lastAccentCheckTime > 2000) {
+            lastAccentCheckTime = now;
+            cachedAccentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-color').trim() || '#00e5ff';
+        }
         const grad = ctx.createLinearGradient(0, 0, w, 0);
-        grad.addColorStop(0, accentColor);
+        grad.addColorStop(0, cachedAccentColor);
         grad.addColorStop(1, '#a855f7');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, progressWidth, h);

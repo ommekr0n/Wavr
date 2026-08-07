@@ -45,6 +45,8 @@ const smokePool = Array.from({ length: MAX_SMOKE_PARTICLES }, () => ({
 }));
 let smokeSpawnTimer = 0;
 let lastCineTime    = 0;
+let lastColorCheckTime = 0;
+const cachedCoverColors = ['#ff2d55', '#5856d6', '#ff9500', '#af52de'];
 
 // ── Fire burst state ────────────────────────────────────────────────────────
 let fireBurstTime    = 0;
@@ -147,17 +149,21 @@ export const CinematicRenderer = {
                     cineFireRight.src = fireGifBlobUrl;
                 }
             }
-
             if (!window._cachedCineWords) {
                 window._cachedCineWords = document.getElementsByClassName('cine-word');
             }
 
-            // ~2% per-frame chance of glitching one active word
+            // For normal LRC (non-enhanced), apply old random per-frame glitch (~2% chance per frame)
             if (Math.random() < 0.02 && window._cachedCineWords.length > 0) {
-                const randomWord = window._cachedCineWords[Math.floor(Math.random() * window._cachedCineWords.length)];
-                if (!randomWord.classList.contains('glitch-word-anim') &&
-                    !randomWord.classList.contains('glitched') &&
-                    !randomWord.classList.contains('glitch-immune')) {
+                const normalWords = Array.from(window._cachedCineWords).filter(
+                    w => !w.classList.contains('has-enhanced-word') &&
+                         !w.hasAttribute('data-start') &&
+                         !w.classList.contains('glitch-word-anim') &&
+                         !w.classList.contains('glitched') &&
+                         !w.classList.contains('glitch-immune')
+                );
+                if (normalWords.length > 0) {
+                    const randomWord = normalWords[Math.floor(Math.random() * normalWords.length)];
                     randomWord.classList.add('glitch-word-anim');
                     randomWord.classList.add('glitched');
                     setTimeout(() => randomWord.classList.remove('glitch-word-anim'), 400);
@@ -217,13 +223,15 @@ export const CinematicRenderer = {
         const bucketSize = Math.floor((_data.length * 0.75) / NUM_PILLARS);
         const useRoundRect = typeof ctx.roundRect === 'function';
 
-        const cs = getComputedStyle(document.documentElement);
-        const coverColors = [
-            cs.getPropertyValue('--blob-1-color').trim() || '#ff2d55',
-            cs.getPropertyValue('--blob-2-color').trim() || '#5856d6',
-            cs.getPropertyValue('--blob-3-color').trim() || '#ff9500',
-            cs.getPropertyValue('--blob-4-color').trim() || '#af52de',
-        ];
+        if (nowSec - lastColorCheckTime > 2.0) {
+            lastColorCheckTime = nowSec;
+            const cs = getComputedStyle(document.documentElement);
+            cachedCoverColors[0] = cs.getPropertyValue('--blob-1-color').trim() || '#ff2d55';
+            cachedCoverColors[1] = cs.getPropertyValue('--blob-2-color').trim() || '#5856d6';
+            cachedCoverColors[2] = cs.getPropertyValue('--blob-3-color').trim() || '#ff9500';
+            cachedCoverColors[3] = cs.getPropertyValue('--blob-4-color').trim() || '#af52de';
+        }
+        const coverColors = cachedCoverColors;
 
         for (let i = 0; i < NUM_PILLARS; i++) {
             let bucketSum = 0;

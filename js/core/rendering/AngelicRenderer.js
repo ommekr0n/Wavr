@@ -63,12 +63,12 @@ export const AngelicRenderer = {
 
     /**
      * Pre-builds the DOM for a lyric line off-screen so it's GPU-compiled before display.
-     * @param {string} text                          - Raw lyric line text
+     * @param {string|Object} textOrLyric            - Raw lyric line text or rich lyric object
      * @param {number} index                         - Lyric index (used as data-lyric-index)
      * @param {HTMLElement} angelicTextContainer     - #angelic-text-container
      */
-    prepareLine(text, index, angelicTextContainer) {
-        if (!text) return;
+    prepareLine(textOrLyric, index, angelicTextContainer) {
+        if (!textOrLyric) return;
         if (angelicTextContainer.querySelector(`[data-lyric-index="${index}"]`)) return;
 
         const newWrapper = document.createElement('div');
@@ -100,8 +100,7 @@ export const AngelicRenderer = {
         const newLine = document.createElement('div');
         newLine.className = 'angelic-line';
         
-        const safeText = AngelicLyricBuilder.preventOrphanWords(text);
-        newLine.innerHTML = AngelicLyricBuilder.buildWordsHTML(safeText);
+        newLine.innerHTML = AngelicLyricBuilder.buildWordsHTML(textOrLyric);
         
         newWrapper.innerHTML = floralSvgHTML;
         newWrapper.appendChild(newLine);
@@ -118,14 +117,15 @@ export const AngelicRenderer = {
     /**
      * Activates a pre-built lyric line and exits older lines gracefully.
      */
-    showLine(index, text, lyrics, angelicTextContainer) {
+    showLine(index, textOrLyric, lyrics, angelicTextContainer) {
         // Đảm bảo Khung 5 dây & Khóa Sol đã được vẽ L-to-R và duy trì đung đưa cố định
         this.ensureGlobalStaff(angelicTextContainer);
 
         let wrapper = angelicTextContainer.querySelector(`[data-lyric-index="${index}"]`);
+        const lyricObj = (lyrics && lyrics[index]) ? lyrics[index] : textOrLyric;
 
-        if (!wrapper && lyrics[index]) {
-            AngelicRenderer.prepareLine(lyrics[index].text, index, angelicTextContainer);
+        if (!wrapper && lyricObj) {
+            AngelicRenderer.prepareLine(lyricObj, index, angelicTextContainer);
             wrapper = angelicTextContainer.querySelector(`[data-lyric-index="${index}"]`);
         }
         if (!wrapper) return;

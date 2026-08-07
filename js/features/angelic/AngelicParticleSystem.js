@@ -42,7 +42,7 @@ export const AngelicParticleSystem = {
                           || document.getElementById('btn-pause')?.classList.contains('hidden') === false;
         // Dạo nhạc: 40 particle (nhiều, sinh động), đang phát: 30, recording: 10
         const maxParticles = isRecording ? 10 : (isPlaying ? 30 : 40);
-        const activeCount  = container.querySelectorAll('.angelic-particle').length;
+        const activeCount  = container.childElementCount;
         if (activeCount >= maxParticles) return;
 
         const p = getParticleFromPool();

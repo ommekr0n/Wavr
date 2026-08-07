@@ -24,3 +24,8 @@ build/
 # Media (large user files, stored locally only)
 assets/audio/
 assets/covers/
+
+# Personal & Studio local files
+RULES.md
+lrc_studio/
+

@@ -78,6 +78,8 @@ function preventOrphanWords(text) {
     return processedLines.join('\n');
 }
 
+const WORD_EARLY_LEAD_IN_SEC = 0.04; // 40ms Micro Lead-in to match acoustic vocal attack without leading reader eyes
+
 export const LyricEngine = {
     getCurrentLyrics()    { return currentLyrics; },
     getActiveLyricIndex() { return activeLyricIndex; },
@@ -121,18 +123,48 @@ export const LyricEngine = {
         currentLyrics.forEach((lyric, index) => {
             const lineEl = document.createElement('div');
             lineEl.className = 'am-lyric-line';
-
-            let htmlText = preventOrphanWords(lyric.text);
-            htmlText = htmlText.replace(/\n\([^)]*\)(\n)?/g, (match) => {
-                const cleanMatch = match.replace(/\n/g, '');
-                let scaleVal = 0.75;
-                if (cleanMatch.length > 35) scaleVal = 0.55;
-                else if (cleanMatch.length > 25) scaleVal = 0.65;
-                return `<span class="lyric-parenthesis" style="font-size: ${scaleVal}em; opacity: 0.65; font-weight: 500; white-space: nowrap; display: block; margin-top: 4px; line-height: 1.1; transform-origin: left center;">${cleanMatch}</span>`;
-            });
-
-            lineEl.innerHTML = htmlText;
             lineEl.setAttribute('data-index', index);
+
+            if (lyric.isEnhanced && lyric.words && lyric.words.length > 0) {
+                lineEl.className = 'am-lyric-line has-enhanced';
+                const mainWords = [];
+                const parenWords = [];
+
+                lyric.words.forEach(wObj => {
+                    if (wObj.word.includes('(') || wObj.word.includes(')')) {
+                        parenWords.push(wObj);
+                    } else {
+                        mainWords.push(wObj);
+                    }
+                });
+
+                let mainHTML = '';
+                mainWords.forEach((wObj, wIdx) => {
+                    mainHTML += `<span class="lyric-word" data-word-idx="${wIdx}" data-start="${wObj.time}" data-end="${wObj.endTime}">${wObj.word}</span> `;
+                });
+
+                let htmlContent = `<div class="lyric-main-row">${mainHTML.trim()}</div>`;
+
+                if (parenWords.length > 0) {
+                    let parenHTML = '';
+                    parenWords.forEach((wObj, wIdx) => {
+                        parenHTML += `<span class="lyric-word lyric-parenthesis-word" data-word-idx="p_${wIdx}" data-start="${wObj.time}" data-end="${wObj.endTime}">${wObj.word}</span> `;
+                    });
+                    htmlContent += `<div class="lyric-parenthesis-row">${parenHTML.trim()}</div>`;
+                }
+
+                lineEl.innerHTML = htmlContent;
+            } else {
+                let htmlText = preventOrphanWords(lyric.text);
+                htmlText = htmlText.replace(/\n\([^)]*\)(\n)?/g, (match) => {
+                    const cleanMatch = match.replace(/\n/g, '');
+                    let scaleVal = 0.75;
+                    if (cleanMatch.length > 35) scaleVal = 0.55;
+                    else if (cleanMatch.length > 25) scaleVal = 0.65;
+                    return `<span class="lyric-parenthesis" style="font-size: ${scaleVal}em; opacity: 0.65; font-weight: 500; white-space: nowrap; display: block; margin-top: 4px; line-height: 1.1; transform-origin: left center;">${cleanMatch}</span>`;
+                });
+                lineEl.innerHTML = htmlText;
+            }
 
             lyricsListEl.appendChild(lineEl);
         });
@@ -190,7 +222,9 @@ export const LyricEngine = {
                     smoothScrollTo(lyricsContainer, targetScroll, 520);
                 }
 
-                if (onAngelicShow) onAngelicShow(activeLyricIndex);
+                if (onAngelicShow && currentLyrics[activeLyricIndex]) {
+                    onAngelicShow(activeLyricIndex, currentLyrics[activeLyricIndex]);
+                }
 
                 // Calculate time gap to next lyric for adaptive animation duration
                 let deltaSec = 3.0;
@@ -199,10 +233,85 @@ export const LyricEngine = {
                 }
 
                 if (onCinematicTrigger && currentLyrics[activeLyricIndex]) {
-                    onCinematicTrigger(currentLyrics[activeLyricIndex].text, deltaSec);
+                    onCinematicTrigger({ ...currentLyrics[activeLyricIndex], index: activeLyricIndex }, deltaSec);
                 }
             }
         }
+
+        // ── Real-Time High-Performance Karaoke Highlight Sync ──
+        const syncWordSpansForContainer = (parentEl, wordSelector, isCinematic = false) => {
+            if (!parentEl) return;
+            let activeContainer = null;
+            if (isCinematic) {
+                activeContainer = parentEl.querySelector('.cinematic-line-wrapper.cine-enter');
+            } else {
+                activeContainer = parentEl.querySelector(`[data-index="${activeLyricIndex}"], [data-lyric-index="${activeLyricIndex}"]`);
+            }
+            if (!activeContainer) return;
+
+            const wordSpans = activeContainer.querySelectorAll(wordSelector);
+            if (wordSpans.length === 0) return;
+
+            wordSpans.forEach(span => {
+                if (span._wStart === undefined) {
+                    span._wStart = parseFloat(span.getAttribute('data-start'));
+                    span._wEnd = parseFloat(span.getAttribute('data-end'));
+                }
+                const wStart = span._wStart;
+                const wEnd = span._wEnd;
+                if (!isNaN(wStart) && !isNaN(wEnd)) {
+                    const rawStart = wStart * driftRatio;
+                    const startEff = rawStart - WORD_EARLY_LEAD_IN_SEC;
+                    const endEff = wEnd * driftRatio;
+                    if (currentTime >= endEff) {
+                        if (!span.classList.contains('word-past')) {
+                            span.classList.remove('word-active', 'glitch-word-anim');
+                            if (span._glitchTimer) {
+                                clearTimeout(span._glitchTimer);
+                                span._glitchTimer = null;
+                            }
+                            span.classList.add('word-past');
+                            span.style.setProperty('--word-progress', '1.0');
+                        }
+                    } else if (currentTime >= startEff) {
+                        if (!span.classList.contains('word-active')) {
+                            span.classList.remove('word-past');
+                            span.classList.add('word-active');
+
+                            // Enhanced LRC in Cinematic Mode: Probability burst of glitch on word glow (20% chance)
+                            if (isCinematic && (span.classList.contains('has-enhanced-word') || span.hasAttribute('data-start'))) {
+                                if (Math.random() < 0.20) {
+                                    span.classList.add('glitch-word-anim');
+                                    if (span._glitchTimer) clearTimeout(span._glitchTimer);
+                                    span._glitchTimer = setTimeout(() => {
+                                        span.classList.remove('glitch-word-anim');
+                                        span._glitchTimer = null;
+                                    }, 380);
+                                }
+                            }
+                        }
+                        const dur = Math.max(0.08, endEff - rawStart);
+                        const ratio = Math.min(1, Math.max(0, (currentTime - rawStart) / dur));
+                        span.style.setProperty('--word-progress', ratio.toFixed(3));
+                    } else {
+                        if (span.classList.contains('word-active') || span.classList.contains('word-past')) {
+                            span.classList.remove('word-active', 'word-past', 'glitch-word-anim');
+                            if (span._glitchTimer) {
+                                clearTimeout(span._glitchTimer);
+                                span._glitchTimer = null;
+                            }
+                            span.style.setProperty('--word-progress', '0.0');
+                        }
+                    }
+                }
+            });
+        };
+
+        if (lyricsListEl) syncWordSpansForContainer(lyricsListEl, '.lyric-word', false);
+        const cineContainer = document.getElementById('cinematic-text-container');
+        if (cineContainer) syncWordSpansForContainer(cineContainer, '.cine-word', true);
+        const angelContainer = document.getElementById('angelic-text-container');
+        if (angelContainer) syncWordSpansForContainer(angelContainer, '.angelic-word-pop', false);
     },
 
     prepareLyricNearTime(time, prepareLineCallback) {

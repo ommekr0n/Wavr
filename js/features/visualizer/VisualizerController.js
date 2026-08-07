@@ -108,12 +108,12 @@ export const VisualizerController = {
         if (activeLyricIndex !== -1 && currentLyrics[activeLyricIndex]) {
             showAngelicLineFn(activeLyricIndex);
             if (currentLyrics[activeLyricIndex + 1]) {
-                const nextText = currentLyrics[activeLyricIndex + 1].text;
+                const nextLyricObj = currentLyrics[activeLyricIndex + 1];
                 const nextIdx  = activeLyricIndex + 1;
                 if ('requestIdleCallback' in window) {
-                    requestIdleCallback(() => prepareAngelicLineFn(nextText, nextIdx));
+                    requestIdleCallback(() => prepareAngelicLineFn(nextLyricObj, nextIdx));
                 } else {
-                    setTimeout(() => prepareAngelicLineFn(nextText, nextIdx), 50);
+                    setTimeout(() => prepareAngelicLineFn(nextLyricObj, nextIdx), 50);
                 }
             }
         }
@@ -138,19 +138,26 @@ export const VisualizerController = {
     },
 
     /**
-     * Sets up the mouse-idle auto-hide listener for Cinematic and Angelic modes.
-     * Hides cursor controls after 2000ms of inactivity.
-     * Extracted 1:1 from backup_prime/js/main.js lines 2616-2625.
+     * Sets up the single unified mouse-idle auto-hide listener for Player View, Cinematic, and Angelic modes.
+     * Hides cursor and all top header controls simultaneously after 2000ms of inactivity.
      */
     setupAutoHide() {
+        let globalIdleTimeout = null;
+
         document.addEventListener('mousemove', () => {
-            if (isCinematicMode || isAngelicMode) {
-                document.body.classList.add('mouse-active');
-                clearTimeout(mouseTimeout);
-                mouseTimeout = setTimeout(() => {
+            document.body.classList.remove('user-idle');
+            document.body.classList.add('mouse-active');
+
+            clearTimeout(globalIdleTimeout);
+            globalIdleTimeout = setTimeout(() => {
+                const playerView = document.getElementById('player-view');
+                const isPlayerActive = playerView && playerView.classList.contains('player-active') && !playerView.classList.contains('hidden');
+
+                if (isPlayerActive || isCinematicMode || isAngelicMode) {
+                    document.body.classList.add('user-idle');
                     document.body.classList.remove('mouse-active');
-                }, 2000);
-            }
+                }
+            }, 2000);
         });
     },
 };

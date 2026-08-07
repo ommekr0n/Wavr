@@ -38,15 +38,24 @@ export const AngelicLyricBuilder = {
 
     /**
      * Builds the HTML for the lyric words with syllable-level animation.
-     * Âm tiết xuất hiện với delay nhỏ hơn (0.018s/syllable) so với word-by-word (0.03s/word)
-     * → cảm giác "hát theo" mượt hơn nhiều, đặc biệt với từ dài nhiều âm tiết.
-     * @param {string} text - Processed lyric text
+     * Supports both Enhanced LRC (exact vocal timestamps) and Standard LRC (synthetic syllable steps).
+     * @param {string|Object} inputData - Processed lyric text or rich lyric object
      * @returns {string} HTML string of lyric words
      */
-    buildWordsHTML(text) {
-        const textLines = text.split('\n');
+    buildWordsHTML(inputData) {
+        const isObj = typeof inputData === 'object' && inputData !== null;
+        const rawText = isObj ? inputData.text : inputData;
+        const isEnhanced = isObj && inputData.isEnhanced && Array.isArray(inputData.words);
+        const wordList = isEnhanced ? inputData.words : [];
+        const lineTime = isObj ? (inputData.time || 0) : 0;
+
+        if (!rawText) return '';
+
+        const safeText = this.preventOrphanWords(rawText);
+        const textLines = safeText.split('\n');
         let wordsHTML = '';
-        let globalSyllableIdx = 0; // Đổi từ word sang syllable index
+        let globalWordIdx = 0;
+        let globalSyllableIdx = 0;
 
         textLines.forEach((lineText) => {
             const isParenthesis = lineText.trim().startsWith('(');
@@ -59,27 +68,30 @@ export const AngelicLyricBuilder = {
                 wordsHTML += `<div style="display: block; line-height: 1.1;">`;
             }
 
-            const words = lineText.split(' ').filter(w => w.length > 0);
-            // Reduce butterfly chance on long lyrics to maintain 60 FPS
-            const butterflyChance = text.length > 60 ? 0.15 : 0.3;
+            const words = lineText.split(/[\s\u00A0]+/).filter(w => w.length > 0);
+            const butterflyChance = safeText.length > 60 ? 0.15 : 0.3;
 
             words.forEach((word) => {
-                /* =====================================================================
-                   ANGELIC MODE: SYLLABLE-LEVEL CADENCE
-                   - Delay 0.018s/syllable (thay vì 0.03s/word trước đây)
-                   - Từ 1 âm tiết: delay = globalSyllableIdx * 0.018
-                   - Từ 3 âm tiết (vd: "beau-ti-ful"): mỗi âm tiết shift thêm 0.018s
-                   - STAFF_DRAW_DURATION: chờ staff vẽ xong 15% trước
-                   ===================================================================== */
                 const STAFF_DRAW_DURATION = 0.15;
                 const isRecording = document.body.classList.contains('is-recording');
-                // Recording: delay chặt hơn để capture sắc nét
                 const syllableStep = isRecording ? 0.025 : 0.018;
 
                 const syllables = splitSyllables(word);
+                const wObj = isEnhanced && wordList[globalWordIdx] ? wordList[globalWordIdx] : null;
 
-                // Butterfly gắn vào word container bên ngoài (không phân ra syllable)
-                const wordPopDelay = STAFF_DRAW_DURATION + globalSyllableIdx * syllableStep;
+                let wordPopDelay = 0;
+                let dataAttrs = '';
+
+                if (wObj) {
+                    const offsetSec = Math.max(0, wObj.time - lineTime);
+                    wordPopDelay = STAFF_DRAW_DURATION + offsetSec;
+                    dataAttrs = `data-start="${wObj.time}" data-end="${wObj.endTime}"`;
+                } else {
+                    wordPopDelay = STAFF_DRAW_DURATION + globalSyllableIdx * syllableStep;
+                }
+                globalWordIdx++;
+
+                // Butterfly attached to word wrapper
                 let bFly = '';
                 if (Math.random() < butterflyChance) {
                     const dirX = (Math.random() > 0.5 ? 1 : -1) * (15 + Math.random() * 25);
@@ -92,19 +104,16 @@ export const AngelicLyricBuilder = {
                 }
 
                 if (syllables.length <= 1) {
-                    // Từ 1 âm tiết: giữ nguyên như cũ nhưng dùng globalSyllableIdx
                     wordsHTML += `<span class="angelic-word-sway" style="animation-delay: ${wordPopDelay}s">
-                        <span class="angelic-word-pop" style="animation-delay: ${wordPopDelay}s">${word}</span>
+                        <span class="angelic-word-pop ${wObj ? 'has-enhanced-word' : ''}" ${dataAttrs} style="animation-delay: ${wordPopDelay}s">${word}</span>
                         ${bFly}
                     </span> `;
                     globalSyllableIdx++;
                 } else {
-                    // Từ nhiều âm tiết: mỗi âm tiết là 1 <span> riêng với delay tăng dần
-                    // Bọc trong angelic-word-sway để giữ sway animation trên cả từ
                     wordsHTML += `<span class="angelic-word-sway" style="animation-delay: ${wordPopDelay}s">`;
                     syllables.forEach((syl) => {
-                        const sylDelay = STAFF_DRAW_DURATION + globalSyllableIdx * syllableStep;
-                        wordsHTML += `<span class="angelic-word-pop" style="animation-delay: ${sylDelay}s">${syl}</span>`;
+                        const sylDelay = wObj ? wordPopDelay : (STAFF_DRAW_DURATION + globalSyllableIdx * syllableStep);
+                        wordsHTML += `<span class="angelic-word-pop ${wObj ? 'has-enhanced-word' : ''}" ${dataAttrs} style="animation-delay: ${sylDelay}s">${syl}</span>`;
                         globalSyllableIdx++;
                     });
                     wordsHTML += `${bFly}</span> `;

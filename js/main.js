@@ -288,9 +288,9 @@ function loadTrack(index) {
     const lines = lyricsList.querySelectorAll('.am-lyric-line');
     lines.forEach((lineEl, index) => {
         lineEl.addEventListener('click', () => {
-            AngelicRenderer.prepareLine(currentLyrics[index].text, index, angelicTextContainer);
+            AngelicRenderer.prepareLine(currentLyrics[index], index, angelicTextContainer);
             if (currentLyrics[index + 1]) {
-                AngelicRenderer.prepareLine(currentLyrics[index + 1].text, index + 1, angelicTextContainer);
+                AngelicRenderer.prepareLine(currentLyrics[index + 1], index + 1, angelicTextContainer);
             }
             audio.currentTime = currentLyrics[index].time * LyricEngine.getDriftRatio();
             if (!PlayerController.getIsPlaying()) playAudio();
@@ -299,8 +299,8 @@ function loadTrack(index) {
 
     if (currentLyrics.length > 0) {
         setTimeout(() => {
-            AngelicRenderer.prepareLine(currentLyrics[0].text, 0, angelicTextContainer);
-            if (currentLyrics[1]) AngelicRenderer.prepareLine(currentLyrics[1].text, 1, angelicTextContainer);
+            AngelicRenderer.prepareLine(currentLyrics[0], 0, angelicTextContainer);
+            if (currentLyrics[1]) AngelicRenderer.prepareLine(currentLyrics[1], 1, angelicTextContainer);
         }, 200);
     }
 
@@ -308,8 +308,8 @@ function loadTrack(index) {
 }
 
 function prepareLyricNearTime(time) {
-    LyricEngine.prepareLyricNearTime(time, (text, index) => {
-        AngelicRenderer.prepareLine(text, index, angelicTextContainer);
+    LyricEngine.prepareLyricNearTime(time, (lyricObj, index) => {
+        AngelicRenderer.prepareLine(lyricObj, index, angelicTextContainer);
     });
 }
 
@@ -429,8 +429,12 @@ function updateProgress() {
         drawMiniWaveform(percent);
     }
 
-    currentTimeEl.textContent = formatTime(currentTime);
-    totalTimeEl.textContent = formatTime(duration);
+    const floorTime = Math.floor(currentTime);
+    if (floorTime !== lastFormattedSec) {
+        lastFormattedSec = floorTime;
+        currentTimeEl.textContent = formatTime(currentTime);
+        totalTimeEl.textContent = formatTime(duration);
+    }
 
     LyricEngine.updateHighlight(
         currentTime,
@@ -439,10 +443,10 @@ function updateProgress() {
         (index) => {
             if (VisualizerController.getIsAngelicMode()) {
                 const currentLyrics = LyricEngine.getCurrentLyrics();
-                AngelicRenderer.showLine(index, currentLyrics[index]?.text, currentLyrics, angelicTextContainer);
+                AngelicRenderer.showLine(index, currentLyrics[index], currentLyrics, angelicTextContainer);
                 if (currentLyrics[index + 1]) {
                     setTimeout(() => {
-                        AngelicRenderer.prepareLine(currentLyrics[index + 1].text, index + 1, angelicTextContainer);
+                        AngelicRenderer.prepareLine(currentLyrics[index + 1], index + 1, angelicTextContainer);
                     }, 50);
                 }
             }
@@ -454,6 +458,9 @@ function updateProgress() {
         }
     );
 }
+
+let lastFormattedSec = -1;
+let lastBeatIntensity = -1;
 
 function formatTime(seconds) {
     if (isNaN(seconds)) return "0:00";
@@ -477,7 +484,10 @@ function syncLoop() {
             currentAnalysis = FFTAnalyzer.analyze(dataArray);
             intensity = currentAnalysis.intensity;
             energy    = currentAnalysis.energy;
-            document.documentElement.style.setProperty('--beat-intensity', intensity.toFixed(3));
+            if (Math.abs(intensity - lastBeatIntensity) > 0.015) {
+                lastBeatIntensity = intensity;
+                document.documentElement.style.setProperty('--beat-intensity', intensity.toFixed(3));
+            }
 
             if (isAngelic) {
                 // ── 1. Lyric Breathing (scale nhẹ theo bass) ──────────────────
@@ -887,8 +897,8 @@ function setupEventListeners() {
         VisualizerController.enterAngelicMode(
             playerView, angelicView,
             LyricEngine.getActiveLyricIndex(), currentLyrics,
-            (index) => AngelicRenderer.showLine(index, currentLyrics[index]?.text, currentLyrics, angelicTextContainer),
-            (text, index) => AngelicRenderer.prepareLine(text, index, angelicTextContainer)
+            (index) => AngelicRenderer.showLine(index, currentLyrics[index], currentLyrics, angelicTextContainer),
+            (lyricObj, index) => AngelicRenderer.prepareLine(lyricObj, index, angelicTextContainer)
         );
     });
     btnExitAngelic.addEventListener('click', () => {
@@ -1009,8 +1019,16 @@ if (btnRecord && recordPopover) {
 
     btnRecord.addEventListener('click', (e) => {
         e.stopPropagation();
-        recordPopover.classList.toggle('hidden');
-        requestAnimationFrame(() => recordPopover.classList.toggle('active'));
+        if (recordPopover.classList.contains('hidden')) {
+            recordPopover.classList.remove('hidden');
+            void recordPopover.offsetWidth;
+            recordPopover.classList.add('active');
+        } else {
+            recordPopover.classList.remove('active');
+            setTimeout(() => {
+                recordPopover.classList.add('hidden');
+            }, 200);
+        }
     });
 
     document.addEventListener('click', (e) => {

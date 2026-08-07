@@ -5,8 +5,15 @@
 import { calculateFluidLyricStyle } from './AdaptiveLyricSizer.js';
 import { applyChromaAberration } from './VisualFX.js';
 
-export function triggerCinematicLine(text, cinematicTextContainer, deltaSec = 3.0) {
-    if (!text || !cinematicTextContainer) return;
+export function triggerCinematicLine(lyricInput, cinematicTextContainer, deltaSec = 3.0) {
+    if (!lyricInput || !cinematicTextContainer) return;
+
+    const isObj = typeof lyricInput === 'object' && lyricInput !== null;
+    const text = isObj ? lyricInput.text : lyricInput;
+    const isEnhanced = isObj && lyricInput.isEnhanced && Array.isArray(lyricInput.words);
+    const wordList = isEnhanced ? lyricInput.words : [];
+
+    if (!text) return;
 
     // Fast transition duration for quick rap/EDM lyrics vs smooth drift for slow ballads
     const exitDurationMs = deltaSec < 1.5 ? 450 : 900;
@@ -28,6 +35,9 @@ export function triggerCinematicLine(text, cinematicTextContainer, deltaSec = 3.
 
     const newWrapper = document.createElement('div');
     newWrapper.className = 'cinematic-line-wrapper cine-enter';
+    if (isObj && lyricInput.index !== undefined) {
+        newWrapper.setAttribute('data-lyric-index', lyricInput.index);
+    }
 
     // Particle sparks
     const sparkContainer = document.createElement('div');
@@ -66,6 +76,8 @@ export function triggerCinematicLine(text, cinematicTextContainer, deltaSec = 3.
     const processedText = preventOrphanWords(text);
     const textLines = processedText.split('\n');
 
+    let globalWordIdx = 0;
+
     textLines.forEach((lineText) => {
         const isParenthesis = lineText.trim().startsWith('(');
         const lineContainer = document.createElement('div');
@@ -89,12 +101,22 @@ export function triggerCinematicLine(text, cinematicTextContainer, deltaSec = 3.
 
         words.forEach((word, index) => {
             const span = document.createElement('span');
+            let wordClass = 'cine-word';
             if (allowGlitch && !isParenthesis) {
-                span.className = 'cine-word glitch-immune';
+                wordClass += ' glitch-immune';
                 setTimeout(() => { if (span.parentNode) span.classList.remove('glitch-immune'); }, 1500);
-            } else {
-                span.className = 'cine-word';
             }
+
+            // Enhanced LRC timing metadata binding
+            if (isEnhanced && wordList[globalWordIdx]) {
+                const wObj = wordList[globalWordIdx];
+                span.setAttribute('data-start', wObj.time);
+                span.setAttribute('data-end', wObj.endTime);
+                wordClass += ' has-enhanced-word';
+            }
+            globalWordIdx++;
+
+            span.className = wordClass;
             span.textContent = word;
             span.dataset.text = word;
             lineContainer.appendChild(span);

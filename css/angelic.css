@@ -161,8 +161,6 @@
     display: inline-block;
     position: relative;
     animation: sway-word 4s ease-in-out infinite alternate both;
-    will-change: transform;
-    transform: translateZ(0);
 }
 
 .sprite-butterfly {
@@ -182,7 +180,6 @@
     pointer-events: none;
     z-index: 10;
     will-change: transform, opacity;
-    transform: translateZ(0);
 }
 
 .angelic-enter-wrapper .angelic-word-sway .sprite-butterfly {
@@ -259,15 +256,43 @@ body.is-recording {
 
 .angelic-word-pop {
     display: inline-block;
+    position: relative;
     opacity: 0;
-    transform: translateY(24px) scale(0.85) rotate(-2.5deg) translateZ(0);
+    transform: translateY(24px) scale(0.85) rotate(-2.5deg);
     will-change: transform, opacity;
-    backface-visibility: hidden;
     -webkit-font-smoothing: antialiased;
-    filter: blur(6px);
     text-shadow:
         0 0 10px rgba(255, 255, 255, 0.9),
         0 0 22px var(--blob-1-color, #c9a0ff);
+}
+
+/* ── Enhanced LRC Word Highlight in Angelic Mode ───────────────────────── */
+.angelic-word-pop.has-enhanced-word {
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.20s ease, text-shadow 0.20s ease;
+}
+
+/* Unsung Enhanced Words: clear context without forcing reader eyes ahead */
+.angelic-word-pop.has-enhanced-word:not(.word-active):not(.word-past) {
+    opacity: 0.12 !important;
+    transform: translateY(12px) scale(0.90) rotate(-1deg) !important;
+    animation: none !important;
+}
+
+/* Active Sung Word: Pops up in sync with singer's voice + cover art accent halo */
+.angelic-word-pop.has-enhanced-word.word-active {
+    color: #ffffff !important;
+    opacity: 1.0 !important;
+    transform: translateY(0) scale(1.08) rotate(0deg) !important;
+    text-shadow: 0 0 14px #ffffff,
+                 0 0 28px var(--accent-color, #c9a0ff) !important;
+}
+
+/* Past Sung Words: Solid 100% bright white */
+.angelic-word-pop.has-enhanced-word.word-past {
+    color: #ffffff !important;
+    opacity: 1.0 !important;
+    transform: translateY(0) scale(1.0) rotate(0deg) !important;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.85) !important;
 }
 
 /* Clef symbol: bắt đầu ẩn, JS thêm class .enter để fade in mượt */
@@ -283,25 +308,22 @@ body.is-recording {
     transform: translateY(0) scale(1);
 }
 
-.angelic-enter-wrapper .angelic-word-pop {
+.angelic-enter-wrapper .angelic-word-pop:not(.has-enhanced-word) {
     animation: pop-word var(--pop-duration, 0.94s) cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes pop-word {
     0% {
         opacity: 0;
-        transform: translateY(24px) scale(0.85) rotate(-2.5deg) translateZ(0);
-        filter: blur(6px);
+        transform: translateY(24px) scale(0.85) rotate(-2.5deg);
     }
     60% {
         opacity: 0.95;
-        transform: translateY(-3px) scale(1.02) rotate(0.5deg) translateZ(0);
-        filter: blur(0.5px);
+        transform: translateY(-3px) scale(1.02) rotate(0.5deg);
     }
     100% {
         opacity: 1;
-        transform: translateY(0) scale(1) rotate(0) translateZ(0);
-        filter: blur(0);
+        transform: translateY(0) scale(1) rotate(0);
     }
 }
 

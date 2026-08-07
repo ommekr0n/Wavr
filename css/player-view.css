@@ -50,16 +50,22 @@
     display: flex; justify-content: space-between; align-items: center;
     padding: 0 36px;
     background: transparent; border: none; box-shadow: none;
-    z-index: 10;
-    -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
-    mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
-    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-                transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 100;
+    transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* Mouse Idle Auto-Hide — Entire Top Header Fades Simultaneously */
+body.user-idle .app-header,
 .app-header.header-hidden {
-    opacity: 0;
-    transform: translateY(-12px);
-    pointer-events: none;
+    opacity: 0 !important;
+    transform: translateY(-10px) !important;
+    pointer-events: none !important;
+}
+
+body.user-idle,
+body.user-idle * {
+    cursor: none !important;
 }
 
 .cursor-idle,
@@ -72,6 +78,40 @@
     text-transform: uppercase;
 }
 .header-left { display: flex; align-items: center; gap: 10px; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+
+/* Top Floating Utility Header Bar (Centered at Top) */
+.header-utilities-bar {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    padding: 4px 12px;
+    border-radius: 40px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    z-index: 15;
+}
+
+.header-utilities-bar .icon-btn {
+    width: 34px;
+    height: 34px;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.header-utilities-bar .icon-btn:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: #ffffff;
+    transform: scale(1.08);
+}
+
 .icon-btn {
     background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.08);
     color: var(--text-secondary); cursor: pointer;
@@ -185,11 +225,11 @@
 
 .am-controls-container {
     display: flex; flex-direction: column;
-    align-items: center; gap: 14px;
-    margin-bottom: 20px;
+    align-items: center; gap: 10px;
+    margin-bottom: 12px;
 }
 .am-controls-primary {
-    display: flex; justify-content: center; align-items: center; gap: 24px;
+    display: flex; justify-content: center; align-items: center; gap: 18px;
 }
 .am-controls-secondary {
     display: flex; justify-content: center; align-items: center; gap: 24px;
@@ -206,6 +246,8 @@
 .control-btn:active { transform: scale(0.90); }
 
 .am-skip-btn { width: 42px; height: 42px; color: rgba(255,255,255,0.85); }
+.am-aux-btn { width: 34px; height: 34px; opacity: 0.55; }
+.am-aux-btn:hover { opacity: 1.0; }
 
 .toggle-btn { opacity: 0.4; position: relative; width: 34px; height: 34px; }
 .toggle-btn:hover { opacity: 0.8; transform: scale(1.1); }
@@ -225,15 +267,16 @@
 .am-play-btn:active { transform: scale(0.95); }
 .hidden { display: none !important; }
 
+/* Frameless & Extended Volume Control Slider */
 .am-volume-container {
-    display: flex; align-items: center; gap: 8px;
-    max-width: 340px; margin: 0 auto;
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; max-width: 280px; margin: 12px auto 0 auto;
     justify-content: center;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 40px;
-    padding: 5px 12px;
-    height: 36px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    height: 28px;
 }
 .record-container {
     position: relative;
@@ -259,7 +302,7 @@
 }
 
 #volume-slider {
-    flex: 1; min-width: 64px; max-width: 88px;
+    flex: 1; min-width: 140px; max-width: 220px;
     -webkit-appearance: none; appearance: none;
     background: transparent;
     outline: none;
@@ -299,19 +342,21 @@
 .am-drift-container {
     display: flex;
     align-items: center;
-    gap: 8px;
-    max-width: 300px;
-    margin: 8px auto 0;
-    background: rgba(255, 255, 255, 0.05);
-    padding: 5px 14px;
-    border-radius: 40px;
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    height: 34px;
+    gap: 10px;
+    width: 100%;
+    max-width: 280px;
+    margin: 8px auto 0 auto;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    height: 28px;
     transition: opacity 0.3s, transform 0.3s;
 }
 .drift-label {
-    font-size: 0.68rem;
-    color: var(--text-muted);
+    font-size: 0.70rem;
+    color: rgba(255, 255, 255, 0.55);
     white-space: nowrap;
     font-weight: 500;
     letter-spacing: 0.4px;
@@ -320,46 +365,47 @@
 }
 #drift-slider {
     flex: 1;
-    min-width: 60px;
+    min-width: 120px;
+    max-width: 200px;
     -webkit-appearance: none; appearance: none;
     background: transparent;
     outline: none;
     cursor: pointer;
     height: 16px;
+    display: flex; align-items: center;
 }
 #drift-slider::-webkit-slider-runnable-track {
     height: 3px;
-    background: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.2);
     border-radius: 99px;
 }
 #drift-slider::-moz-range-track {
     height: 3px;
-    background: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.2);
     border-radius: 99px;
     border: none;
 }
 #drift-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 12px; height: 12px;
+    width: 10px; height: 10px;
     border-radius: 50%;
-    background: var(--accent-color);
+    background: #fff;
     cursor: pointer;
-    margin-top: -4.5px;
-    box-shadow: 0 0 8px var(--accent-glow);
+    margin-top: -3.5px;
+    box-shadow: 0 0 5px rgba(255, 255, 255, 0.65);
     transition: transform 0.15s;
 }
-#drift-slider::-webkit-slider-thumb:hover { transform: scale(1.25); }
+#drift-slider::-webkit-slider-thumb:hover { transform: scale(1.3); }
 #drift-slider::-moz-range-thumb {
-    width: 12px; height: 12px;
+    width: 10px; height: 10px;
     border-radius: 50%; border: none;
-    background: var(--accent-color);
-    cursor: pointer;
-    box-shadow: 0 0 8px var(--accent-glow);
+    background: #fff; cursor: pointer;
+    box-shadow: 0 0 5px rgba(255, 255, 255, 0.65);
 }
 #drift-val {
-    font-size: 0.68rem;
-    color: rgba(255, 255, 255, 0.55);
-    width: 38px;
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.75);
+    min-width: 42px;
     font-variant-numeric: tabular-nums;
     font-weight: 600;
     text-align: right;
@@ -402,7 +448,7 @@
 .am-lyric-line {
     position: relative;
     font-size: clamp(18px, 2.1vw, 32px);
-    line-height: 1.5;
+    line-height: 1.6;
     font-weight: 800;
     color: rgba(255, 255, 255, 0.28);
     opacity: 0.28;
@@ -421,8 +467,9 @@
     word-break: break-word;
     overflow-wrap: break-word;
     max-width: 100%;
-    white-space: pre-line;
+    white-space: normal;
     padding-right: 8px;
+    overflow: visible !important;
 }
 
 .am-lyric-line:hover {
@@ -436,16 +483,112 @@
     color: #ffffff;
     opacity: 1.0;
     filter: blur(0);
-    transform: scale(1.04);
-    text-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
-    letter-spacing: -0.3px;
 }
 
-.am-lyric-line.next-line {
-    color: rgba(255,255,255,0.55);
-    opacity: 0.55;
-    filter: blur(0.5px);
-    transform: scale(0.97);
+/* ── Apple Music / Spicy Lyrics World-Class Typography & Motion System ── */
+.am-lyrics-container {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+    padding: 3.5rem 2rem;
+    mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
 }
 
-.placeholder-line { font-style: normal; opacity: 0.35; filter: blur(0); font-size: 20px; font-weight: 400; letter-spacing: 0.3px; color: var(--text-muted); }
+.am-lyric-line {
+    font-size: clamp(1.4rem, 2.5vw, 2.4rem);
+    font-weight: 700;
+    line-height: 1.5;
+    margin-bottom: 1.8rem;
+    color: rgba(255, 255, 255, 0.28);
+    filter: blur(1.5px);
+    transform: scale(0.96);
+    transform-origin: left center;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                filter 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                color 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform, filter, color, opacity;
+}
+
+/* Active Line: Crisp 100% Focus, No Blur, Gentle Scale */
+.am-lyric-line.active {
+    color: rgba(255, 255, 255, 0.38);
+    filter: blur(0px);
+    transform: scale(1.03);
+    opacity: 1.0;
+}
+
+/* Standard LRC Active Line (Whole line highlights in soft glowing bright white) */
+.am-lyric-line.active:not(.has-enhanced) {
+    color: #ffffff !important;
+    text-shadow: 0 0 12px rgba(255, 255, 255, 0.65), 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* ── Enhanced LRC Word Highlight Engine (Clean, Zero Overflow Box Clipping) ── */
+.am-lyric-line .lyric-word {
+    display: inline-block;
+    color: rgba(255, 255, 255, 0.35);
+    margin-right: 0;
+    transition: color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                text-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: color, text-shadow;
+}
+
+/* Active Sung Word: Bright White 100% + Clean Cover Art Accent Halo */
+.am-lyric-line.active .lyric-word.word-active {
+    color: #ffffff !important;
+    text-shadow: 0 0 12px #ffffff,
+                 0 0 24px var(--accent-color, #00e5ff),
+                 0 1px 4px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Past Sung Words: Solid Bright White 100% + Soft Ambient Glow */
+.am-lyric-line.active .lyric-word.word-past {
+    color: #ffffff !important;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.65), 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Unsung Words in Active Line: Clean Readable Gray */
+.am-lyric-line.active .lyric-word:not(.word-active):not(.word-past) {
+    color: rgba(255, 255, 255, 0.35);
+    text-shadow: none;
+}
+
+/* ── Parenthesis Backing Vocal (...) Tight Sub-line Spacing ── */
+.am-lyric-line .lyric-main-row {
+    line-height: 1.25;
+    margin-bottom: 1px;
+}
+
+.am-lyric-line .lyric-parenthesis,
+.am-lyric-line .lyric-parenthesis-row {
+    display: block;
+    font-size: 0.7em;
+    font-weight: 500;
+    font-style: italic;
+    margin-top: 1px;
+    line-height: 1.25;
+    opacity: 0.65;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.am-lyric-line.active .lyric-parenthesis {
+    color: rgba(255, 255, 255, 0.85);
+    opacity: 0.85;
+}
+
+.am-lyric-line.active .lyric-parenthesis-row .lyric-word.word-active,
+.am-lyric-line.active .lyric-parenthesis-row .lyric-word.word-past {
+    color: rgba(255, 255, 255, 0.95) !important;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+}
+
+.am-lyric-line .lyric-parenthesis-word {
+    opacity: 0.5;
+    font-style: italic;
+}
+
+.am-lyric-line.active .lyric-parenthesis-word.word-active,
+.am-lyric-line.active .lyric-parenthesis-word.word-past {
+    color: rgba(255, 255, 255, 0.85) !important;
+    opacity: 0.85;
+}

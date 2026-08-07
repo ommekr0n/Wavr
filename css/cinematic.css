@@ -218,6 +218,27 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 .cinematic-active .am-controls-section { pointer-events: auto; }
 .am-player-left, .am-lyrics-section { transition: opacity 0.5s ease; }
 
+/* ── Enhanced LRC Word Highlight in Cinematic Mode ─────────────────────── */
+.cine-word.has-enhanced-word {
+    display: inline-block;
+    transition: color 0.15s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), text-shadow 0.15s ease;
+}
+
+.cine-word.has-enhanced-word.word-active {
+    color: #ffffff !important;
+    opacity: 1.0 !important;
+    transform: scale(1.06) translateZ(10px);
+    text-shadow: 0 0 12px #ffffff,
+                 0 0 24px var(--accent-color, #00e5ff) !important;
+}
+
+.cine-word.has-enhanced-word.word-past {
+    color: #ffffff !important;
+    opacity: 1.0 !important;
+    transform: scale(1.0) translateZ(0);
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.75) !important;
+}
+
 @media (max-height: 800px) {
     .am-album-art-container { margin-bottom: 25px; }
     .am-song-meta { margin-bottom: 20px; }
