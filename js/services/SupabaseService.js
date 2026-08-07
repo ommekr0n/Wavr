@@ -5,9 +5,9 @@
  */
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
-const R2_PUBLIC_DOMAIN = (import.meta.env.VITE_R2_PUBLIC_DOMAIN || '').replace(/\/$/, '');
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://stbzeroodquuevmrwfyi.supabase.co';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_DTIzsD_0Qwotf4MZWsHs4w_N6uj-UQh';
+const R2_PUBLIC_DOMAIN = (import.meta.env.VITE_R2_PUBLIC_DOMAIN || 'https://pub-ad9d2da16833484899017a239642b570.r2.dev').replace(/\/$/, '');
 
 export const isSupabaseConfigured = Boolean(
     SUPABASE_URL && 
