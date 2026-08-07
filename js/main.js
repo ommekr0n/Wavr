@@ -262,15 +262,24 @@ function loadTrack(index) {
     document.getElementById('angelic-bg').style.backgroundImage = `url("${track.cover}")`;
 
     const applyColors = (uiColors, spotlightColors) => {
-        document.documentElement.style.setProperty('--blob-1-color', `rgb(${uiColors[0].r}, ${uiColors[0].g}, ${uiColors[0].b})`);
-        document.documentElement.style.setProperty('--blob-2-color', `rgb(${uiColors[1].r}, ${uiColors[1].g}, ${uiColors[1].b})`);
-        document.documentElement.style.setProperty('--blob-3-color', `rgb(${uiColors[2].r}, ${uiColors[2].g}, ${uiColors[2].b})`);
-        document.documentElement.style.setProperty('--blob-4-color', `rgb(${uiColors[3].r}, ${uiColors[3].g}, ${uiColors[3].b})`);
+        const safeUI = uiColors && uiColors.length >= 4 ? uiColors : [
+            { r: 0, g: 229, b: 255 }, { r: 120, g: 80, b: 255 },
+            { r: 255, g: 0, b: 128 }, { r: 0, g: 255, b: 180 }
+        ];
+        const safeSpotlight = spotlightColors && spotlightColors.length >= 4 ? spotlightColors : [
+            { r: 0, g: 180, b: 255 }, { r: 150, g: 50, b: 255 },
+            { r: 255, g: 50, b: 150 }, { r: 50, g: 255, b: 200 }
+        ];
+
+        document.documentElement.style.setProperty('--blob-1-color', `rgb(${safeUI[0].r}, ${safeUI[0].g}, ${safeUI[0].b})`);
+        document.documentElement.style.setProperty('--blob-2-color', `rgb(${safeUI[1].r}, ${safeUI[1].g}, ${safeUI[1].b})`);
+        document.documentElement.style.setProperty('--blob-3-color', `rgb(${safeUI[2].r}, ${safeUI[2].g}, ${safeUI[2].b})`);
+        document.documentElement.style.setProperty('--blob-4-color', `rgb(${safeUI[3].r}, ${safeUI[3].g}, ${safeUI[3].b})`);
         document.documentElement.style.setProperty('--blob-1-size', `${Math.floor(Math.random() * 20 + 30)}vw`);
         document.documentElement.style.setProperty('--blob-2-size', `${Math.floor(Math.random() * 20 + 30)}vw`);
         document.documentElement.style.setProperty('--blob-3-size', `${Math.floor(Math.random() * 20 + 30)}vw`);
         document.documentElement.style.setProperty('--blob-4-size', `${Math.floor(Math.random() * 20 + 30)}vw`);
-        CinematicRenderer.updateConcertColors(spotlightColors.map(c => [c.r, c.g, c.b]));
+        CinematicRenderer.updateConcertColors(safeSpotlight.map(c => [c.r, c.g, c.b]));
     };
     
     // Safely extract colors via offscreen image without tainting or blocking DOM coverArt element

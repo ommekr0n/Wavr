@@ -66,14 +66,20 @@ export function extractColorsFromImage(imgEl, updateCSSVariables) {
         updateCSSVariables(uiColors, spotlightColors);
         return spotlightColors;
     } catch (e) {
-        // Fallback default vibrant theme colors if cross-origin image canvas is tainted
-        const defaultColors = [
+        // Fallback 8 default vibrant theme colors if cross-origin image canvas is tainted
+        const defaultUIColors = [
             { r: 0, g: 229, b: 255 },
             { r: 120, g: 80, b: 255 },
             { r: 255, g: 0, b: 128 },
             { r: 0, g: 255, b: 180 }
         ];
-        updateCSSVariables(defaultColors.slice(0, 2), defaultColors.slice(2, 4));
-        return defaultColors;
+        const defaultSpotlightColors = [
+            { r: 0, g: 180, b: 255 },
+            { r: 150, g: 50, b: 255 },
+            { r: 255, g: 50, b: 150 },
+            { r: 50, g: 255, b: 200 }
+        ];
+        if (updateCSSVariables) updateCSSVariables(defaultUIColors, defaultSpotlightColors);
+        return defaultSpotlightColors;
     }
 }
