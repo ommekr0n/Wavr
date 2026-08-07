@@ -65,6 +65,14 @@
                     <h1>Library</h1>
                 </div>
                 <div class="home-header-actions" style="display: flex; gap: 12px; align-items: center;">
+                    <!-- Cloud Vault Sign In / Account Button -->
+                    <button id="btn-cloud-vault-home" class="add-btn vault-header-btn" title="Sign In / Register Cloud Vault" style="border-radius: 40px; padding: 0 16px; gap: 8px; height: 40px; display: inline-flex; align-items: center; font-weight: 600; font-size: 0.88rem; background: rgba(0, 229, 255, 0.15); border: 1px solid rgba(0, 229, 255, 0.4); color: var(--accent-color, #00e5ff);">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                        <span class="vault-btn-text">Sign In / Register</span>
+                    </button>
                     <!-- Settings Button -->
                     <button id="btn-settings" class="add-btn" title="Grid Settings" style="border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -405,11 +413,10 @@
             </div>
 
             <div class="header-right">
-                <button id="btn-auth-vault" class="icon-btn idle-hideable" title="Personal Cloud Vault (Supabase)">
+                <button id="btn-auth-vault" class="icon-btn idle-hideable" title="Sign In / Register to Personal Cloud Vault">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                        <polyline points="7 3 7 8 15 8"></polyline>
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
                     </svg>
                 </button>
                 <button id="fullscreen-btn" class="icon-btn idle-hideable" title="Fullscreen">
