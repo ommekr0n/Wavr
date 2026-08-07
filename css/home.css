@@ -43,6 +43,14 @@
     transition: all 0.2s;
 }
 .add-btn:hover { background: var(--accent-color); border-color: transparent; color: #fff; transform: scale(1.08); box-shadow: 0 4px 16px var(--accent-glow); }
+.vault-header-btn {
+    width: auto !important;
+    border-radius: 40px !important;
+    padding: 0 16px !important;
+    gap: 8px !important;
+    white-space: nowrap !important;
+    min-width: max-content !important;
+}
 
 .song-grid {
     position: absolute;

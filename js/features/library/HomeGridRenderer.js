@@ -23,14 +23,8 @@ export async function renderSongGrid({ homeSongGrid, setupBoxExpansionListeners 
     homeSongGrid.innerHTML = '';
     const playlist = PlayerController.getPlaylist();
 
-    if (cachedVinylBoxes.length === 0 && cachedLibraryOrder.length === 0) {
-        try {
-            cachedVinylBoxes = await window.localforage.getItem('vinyl_boxes') || [];
-            cachedLibraryOrder = await window.localforage.getItem('library_order') || [];
-        } catch (e) {
-            console.error("Error loading vinyl boxes or order", e);
-        }
-    }
+    if (!cachedVinylBoxes) cachedVinylBoxes = [];
+    if (!cachedLibraryOrder) cachedLibraryOrder = [];
     const vinylBoxes = cachedVinylBoxes;
     const libraryOrder = cachedLibraryOrder;
 

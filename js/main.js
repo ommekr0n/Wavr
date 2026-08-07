@@ -22,6 +22,7 @@ import { PlayerController } from './features/player/PlayerController.js';
 import { LyricEngine } from './features/lyrics/LyricEngine.js';
 import { VisualizerController } from './features/visualizer/VisualizerController.js';
 import { LibraryModals } from './features/library/LibraryModals.js';
+import { SupabaseService } from './services/SupabaseService.js';
 
 // Modular Refactored Sub-systems
 import { initWaveform, loadAndDecodeWaveform, drawMiniWaveform, clearWaveformCache } from './features/player/WaveformEngine.js';
