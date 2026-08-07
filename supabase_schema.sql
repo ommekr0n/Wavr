@@ -1,5 +1,5 @@
 -- ============================================================================
--- WAVR SUPABASE DATABASE SCHEMA & SECURITY POLICIES (IDEMPOTENT / RE-RUNNABLE)
+-- WAVR SUPABASE DATABASE SCHEMA & SECURITY POLICIES (IDEMPOTENT & LINTER CLEAN)
 -- Paste this script into your Supabase SQL Editor (SQL Editor -> New Query -> Run)
 -- ============================================================================
 
@@ -53,19 +53,30 @@ CREATE POLICY "Users can delete own tracks"
     ON public.tracks FOR DELETE
     USING (auth.uid() = user_id);
 
--- 3. Storage Quota Helper Function (Calculates Total Storage Used by User)
-CREATE OR REPLACE FUNCTION get_user_storage_bytes(p_user_id UUID)
-RETURNS BIGINT AS $$
+-- 3. Storage Quota Helper Function (Cleaned for Supabase Database Linter 0011, 0028, 0029)
+DROP FUNCTION IF EXISTS public.get_user_storage_bytes(UUID);
+DROP FUNCTION IF EXISTS public.get_user_storage_bytes();
+
+CREATE OR REPLACE FUNCTION public.get_user_storage_bytes()
+RETURNS BIGINT
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
 DECLARE
     v_total BIGINT;
 BEGIN
     SELECT COALESCE(SUM(file_size), 0) INTO v_total
     FROM public.tracks
-    WHERE user_id = p_user_id;
+    WHERE user_id = auth.uid();
     
     RETURN v_total;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
+
+-- Revoke execution from anonymous public role for security
+REVOKE EXECUTE ON FUNCTION public.get_user_storage_bytes() FROM anon;
+GRANT EXECUTE ON FUNCTION public.get_user_storage_bytes() TO authenticated;
 
 -- 4. Create Playlists Table
 CREATE TABLE IF NOT EXISTS public.playlists (

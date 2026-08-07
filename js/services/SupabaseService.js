@@ -89,7 +89,7 @@ export const SupabaseService = {
         if (!user) return 0;
 
         const { data, error } = await supabase
-            .rpc('get_user_storage_bytes', { p_user_id: user.id });
+            .rpc('get_user_storage_bytes');
 
         if (error) {
             // Fallback calculation if RPC function not created yet
