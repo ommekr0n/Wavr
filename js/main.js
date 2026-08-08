@@ -287,10 +287,11 @@ function loadTrack(index) {
     if (track.cover) {
         const offscreenImg = new Image();
         let coverUrl = track.cover;
-        if (coverUrl.includes('.r2.dev')) {
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (coverUrl.includes('.r2.dev') && isLocalhost) {
             coverUrl = coverUrl.replace(/https:\/\/[^/]+\.r2\.dev/, '/r2-proxy');
             offscreenImg.crossOrigin = 'anonymous';
-        } else if (coverUrl.startsWith('data:') || coverUrl.startsWith('blob:') || coverUrl.startsWith('/')) {
+        } else if (coverUrl.startsWith('data:') || coverUrl.startsWith('blob:') || coverUrl.startsWith('/') || coverUrl.includes('.r2.dev')) {
             offscreenImg.crossOrigin = 'anonymous';
         }
         offscreenImg.onload = () => extractColorsFromImage(offscreenImg, applyColors);
