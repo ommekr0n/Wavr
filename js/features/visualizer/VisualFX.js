@@ -69,25 +69,27 @@ export function updateParallax() {}
 
 // ── 5. Beat Zoom Pulse (Cinematic) ────────────────────────────────────────────
 /**
- * Gọi khi có subBassOnset trong Cinematic Mode.
- * Không dùng CSS animation để tránh reflow — dùng CSS custom property + transition.
+ * Called on subBassOnset in Cinematic Mode.
+ * Uses smooth CSS scale transition for an organic, liquid-smooth beat pulse.
  * @param {HTMLElement} cinematicTextContainer
  * @param {number} intensity
  */
 export function triggerBeatZoom(cinematicTextContainer, intensity) {
     if (!cinematicTextContainer || _zoomCooldown > 0) return;
 
-    // Scale nhẹ nhàng 1.015 → 1.035 (thay vì 1.085 quá giật phô)
-    const zoomAmt = (1.015 + intensity * 0.02).toFixed(4);
+    // Elegant 1.2% - 2.5% pulse instead of aggressive 8.5% jump
+    const zoomAmt = (1.012 + intensity * 0.015).toFixed(4);
     cinematicTextContainer.style.setProperty('--cine-zoom', zoomAmt);
 
-    // Cooldown 18 frame (~300ms) để giữ nhịp beat đập gián đoạn chuẩn xác
-    _zoomCooldown = 18;
+    // Cooldown 12 frames for fluid rhythm tracking
+    _zoomCooldown = 12;
 
-    // Smooth decay về 1.0 sau 140ms
+    // Fluid decay back to 1.0 over 220ms
     setTimeout(() => {
-        cinematicTextContainer.style.setProperty('--cine-zoom', '1.0');
-    }, 140);
+        if (cinematicTextContainer) {
+            cinematicTextContainer.style.setProperty('--cine-zoom', '1.0');
+        }
+    }, 220);
 }
 
 export function tickZoomCooldown() {
