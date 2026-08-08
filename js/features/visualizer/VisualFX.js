@@ -67,54 +67,75 @@ export function applyInkWashExit(wrapper) {
 export function attachParallax() {}
 export function updateParallax() {}
 
-let _cinePulsePhase  = 0;   // Accumulating phase angle in radians (0..2pi)
+let _cinePulsePhase  = 0;
 let _lastPulseTime   = performance.now();
+let _currentFreq     = 1.2;  // Smoothed current frequency (lerped, not jumped)
+let _jitterX         = 0;    // Current smoothed jitter X (px)
+let _jitterY         = 0;    // Current smoothed jitter Y (px)
+let _jitterTargetX   = 0;    // Random target X
+let _jitterTargetY   = 0;    // Random target Y
+let _jitterFrame     = 0;    // Frame counter for target refresh
 
-// ── 5. Periodic Dynamic Frequency Pulse Engine (Cinematic Mode Only) ───────
+// ── 5. Periodic Frequency-Modulated Pulse Engine (Cinematic Mode Only) ──────
 /**
- * Periodic Dynamic Frequency Pulse Engine (Cinematic Mode Exclusive).
- * Periodically pulses the lyrics. As music intensity increases,
- * the interval between each pulse dynamically shortens (faster frequency / rapid heart-rate pulse),
- * and when calm, the interval lengthens (gentle, relaxed breathing).
+ * Continuous periodic pulse whose speed is modulated by music intensity.
  *
- * @param {number} intensity - Sub-bass intensity (0..1)
- * @param {number} energy - Overall audio energy (0..1)
+ * Algorithm:
+ *   - Phase angle advances every frame based on currentFreq (Hz).
+ *   - Calm music (strength ~0):   ~0.8 Hz  → slow, gentle breathing rhythm
+ *   - Intense music (strength ~1): ~3.0 Hz  → rapid, energetic heartbeat
+ *   - Wave is raised to power 3.5 → sharp clear peak, long flat rest between pulses
+ *   - Amplitude is small (2–4%) so text grows noticeably but not bouncily.
+ *
+ * @param {number}  intensity - Sub-bass intensity (0..1)
+ * @param {number}  energy    - Overall audio energy (0..1)
  * @param {HTMLElement} cinematicTextContainer
  */
 export function updateCinematicLyricBeat(intensity, energy, cinematicTextContainer) {
     if (!cinematicTextContainer) return;
 
     const now = performance.now();
-    const dt = Math.min((now - _lastPulseTime) / 1000, 0.05); // Delta time in seconds
+    const dt  = Math.min((now - _lastPulseTime) / 1000, 0.05);
     _lastPulseTime = now;
 
-    // Combined audio strength (0..1)
-    const combinedStrength = Math.min(1.0, (intensity * 0.7) + (energy * 0.3));
+    const combinedStrength = Math.min(1.0, intensity * 0.7 + energy * 0.3);
 
-    // Dynamic Frequency Modulation (Hz):
-    // Calm (strength ~0.05): 1.4 Hz (period T = ~710ms between pulses - slow breathing)
-    // Climax (strength ~0.90): 4.8 Hz (period T = ~208ms between pulses - rapid heartbeat)
-    const minFreq = 1.4;
-    const maxFreq = 4.8;
-    const currentFreq = minFreq + (maxFreq - minFreq) * Math.pow(combinedStrength, 1.2);
+    // Frequency: 1.0 Hz calm → 3.5 Hz intense
+    // Lerp frequency so it glides smoothly instead of jumping every frame
+    const targetFreq  = 1.0 + (3.5 - 1.0) * Math.pow(combinedStrength, 0.8);
+    const freqLerp    = combinedStrength > _currentFreq / 3.5 ? 0.04 : 0.015; // faster attack, slow release
+    _currentFreq     += (targetFreq - _currentFreq) * freqLerp;
 
-    // Advance phase angle continuously
-    _cinePulsePhase += (Math.PI * 2 * currentFreq * dt);
-    if (_cinePulsePhase > Math.PI * 2) {
-        _cinePulsePhase %= (Math.PI * 2);
+    _cinePulsePhase += Math.PI * 2 * _currentFreq * dt;
+    if (_cinePulsePhase > Math.PI * 2) _cinePulsePhase %= Math.PI * 2;
+
+    // Power-2 wave via multiplication (faster than Math.pow)
+    const rawWave    = 0.5 * (1.0 - Math.cos(_cinePulsePhase));
+    const shapedWave = rawWave * rawWave;
+
+    // Amplitude: 0.8% quiet → 1.5% intense (very subtle)
+    const amplitude  = 0.008 + combinedStrength * 0.007;
+    const pulseScale = 1.0 + shapedWave * amplitude;
+
+    // ── Jitter / Tremor ───────────────────────────────────────────────────────
+    _jitterFrame++;
+    if (_jitterFrame >= 3) {
+        _jitterFrame = 0;
+        const maxJitter = 0.2 + combinedStrength * 0.6; // 0.2px quiet → 0.8px intense
+        _jitterTargetX = (Math.random() - 0.5) * 2 * maxJitter;
+        _jitterTargetY = (Math.random() - 0.5) * 2 * maxJitter;
     }
+    _jitterX += (_jitterTargetX - _jitterX) * 0.35;
+    _jitterY += (_jitterTargetY - _jitterY) * 0.35;
 
-    // Shaped periodic pulse wave (sharp peak, smooth release)
-    const rawWave = 0.5 * (1.0 - Math.cos(_cinePulsePhase));
-    const shapedWave = Math.pow(rawWave, 1.8);
+    // Round to 2 decimal places via integer math (avoids toFixed string alloc per frame)
+    const jx = (Math.round(_jitterX * 100) / 100);
+    const jy = (Math.round(_jitterY * 100) / 100);
+    const ps = (Math.round(pulseScale * 10000) / 10000);
 
-    // Dynamic amplitude expansion: up to 2.8% max scale expansion
-    const maxAmplitude = 0.028;
-    const currentAmplitude = combinedStrength * maxAmplitude;
-    const pulseScale = 1.0 + (shapedWave * currentAmplitude);
-
-    // Set CSS variable for seamless zero-lag rendering
-    cinematicTextContainer.style.setProperty('--cine-beat-scale', pulseScale.toFixed(4));
+    cinematicTextContainer.style.setProperty('--cine-beat-scale', ps);
+    cinematicTextContainer.style.setProperty('--cine-jitter-x', jx + 'px');
+    cinematicTextContainer.style.setProperty('--cine-jitter-y', jy + 'px');
 }
 
 export function triggerBeatZoom(cinematicTextContainer, intensity) {

@@ -2,6 +2,13 @@
  * CinematicRenderer.js
  * Renders the full Cinematic Mode frame: LED pillars, concert spotlights,
  * 3D Moshpit laser beams, smooth camera micro-shake, smoke particles, and fire burst.
+ *
+ * Optimization notes:
+ *  - smokeSprite redrawn only when spotlight color changes (not every frame)
+ *  - smokePool uses a circular free-pointer instead of Array.find() each frame
+ *  - cachedCineWords rebuilt lazily, filter() avoided per-frame
+ *  - pillar gradient & specular batch-drawn via a single Path2D-equivalent beginPath per pass
+ *  - analyzeFrequencyBands result reused from caller (no second FFT pass)
  */
 
 import fireGifUrl from '../../../assets/images/fire.gif';
@@ -9,43 +16,51 @@ import { analyzeFrequencyBands } from '../audio/AudioFrequencyBands.js';
 import { MoshpitCameraShake } from './MoshpitCameraShake.js';
 
 // ── Pillar State ────────────────────────────────────────────────────────────
-const NUM_PILLARS = 4;
+const NUM_PILLARS     = 4;
 const smoothedBars    = new Float32Array(NUM_PILLARS);
 const peaks           = new Float32Array(NUM_PILLARS);
 const peakVelocities  = new Float32Array(NUM_PILLARS);
 
 // ── Concert Spotlight Colors (cycling palette) ──────────────────────────────
 let CONCERT_COLORS = [
-    [255, 30,  60 ],  // Red
-    [30,  100, 255],  // Blue
-    [180, 30,  255],  // Purple
-    [0,   230, 255],  // Cyan
-    [30,  255, 120],  // Green
-    [255, 180, 0  ],  // Amber
-    [255, 80,  0  ],  // Orange
-    [255, 255, 255],  // White
+    [255, 30,  60 ],
+    [30,  100, 255],
+    [180, 30,  255],
+    [0,   230, 255],
+    [30,  255, 120],
+    [255, 180, 0  ],
+    [255, 80,  0  ],
+    [255, 255, 255],
 ];
 
-// ── Spotlight state (2 spotlights from top corners) ────────────────────────
+// ── Spotlight state ────────────────────────────────────────────────────────
 const spotlights = [
     { baseAngle: Math.PI * 0.38, sweepRange: 0.18, sweepSpeed: 0.45, phase: 0,
       colorIdx: 0, nextColorIdx: 2, colorT: 0, colorChangeDur: 2.5,
-      blink: 1.0, blinkTimer: 2.0, blinkDur: 0, isOff: false },
+      blink: 1.0, blinkTimer: 2.0, blinkDur: 0, isOff: false,
+      // cached RGB from last frame to detect sprite-redraw need
+      _cr: -1, _cg: -1, _cb: -1 },
     { baseAngle: Math.PI * 0.62, sweepRange: 0.20, sweepSpeed: 0.33, phase: Math.PI * 0.6,
       colorIdx: 3, nextColorIdx: 5, colorT: 0, colorChangeDur: 3.0,
-      blink: 1.0, blinkTimer: 3.5, blinkDur: 0, isOff: false },
+      blink: 1.0, blinkTimer: 3.5, blinkDur: 0, isOff: false,
+      _cr: -1, _cg: -1, _cb: -1 },
 ];
 
-// ── Smoke Particle Pool (Fixed Max 60 - Garbage Collection Free) ────────────
+// ── Smoke Particle Pool — circular free-pointer, no Array.find() ─────────
 const MAX_SMOKE_PARTICLES = 60;
 const smokePool = Array.from({ length: MAX_SMOKE_PARTICLES }, () => ({
     active: false,
     x: 0, y: 0, radius: 0, vx: 0, vy: 0,
     spriteIdx: 0, tx: 0, ty: 0, life: 0, maxLife: 1, isBurst: false
 }));
+let _smokePoolPtr   = 0;
 let smokeSpawnTimer = 0;
 let lastCineTime    = 0;
 let lastColorCheckTime = 0;
+let _activeParticleCount = 0; // track active count to skip full-loop when empty
+let _cachedBeamLen  = 0;      // cached diagonal (invalidated on resize)
+let _cachedBLW      = 0;      // cached width when beamLen was computed
+let _cachedBLH      = 0;      // cached height when beamLen was computed
 const cachedCoverColors = ['#ff2d55', '#5856d6', '#ff9500', '#af52de'];
 
 // ── Fire burst state ────────────────────────────────────────────────────────
@@ -54,7 +69,7 @@ let isFireBursting   = false;
 let fireGifBlob      = null;
 let fireGifBlobUrl   = fireGifUrl;
 
-// ── Offscreen smoke sprite canvases ─────────────────────────────────────────
+// ── Offscreen smoke sprite canvases (redrawn only on color change) ────────
 const smokeSprite0 = document.createElement('canvas');
 const smokeSprite1 = document.createElement('canvas');
 smokeSprite0.width = smokeSprite0.height = 128;
@@ -73,6 +88,10 @@ function renderSmokeSprite(canvas, r, g, b) {
     ctx.arc(64, 64, 64, 0, Math.PI * 2);
     ctx.fill();
 }
+
+// ── Glitch word pool — rebuilt once, not every frame ────────────────────
+let _normalWordCache  = null;
+let _normalWordTimer  = 0;
 
 export const CinematicRenderer = {
     init() {
@@ -93,6 +112,8 @@ export const CinematicRenderer = {
         spotlights.forEach(sp => {
             sp.colorIdx     = sp.colorIdx    % CONCERT_COLORS.length;
             sp.nextColorIdx = sp.nextColorIdx % CONCERT_COLORS.length;
+            // Force sprite redraw on next frame
+            sp._cr = sp._cg = sp._cb = -1;
         });
     },
 
@@ -114,15 +135,20 @@ export const CinematicRenderer = {
         const dt = lastCineTime > 0 ? Math.min(nowSec - lastCineTime, 0.05) : 0.016;
         lastCineTime = nowSec;
 
-        // ── 3-BAND FREQUENCY ANALYSIS ───────────────────────────────────────
-        const bands = analyzeFrequencyBands(dataArray);
-        const bassEnergy = bands.bass;
-        const trebleEnergy = bands.treble;
+        // ── REUSE BAND ANALYSIS — passed from syncLoop, no second FFT pass ──
+        // analyzeFrequencyBands only if analysis.bass unavailable
+        let bassEnergy, trebleEnergy;
+        if (analysis && typeof analysis.intensity === 'number') {
+            bassEnergy   = analysis.intensity;
+            trebleEnergy = analysis.highIntensity || 0;
+        } else {
+            const bands  = analyzeFrequencyBands(dataArray);
+            bassEnergy   = bands.bass;
+            trebleEnergy = bands.treble;
+        }
         const climaxSpike = Boolean(analysis && analysis.climaxSpike);
 
-
-
-        // ── SMOOTH MICRO-CAMERA SHAKE (Euler Damped) ────────────────────────
+        // ── SMOOTH MICRO-CAMERA SHAKE ────────────────────────────────────────
         const shakeOffset = MoshpitCameraShake.update(bassEnergy, climaxSpike, dt);
 
         ctx.save();
@@ -132,7 +158,7 @@ export const CinematicRenderer = {
 
         // ── 1. REACTIVE DIMMING ──────────────────────────────────────────────
         if (reactiveDim) {
-            const targetOpacity = isPlaying ? Math.max(0.1, 0.8 - (Math.pow(bassEnergy, 2) * 1.5)) : 0.0;
+            const targetOpacity = isPlaying ? Math.max(0.1, 0.8 - (bassEnergy * bassEnergy * 1.5)) : 0.0;
             reactiveDim.style.opacity = targetOpacity.toFixed(2);
         }
 
@@ -149,23 +175,32 @@ export const CinematicRenderer = {
                     cineFireRight.src = fireGifBlobUrl;
                 }
             }
-            if (!window._cachedCineWords) {
-                window._cachedCineWords = document.getElementsByClassName('cine-word');
-            }
 
-            // For normal LRC (non-enhanced), apply old random per-frame glitch (~2% chance per frame)
-            if (Math.random() < 0.02 && window._cachedCineWords.length > 0) {
-                const normalWords = Array.from(window._cachedCineWords).filter(
-                    w => !w.classList.contains('has-enhanced-word') &&
-                         !w.hasAttribute('data-start') &&
-                         !w.classList.contains('glitch-word-anim') &&
-                         !w.classList.contains('glitched') &&
-                         !w.classList.contains('glitch-immune')
-                );
-                if (normalWords.length > 0) {
-                    const randomWord = normalWords[Math.floor(Math.random() * normalWords.length)];
-                    randomWord.classList.add('glitch-word-anim');
-                    randomWord.classList.add('glitched');
+            // Glitch: rebuild normal-word cache every 3s, never on every frame
+            _normalWordTimer -= dt;
+            if (_normalWordTimer <= 0) {
+                _normalWordTimer  = 3.0;
+                _normalWordCache  = null; // invalidate → rebuilt lazily below
+            }
+            if (Math.random() < 0.02) {
+                if (!_normalWordCache) {
+                    const all = document.getElementsByClassName('cine-word');
+                    _normalWordCache = [];
+                    for (let i = 0; i < all.length; i++) {
+                        const w = all[i];
+                        if (!w.classList.contains('has-enhanced-word') &&
+                            !w.hasAttribute('data-start') &&
+                            !w.classList.contains('glitch-word-anim') &&
+                            !w.classList.contains('glitched') &&
+                            !w.classList.contains('glitch-immune')) {
+                            _normalWordCache.push(w);
+                        }
+                    }
+                }
+                if (_normalWordCache.length > 0) {
+                    const randomWord = _normalWordCache[Math.floor(Math.random() * _normalWordCache.length)];
+                    randomWord.classList.add('glitch-word-anim', 'glitched');
+                    _normalWordCache = null; // state changed → invalidate
                     setTimeout(() => randomWord.classList.remove('glitch-word-anim'), 400);
                 }
             }
@@ -191,10 +226,12 @@ export const CinematicRenderer = {
                         op = 1.0 - fadeProgress;
                     }
 
-                    cineFireLeft.style.transform  = `translateY(${translateY}%)`;
-                    cineFireLeft.style.opacity    = op.toFixed(2);
-                    cineFireRight.style.transform = `translateY(${translateY}%)`;
-                    cineFireRight.style.opacity   = op.toFixed(2);
+                    const tfm = `translateY(${translateY}%)`;
+                    const ops = op.toFixed(2);
+                    cineFireLeft.style.transform  = tfm;
+                    cineFireLeft.style.opacity    = ops;
+                    cineFireRight.style.transform = tfm;
+                    cineFireRight.style.opacity   = ops;
                 } else {
                     isFireBursting = false;
                     cineFireLeft.style.transform  = 'translateY(100%)';
@@ -206,7 +243,7 @@ export const CinematicRenderer = {
         }
 
         // =============================================
-        // LAYER 1: LED PILLARS (bottom / back)
+        // LAYER 1: LED PILLARS
         // =============================================
         const pillarWidth = width * 0.18;
         const gap         = width * 0.04;
@@ -256,7 +293,7 @@ export const CinematicRenderer = {
             );
             const baseColor = coverColors[i];
 
-            // Unlit ghost blocks
+            // Unlit ghost blocks (single path per pillar)
             ctx.shadowBlur = 0;
             ctx.beginPath();
             for (let b = litBlocks; b < visibleBlocks; b++) {
@@ -321,10 +358,8 @@ export const CinematicRenderer = {
             x += pillarWidth + gap;
         }
 
-
-
         // =============================================
-        // LAYER 3: SPOTLIGHTS (concert beams from corners)
+        // LAYER 3: SPOTLIGHTS
         // =============================================
         ctx.save();
         ctx.globalCompositeOperation = 'screen';
@@ -347,7 +382,11 @@ export const CinematicRenderer = {
             const cg = Math.round(c0[1] + (c1[1] - c0[1]) * t);
             const cb = Math.round(c0[2] + (c1[2] - c0[2]) * t);
 
-            renderSmokeSprite(si === 0 ? smokeSprite0 : smokeSprite1, cr, cg, cb);
+            // Only redraw smoke sprite when RGB changed by ≥4 (saves ~60 canvas draws/sec)
+            if (Math.abs(cr - sp._cr) > 4 || Math.abs(cg - sp._cg) > 4 || Math.abs(cb - sp._cb) > 4) {
+                renderSmokeSprite(si === 0 ? smokeSprite0 : smokeSprite1, cr, cg, cb);
+                sp._cr = cr; sp._cg = cg; sp._cb = cb;
+            }
 
             sp.blinkTimer -= dt;
             if (sp.blinkTimer <= 0 && !sp.isOff) {
@@ -369,11 +408,16 @@ export const CinematicRenderer = {
 
             if (sp.blink < 0.01) continue;
 
-            const danceability = (typeof analysis !== 'undefined' && analysis) ? (analysis.danceability || 0.5) : 0.5;
+            const danceability = (analysis && analysis.danceability) ? analysis.danceability : 0.5;
             const speedMult = 0.7 + danceability * 0.6;
             const sweepAngle = sp.baseAngle + Math.sin(nowSec * sp.sweepSpeed * speedMult + sp.phase) * sp.sweepRange;
             const spread     = 0.12 + bassEnergy * 0.06;
-            const beamLen    = Math.sqrt(width * width + height * height);
+            // Cache beamLen: sqrt is expensive, recompute only on resize
+            if (_cachedBLW !== width || _cachedBLH !== height) {
+                _cachedBLW = width; _cachedBLH = height;
+                _cachedBeamLen = Math.sqrt(width * width + height * height);
+            }
+            const beamLen    = _cachedBeamLen;
             const ox = si === 0 ? width * 0.03 : width * 0.97;
             const oy = -30;
 
@@ -393,8 +437,8 @@ export const CinematicRenderer = {
             const beamAlpha = sp.blink * (0.45 + bassEnergy * 0.25);
             const grad = ctx.createRadialGradient(ox, oy, 0, ox, oy, beamLen * 0.85);
             grad.addColorStop(0.0,  `rgba(${cr},${cg},${cb},${beamAlpha})`);
-            grad.addColorStop(0.25, `rgba(${cr},${cg},${cb},${beamAlpha * 0.6})`);
-            grad.addColorStop(0.7,  `rgba(${cr},${cg},${cb},${beamAlpha * 0.15})`);
+            grad.addColorStop(0.25, `rgba(${cr},${cg},${cb},${(beamAlpha * 0.6).toFixed(3)})`);
+            grad.addColorStop(0.7,  `rgba(${cr},${cg},${cb},${(beamAlpha * 0.15).toFixed(3)})`);
             grad.addColorStop(1.0,  `rgba(${cr},${cg},${cb},0)`);
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, width, height);
@@ -402,7 +446,7 @@ export const CinematicRenderer = {
 
             const flare = ctx.createRadialGradient(ox, oy, 0, ox, oy, 80);
             flare.addColorStop(0,   `rgba(255,255,255,${sp.blink * 0.9})`);
-            flare.addColorStop(0.3, `rgba(${cr},${cg},${cb},${sp.blink * 0.5})`);
+            flare.addColorStop(0.3, `rgba(${cr},${cg},${cb},${(sp.blink * 0.5).toFixed(3)})`);
             flare.addColorStop(1,   `rgba(${cr},${cg},${cb},0)`);
             ctx.fillStyle = flare;
             ctx.beginPath();
@@ -414,39 +458,47 @@ export const CinematicRenderer = {
         ctx.restore();
 
         // =============================================
-        // LAYER 4: SMOKE — Realistic Particle Pool
+        // LAYER 4: SMOKE — Pool with circular pointer
         // =============================================
-        const trackEnergy   = (typeof analysis !== 'undefined' && analysis) ? (analysis.energy || 0.5) : 0.5;
+        const trackEnergy   = (analysis && analysis.energy) ? analysis.energy : 0.5;
         const isBursting    = bassEnergy > 0.65;
         const spawnInterval = isBursting ? 0.010 : Math.max(0.04, 0.12 - trackEnergy * 0.08);
 
         smokeSpawnTimer -= dt;
         if (smokeSpawnTimer <= 0) {
-            // Find inactive particle from Pool
-            const freeParticle = smokePool.find(p => !p.active);
-            if (freeParticle) {
-                const s0 = CONCERT_COLORS[spotlights[0].colorIdx] || [255,255,255];
-                const s1 = CONCERT_COLORS[spotlights[1].colorIdx] || [255,255,255];
-                const sc = Math.random() > 0.5 ? s0 : s1;
+            // O(1) slot allocation via circular pointer — skip active slots fast
+            let found = false;
+            for (let attempt = 0; attempt < MAX_SMOKE_PARTICLES; attempt++) {
+                const p = smokePool[_smokePoolPtr];
+                _smokePoolPtr = (_smokePoolPtr + 1) % MAX_SMOKE_PARTICLES;
+                if (!p.active) {
+                    const s0 = CONCERT_COLORS[spotlights[0].colorIdx] || [255,255,255];
+                    const s1 = CONCERT_COLORS[spotlights[1].colorIdx] || [255,255,255];
+                    const sc = Math.random() > 0.5 ? s0 : s1;
 
-                freeParticle.active    = true;
-                freeParticle.x         = width * 0.05 + Math.random() * width * 0.9;
-                freeParticle.y         = height + 50;
-                freeParticle.radius    = isBursting ? 20 + Math.random() * 30 : 90 + Math.random() * 130;
-                freeParticle.vx        = (Math.random() - 0.5) * (isBursting ? 30 : 22);
-                freeParticle.vy        = isBursting ? -(400 + Math.random() * 350) : -(4 + Math.random() * 8);
-                freeParticle.spriteIdx = (sc === s0) ? 0 : 1;
-                freeParticle.tx        = Math.random() * Math.PI * 2;
-                freeParticle.ty        = Math.random() * Math.PI * 2;
-                freeParticle.life      = 1.0;
-                freeParticle.maxLife   = isBursting ? 3.5 + Math.random() * 2.0 : 1.5 + Math.random() * 1.5;
-                freeParticle.isBurst   = isBursting;
+                                p.active    = true;
+                    p.x         = width * 0.05 + Math.random() * width * 0.9;
+                    p.y         = height + 50;
+                    p.radius    = isBursting ? 20 + Math.random() * 30 : 90 + Math.random() * 130;
+                    p.vx        = (Math.random() - 0.5) * (isBursting ? 30 : 22);
+                    p.vy        = isBursting ? -(400 + Math.random() * 350) : -(4 + Math.random() * 8);
+                    p.spriteIdx = (sc === s0) ? 0 : 1;
+                    p.tx        = Math.random() * Math.PI * 2;
+                    p.ty        = Math.random() * Math.PI * 2;
+                    p.life      = 1.0;
+                    p.maxLife   = isBursting ? 3.5 + Math.random() * 2.0 : 1.5 + Math.random() * 1.5;
+                    p.isBurst   = isBursting;
+                    _activeParticleCount++;
+                    found = true;
+                    break;
+                }
             }
             smokeSpawnTimer = spawnInterval;
         }
 
         ctx.save();
         ctx.globalCompositeOperation = 'screen';
+        if (_activeParticleCount > 0) {
         for (let i = 0; i < MAX_SMOKE_PARTICLES; i++) {
             const p = smokePool[i];
             if (!p.active) continue;
@@ -467,16 +519,15 @@ export const CinematicRenderer = {
 
             if (p.life <= 0 || p.y < -p.radius * 1.5) {
                 p.active = false;
+                _activeParticleCount--;
                 continue;
             }
 
-            const maxAlpha = p.isBurst ? 0.65 : 0.42;
-            const alpha    = p.life * maxAlpha;
-
-            ctx.globalAlpha = alpha;
-            const sprite = p.spriteIdx === 0 ? smokeSprite0 : smokeSprite1;
-            ctx.drawImage(sprite, p.x - p.radius, p.y - p.radius, p.radius * 2, p.radius * 2);
+            ctx.globalAlpha = p.life * (p.isBurst ? 0.65 : 0.42);
+            ctx.drawImage(p.spriteIdx === 0 ? smokeSprite0 : smokeSprite1,
+                          p.x - p.radius, p.y - p.radius, p.radius * 2, p.radius * 2);
         }
+        } // end if _activeParticleCount > 0
         ctx.globalAlpha = 1.0;
         ctx.globalCompositeOperation = 'source-over';
         ctx.restore();

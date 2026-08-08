@@ -134,8 +134,6 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 .cinematic-line-wrapper {
     position: absolute; width: 90%; 
     display: flex; justify-content: center; align-items: center;
-    transform: scale(var(--cine-beat-scale, 1.0)) translateZ(0);
-    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: transform, opacity;
 }
 
@@ -164,6 +162,7 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
         0px 0px 30px var(--blob-2-color, #5856d6),
         0px 0px 50px var(--blob-3-color, #ff9500),
         0px 10px 20px rgba(0,0,0,0.9);
+    transform: scale(var(--cine-beat-scale, 1.0)) translate(var(--cine-jitter-x, 0px), var(--cine-jitter-y, 0px)) translateZ(0);
     will-change: transform, opacity;
 }
 
@@ -238,7 +237,7 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     color: #ffffff !important;
     opacity: 1.0 !important;
     transform: scale(1.0) translateZ(0);
-    text-shadow: 0 0 8px rgba(255, 255, 255, 0.75) !important;
+    text-shadow: inherit; /* restore parent .cinematic-line blob-color shadows */
 }
 
 @media (max-height: 800px) {

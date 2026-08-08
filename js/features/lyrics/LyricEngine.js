@@ -10,10 +10,22 @@ import { parseLyrics } from '../../modules/lyric-parser.js';
 let currentLyrics  = [];
 let activeLyricIndex = -1;
 let driftRatio     = 1.0;
-const EARLY_LEAD_IN_SEC = 0.12; // 120ms Early Lead-in for smooth UX
+const EARLY_LEAD_IN_SEC = 0.12;
 
 let _scrollRaf = null;
 let _skipNextScroll = false;
+
+// ── Cached DOM refs (set once, reused every frame) ────────────────────────
+let _cineTextContainer   = null;
+let _angelicTextContainer = null;
+let _cachedCineWrapper   = null;
+let _lastCineWrapperIdx  = -2;
+// Word-span caches (avoid querySelectorAll every frame)
+let _cachedCineWordSpans    = null; // Array of .cine-word spans for current cine line
+let _cachedAngelicWordSpans = null; // Array of .angelic-word-pop spans
+let _cachedListWordSpans    = null; // Array of .lyric-word spans for current list line
+let _cachedListContainer    = null; // cached [data-index] element
+let _lastWordSpanIdx        = -2;   // activeLyricIndex when spans were last cached
 
 function smoothScrollTo(el, target, duration = 520) {
     if (_skipNextScroll) {
@@ -95,6 +107,14 @@ export const LyricEngine = {
         }
         _skipNextScroll = false;
         activeLyricIndex = -1;
+        // Invalidate cine wrapper cache
+        _cachedCineWrapper    = null;
+        _lastCineWrapperIdx   = -2;
+        _cachedCineWordSpans  = null;
+        _cachedAngelicWordSpans = null;
+        _cachedListWordSpans  = null;
+        _cachedListContainer  = null;
+        _lastWordSpanIdx      = -2;
         if (container) {
             container.scrollTop = 0;
             requestAnimationFrame(() => {
@@ -106,6 +126,16 @@ export const LyricEngine = {
     setLyrics(lrcText) {
         currentLyrics    = parseLyrics(lrcText);
         activeLyricIndex = -1;
+        // Invalidate all caches on new song
+        _cachedCineWrapper    = null;
+        _lastCineWrapperIdx   = -2;
+        _cineTextContainer    = null;
+        _angelicTextContainer = null;
+        _cachedCineWordSpans  = null;
+        _cachedAngelicWordSpans = null;
+        _cachedListWordSpans  = null;
+        _cachedListContainer  = null;
+        _lastWordSpanIdx      = -2;
         return currentLyrics;
     },
 
@@ -238,80 +268,123 @@ export const LyricEngine = {
             }
         }
 
-        // ── Real-Time High-Performance Karaoke Highlight Sync ──
-        const syncWordSpansForContainer = (parentEl, wordSelector, isCinematic = false) => {
+        // ── Real-Time Karaoke Word Highlight Sync (optimized) ──────────────────────────
+        const syncWordSpans = (parentEl, wordSelector, isCinematic = false) => {
             if (!parentEl) return;
-            let activeContainer = null;
+
+            let container;
+            let wordSpans;
+
             if (isCinematic) {
-                activeContainer = parentEl.querySelector('.cinematic-line-wrapper.cine-enter');
+                // Re-query wrapper only when active lyric changes
+                if (_lastCineWrapperIdx !== activeLyricIndex) {
+                    _lastCineWrapperIdx  = activeLyricIndex;
+                    _cachedCineWrapper   = parentEl.querySelector('.cinematic-line-wrapper.cine-enter');
+                    _cachedCineWordSpans = _cachedCineWrapper
+                        ? Array.from(_cachedCineWrapper.querySelectorAll(wordSelector))
+                        : null;
+                }
+                container = _cachedCineWrapper;
+                wordSpans = _cachedCineWordSpans;
+            } else if (parentEl === _cineTextContainer) {
+                // Shouldn't reach here but guard anyway
+                return;
+            } else if (parentEl === _angelicTextContainer) {
+                // Angelic: rebuild spans cache on lyric change
+                if (_lastWordSpanIdx !== activeLyricIndex) {
+                    const ac = parentEl.querySelector(
+                        `[data-index="${activeLyricIndex}"], [data-lyric-index="${activeLyricIndex}"]`
+                    );
+                    _cachedAngelicWordSpans = ac
+                        ? Array.from(ac.querySelectorAll(wordSelector))
+                        : null;
+                }
+                wordSpans = _cachedAngelicWordSpans;
+                container = wordSpans ? {} : null; // just needs to be truthy
             } else {
-                activeContainer = parentEl.querySelector(`[data-index="${activeLyricIndex}"], [data-lyric-index="${activeLyricIndex}"]`);
+                // Lyrics list panel
+                if (_lastWordSpanIdx !== activeLyricIndex) {
+                    _cachedListContainer = parentEl.querySelector(
+                        `[data-index="${activeLyricIndex}"], [data-lyric-index="${activeLyricIndex}"]`
+                    );
+                    _cachedListWordSpans = _cachedListContainer
+                        ? Array.from(_cachedListContainer.querySelectorAll(wordSelector))
+                        : null;
+                }
+                container = _cachedListContainer;
+                wordSpans = _cachedListWordSpans;
             }
-            if (!activeContainer) return;
 
-            const wordSpans = activeContainer.querySelectorAll(wordSelector);
-            if (wordSpans.length === 0) return;
+            if (!container || !wordSpans || wordSpans.length === 0) return;
 
-            wordSpans.forEach(span => {
+            for (let si = 0; si < wordSpans.length; si++) {
+                const span = wordSpans[si];
+
+                // Parse data-start/end once and cache on the element
                 if (span._wStart === undefined) {
                     span._wStart = parseFloat(span.getAttribute('data-start'));
-                    span._wEnd = parseFloat(span.getAttribute('data-end'));
+                    span._wEnd   = parseFloat(span.getAttribute('data-end'));
+                    span._wProg  = -1; // last written --word-progress value
                 }
                 const wStart = span._wStart;
-                const wEnd = span._wEnd;
-                if (!isNaN(wStart) && !isNaN(wEnd)) {
-                    const rawStart = wStart * driftRatio;
-                    const startEff = rawStart - WORD_EARLY_LEAD_IN_SEC;
-                    const endEff = wEnd * driftRatio;
-                    if (currentTime >= endEff) {
-                        if (!span.classList.contains('word-past')) {
-                            span.classList.remove('word-active', 'glitch-word-anim');
-                            if (span._glitchTimer) {
-                                clearTimeout(span._glitchTimer);
-                                span._glitchTimer = null;
-                            }
-                            span.classList.add('word-past');
-                            span.style.setProperty('--word-progress', '1.0');
-                        }
-                    } else if (currentTime >= startEff) {
-                        if (!span.classList.contains('word-active')) {
-                            span.classList.remove('word-past');
-                            span.classList.add('word-active');
+                const wEnd   = span._wEnd;
+                if (isNaN(wStart) || isNaN(wEnd)) continue;
 
-                            // Enhanced LRC in Cinematic Mode: Probability burst of glitch on word glow (20% chance)
-                            if (isCinematic && (span.classList.contains('has-enhanced-word') || span.hasAttribute('data-start'))) {
-                                if (Math.random() < 0.20) {
-                                    span.classList.add('glitch-word-anim');
-                                    if (span._glitchTimer) clearTimeout(span._glitchTimer);
-                                    span._glitchTimer = setTimeout(() => {
-                                        span.classList.remove('glitch-word-anim');
-                                        span._glitchTimer = null;
-                                    }, 380);
-                                }
+                const rawStart = wStart * driftRatio;
+                const startEff = rawStart - WORD_EARLY_LEAD_IN_SEC;
+                const endEff   = wEnd   * driftRatio;
+
+                if (currentTime >= endEff) {
+                    if (!span.classList.contains('word-past')) {
+                        span.classList.remove('word-active', 'glitch-word-anim');
+                        if (span._glitchTimer) { clearTimeout(span._glitchTimer); span._glitchTimer = null; }
+                        span.classList.add('word-past');
+                        span.style.setProperty('--word-progress', '1');
+                        span._wProg = 1;
+                    }
+                } else if (currentTime >= startEff) {
+                    if (!span.classList.contains('word-active')) {
+                        span.classList.remove('word-past');
+                        span.classList.add('word-active');
+                        if (isCinematic && (span.classList.contains('has-enhanced-word') || span.hasAttribute('data-start'))) {
+                            if (Math.random() < 0.20) {
+                                span.classList.add('glitch-word-anim');
+                                if (span._glitchTimer) clearTimeout(span._glitchTimer);
+                                span._glitchTimer = setTimeout(() => {
+                                    span.classList.remove('glitch-word-anim');
+                                    span._glitchTimer = null;
+                                }, 380);
                             }
-                        }
-                        const dur = Math.max(0.08, endEff - rawStart);
-                        const ratio = Math.min(1, Math.max(0, (currentTime - rawStart) / dur));
-                        span.style.setProperty('--word-progress', ratio.toFixed(3));
-                    } else {
-                        if (span.classList.contains('word-active') || span.classList.contains('word-past')) {
-                            span.classList.remove('word-active', 'word-past', 'glitch-word-anim');
-                            if (span._glitchTimer) {
-                                clearTimeout(span._glitchTimer);
-                                span._glitchTimer = null;
-                            }
-                            span.style.setProperty('--word-progress', '0.0');
                         }
                     }
+                    const dur   = Math.max(0.08, endEff - rawStart);
+                    const ratio = Math.min(1, Math.max(0, (currentTime - rawStart) / dur));
+                    // Only write CSS var when change is significant (saves DOM write per frame)
+                    const rounded = Math.round(ratio * 1000) / 1000;
+                    if (Math.abs(rounded - span._wProg) >= 0.005) {
+                        span.style.setProperty('--word-progress', rounded);
+                        span._wProg = rounded;
+                    }
+                } else {
+                    if (span.classList.contains('word-active') || span.classList.contains('word-past')) {
+                        span.classList.remove('word-active', 'word-past', 'glitch-word-anim');
+                        if (span._glitchTimer) { clearTimeout(span._glitchTimer); span._glitchTimer = null; }
+                        span.style.setProperty('--word-progress', '0');
+                        span._wProg = 0;
+                    }
                 }
-            });
+            }
         };
 
-        if (lyricsListEl) syncWordSpansForContainer(lyricsListEl, '.lyric-word', false);
-        const cineContainer = document.getElementById('cinematic-text-container');
-        if (cineContainer) syncWordSpansForContainer(cineContainer, '.cine-word', true);
-        const angelContainer = document.getElementById('angelic-text-container');
-        if (angelContainer) syncWordSpansForContainer(angelContainer, '.angelic-word-pop', false);
+        if (lyricsListEl) syncWordSpans(lyricsListEl, '.lyric-word', false);
+
+        if (!_cineTextContainer)    _cineTextContainer    = document.getElementById('cinematic-text-container');
+        if (!_angelicTextContainer) _angelicTextContainer = document.getElementById('angelic-text-container');
+        if (_cineTextContainer)    syncWordSpans(_cineTextContainer,    '.cine-word',          true);
+        if (_angelicTextContainer) syncWordSpans(_angelicTextContainer, '.angelic-word-pop',   false);
+
+        // Update shared lyric-change index marker AFTER all three containers ran
+        _lastWordSpanIdx = activeLyricIndex;
     },
 
     prepareLyricNearTime(time, prepareLineCallback) {

@@ -283,13 +283,19 @@ function loadTrack(index) {
         CinematicRenderer.updateConcertColors(safeSpotlight.map(c => [c.r, c.g, c.b]));
     };
     
-    // Safely extract colors via offscreen image without tainting or blocking DOM coverArt element
+    // Safely extract colors via offscreen image with R2 proxy for local CORS-free extraction
     if (track.cover) {
         const offscreenImg = new Image();
-        offscreenImg.crossOrigin = 'anonymous';
+        let coverUrl = track.cover;
+        if (coverUrl.includes('.r2.dev')) {
+            coverUrl = coverUrl.replace(/https:\/\/[^/]+\.r2\.dev/, '/r2-proxy');
+            offscreenImg.crossOrigin = 'anonymous';
+        } else if (coverUrl.startsWith('data:') || coverUrl.startsWith('blob:') || coverUrl.startsWith('/')) {
+            offscreenImg.crossOrigin = 'anonymous';
+        }
         offscreenImg.onload = () => extractColorsFromImage(offscreenImg, applyColors);
         offscreenImg.onerror = () => extractColorsFromImage(null, applyColors);
-        offscreenImg.src = track.cover;
+        offscreenImg.src = coverUrl;
     }
 
     const driftRatio = track.drift || 1.0;
@@ -528,7 +534,7 @@ function syncLoop() {
             }
 
             if (isCinematic) {
-                // ── 5. Continuous Dual-Band Lyrics Beat Pulsation ───────────────────────
+                // ── 5. Periodic Frequency-Modulated Lyrics Pulse ───────────────
                 updateCinematicLyricBeat(intensity, energy, cinematicTextContainer);
 
                 // ── 7. Vignette Pulse ──────────────────────────────────────────
