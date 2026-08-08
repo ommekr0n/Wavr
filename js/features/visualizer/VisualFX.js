@@ -67,31 +67,54 @@ export function applyInkWashExit(wrapper) {
 export function attachParallax() {}
 export function updateParallax() {}
 
-let _cineBeatScale   = 1.0;   // Smoothed cinematic beat scale (lerp target)
+let _cinePulsePhase  = 0;   // Accumulating phase angle in radians (0..2pi)
+let _lastPulseTime   = performance.now();
 
-// ── 5. Continuous Dual-Band Spring Physics (Cinematic) ──────────────────────
+// ── 5. Periodic Dynamic Frequency Pulse Engine (Cinematic Mode Only) ───────
 /**
- * Continuous Dual-Band Spring Physics Engine for Cinematic Mode lyrics beat pulsation.
- * Called on EVERY frame in syncLoop when Cinematic Mode is active.
- * Smoothly tracks both kick drums (sub-bass) and snares (mid energy).
+ * Periodic Dynamic Frequency Pulse Engine (Cinematic Mode Exclusive).
+ * Periodically pulses the lyrics. As music intensity increases,
+ * the interval between each pulse dynamically shortens (faster frequency / rapid heart-rate pulse),
+ * and when calm, the interval lengthens (gentle, relaxed breathing).
+ *
  * @param {number} intensity - Sub-bass intensity (0..1)
- * @param {number} energy - Mid/overall energy (0..1)
+ * @param {number} energy - Overall audio energy (0..1)
  * @param {HTMLElement} cinematicTextContainer
  */
 export function updateCinematicLyricBeat(intensity, energy, cinematicTextContainer) {
     if (!cinematicTextContainer) return;
 
-    // Dual-band rhythm boost: sub-bass kick + energy snare (max 2.4% expansion)
-    const rhythmBoost = Math.min((intensity * 0.022) + (energy * 0.012), 0.024);
-    const targetScale = 1.0 + rhythmBoost;
+    const now = performance.now();
+    const dt = Math.min((now - _lastPulseTime) / 1000, 0.05); // Delta time in seconds
+    _lastPulseTime = now;
 
-    // Organic Spring Physics LERP:
-    // Attack (0.18) on beat hit, Decay (0.06) for smooth release
-    const lerpRate = targetScale > _cineBeatScale ? 0.18 : 0.06;
-    _cineBeatScale += (targetScale - _cineBeatScale) * lerpRate;
+    // Combined audio strength (0..1)
+    const combinedStrength = Math.min(1.0, (intensity * 0.7) + (energy * 0.3));
+
+    // Dynamic Frequency Modulation (Hz):
+    // Calm (strength ~0.05): 1.4 Hz (period T = ~710ms between pulses - slow breathing)
+    // Climax (strength ~0.90): 4.8 Hz (period T = ~208ms between pulses - rapid heartbeat)
+    const minFreq = 1.4;
+    const maxFreq = 4.8;
+    const currentFreq = minFreq + (maxFreq - minFreq) * Math.pow(combinedStrength, 1.2);
+
+    // Advance phase angle continuously
+    _cinePulsePhase += (Math.PI * 2 * currentFreq * dt);
+    if (_cinePulsePhase > Math.PI * 2) {
+        _cinePulsePhase %= (Math.PI * 2);
+    }
+
+    // Shaped periodic pulse wave (sharp peak, smooth release)
+    const rawWave = 0.5 * (1.0 - Math.cos(_cinePulsePhase));
+    const shapedWave = Math.pow(rawWave, 1.8);
+
+    // Dynamic amplitude expansion: up to 2.8% max scale expansion
+    const maxAmplitude = 0.028;
+    const currentAmplitude = combinedStrength * maxAmplitude;
+    const pulseScale = 1.0 + (shapedWave * currentAmplitude);
 
     // Set CSS variable for seamless zero-lag rendering
-    cinematicTextContainer.style.setProperty('--cine-beat-scale', _cineBeatScale.toFixed(4));
+    cinematicTextContainer.style.setProperty('--cine-beat-scale', pulseScale.toFixed(4));
 }
 
 export function triggerBeatZoom(cinematicTextContainer, intensity) {
