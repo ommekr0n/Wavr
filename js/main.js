@@ -40,6 +40,7 @@ import {
     createVignetteOverlay,
     removeVignetteOverlay,
     triggerBeatZoom,
+    updateCinematicLyricBeat,
     tickZoomCooldown,
     getReactiveParticleTimer
 } from './features/visualizer/VisualFX.js';
@@ -527,11 +528,8 @@ function syncLoop() {
             }
 
             if (isCinematic) {
-                // ── 5. Beat Zoom Pulse ─────────────────────────────────────────
-                if (currentAnalysis.subBassOnset) {
-                    triggerBeatZoom(cinematicTextContainer, intensity);
-                }
-                tickZoomCooldown();
+                // ── 5. Continuous Dual-Band Lyrics Beat Pulsation ───────────────────────
+                updateCinematicLyricBeat(intensity, energy, cinematicTextContainer);
 
                 // ── 7. Vignette Pulse ──────────────────────────────────────────
                 updateVignette(energy);

@@ -134,6 +134,8 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 .cinematic-line-wrapper {
     position: absolute; width: 90%; 
     display: flex; justify-content: center; align-items: center;
+    transform: scale(var(--cine-beat-scale, 1.0)) translateZ(0);
+    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: transform, opacity;
 }
 

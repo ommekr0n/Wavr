@@ -67,29 +67,36 @@ export function applyInkWashExit(wrapper) {
 export function attachParallax() {}
 export function updateParallax() {}
 
-// ── 5. Beat Zoom Pulse (Cinematic) ────────────────────────────────────────────
+let _cineBeatScale   = 1.0;   // Smoothed cinematic beat scale (lerp target)
+
+// ── 5. Continuous Dual-Band Spring Physics (Cinematic) ──────────────────────
 /**
- * Called on subBassOnset in Cinematic Mode.
- * Uses smooth CSS scale transition for an organic, liquid-smooth beat pulse.
+ * Continuous Dual-Band Spring Physics Engine for Cinematic Mode lyrics beat pulsation.
+ * Called on EVERY frame in syncLoop when Cinematic Mode is active.
+ * Smoothly tracks both kick drums (sub-bass) and snares (mid energy).
+ * @param {number} intensity - Sub-bass intensity (0..1)
+ * @param {number} energy - Mid/overall energy (0..1)
  * @param {HTMLElement} cinematicTextContainer
- * @param {number} intensity
  */
+export function updateCinematicLyricBeat(intensity, energy, cinematicTextContainer) {
+    if (!cinematicTextContainer) return;
+
+    // Dual-band rhythm boost: sub-bass kick + energy snare (max 2.4% expansion)
+    const rhythmBoost = Math.min((intensity * 0.022) + (energy * 0.012), 0.024);
+    const targetScale = 1.0 + rhythmBoost;
+
+    // Organic Spring Physics LERP:
+    // Attack (0.18) on beat hit, Decay (0.06) for smooth release
+    const lerpRate = targetScale > _cineBeatScale ? 0.18 : 0.06;
+    _cineBeatScale += (targetScale - _cineBeatScale) * lerpRate;
+
+    // Set CSS variable for seamless zero-lag rendering
+    cinematicTextContainer.style.setProperty('--cine-beat-scale', _cineBeatScale.toFixed(4));
+}
+
 export function triggerBeatZoom(cinematicTextContainer, intensity) {
-    if (!cinematicTextContainer || _zoomCooldown > 0) return;
-
-    // Elegant 1.2% - 2.5% pulse instead of aggressive 8.5% jump
-    const zoomAmt = (1.012 + intensity * 0.015).toFixed(4);
-    cinematicTextContainer.style.setProperty('--cine-zoom', zoomAmt);
-
-    // Cooldown 12 frames for fluid rhythm tracking
-    _zoomCooldown = 12;
-
-    // Fluid decay back to 1.0 over 220ms
-    setTimeout(() => {
-        if (cinematicTextContainer) {
-            cinematicTextContainer.style.setProperty('--cine-zoom', '1.0');
-        }
-    }, 220);
+    if (!cinematicTextContainer) return;
+    updateCinematicLyricBeat(intensity, intensity, cinematicTextContainer);
 }
 
 export function tickZoomCooldown() {
