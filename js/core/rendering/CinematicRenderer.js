@@ -158,7 +158,7 @@ export const CinematicRenderer = {
 
         // ── 1. REACTIVE DIMMING ──────────────────────────────────────────────
         if (reactiveDim) {
-            const targetOpacity = isPlaying ? Math.max(0.1, 0.8 - (bassEnergy * bassEnergy * 1.5)) : 0.0;
+            const targetOpacity = isPlaying ? Math.max(0.05, 0.55 - (bassEnergy * bassEnergy * 1.2)) : 0.0;
             reactiveDim.style.opacity = targetOpacity.toFixed(2);
         }
 
@@ -250,8 +250,8 @@ export const CinematicRenderer = {
         const totalWidth  = (pillarWidth * NUM_PILLARS) + (gap * (NUM_PILLARS - 1));
         let x = (width - totalWidth) / 2;
 
-        const blockHeight      = height * 0.028;
-        const blockGap         = height * 0.007;
+        const blockHeight      = height * 0.055;
+        const blockGap         = height * 0.012;
         const blockTotalHeight = blockHeight + blockGap;
         const totalBlocksPerPillar = Math.ceil(height * 0.95 / blockTotalHeight);
         const visibleBlocks    = totalBlocksPerPillar;
@@ -323,28 +323,16 @@ export const CinematicRenderer = {
                     else              ctx.rect(x, blockY, pillarWidth, blockHeight);
                 }
                 ctx.fillStyle   = grad;
-                ctx.shadowBlur  = bassEnergy * 80 + 15;
+                ctx.shadowBlur  = bassEnergy * 20 + 6;  // was 80+15, reduced ~75%
                 ctx.shadowColor = baseColor;
                 ctx.fill();
-
-                // Specular highlight
                 ctx.shadowBlur = 0;
-                const cpX = pillarWidth * 0.12;
-                const cpY = blockHeight * 0.18;
-                ctx.beginPath();
-                for (let b = 0; b < capped; b++) {
-                    const blockY = height - (b * blockTotalHeight) - blockHeight;
-                    if (useRoundRect) ctx.roundRect(x + cpX, blockY + cpY, pillarWidth - cpX * 2, blockHeight - cpY * 2, 3);
-                    else              ctx.rect(x + cpX, blockY + cpY, pillarWidth - cpX * 2, blockHeight - cpY * 2);
-                }
-                ctx.fillStyle = 'rgba(255,255,255,0.55)';
-                ctx.fill();
 
                 // Peak marker
                 const peakBlock = Math.floor(peaks[i] * totalBlocksPerPillar);
                 if (peakBlock > 0 && peakBlock < visibleBlocks) {
                     const peakY = height - (peakBlock * blockTotalHeight) - blockHeight;
-                    ctx.shadowBlur  = 20;
+                    ctx.shadowBlur  = 8;
                     ctx.shadowColor = '#ffffff';
                     ctx.fillStyle   = '#ffffff';
                     ctx.beginPath();

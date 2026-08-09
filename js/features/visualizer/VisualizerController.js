@@ -52,12 +52,18 @@ export const VisualizerController = {
         cinematicCanvas.width  = winWidth;
         cinematicCanvas.height = winHeight;
 
-        // Force reset active lyric index so O(1) sync re-evaluates active line
+        // Force reset so updateHighlight re-evaluates, but set AFTER trigger
+        // to prevent double-fire (which replaced wrapper 1 with wrapper 2 immediately,
+        // causing enhanced LRC to miss the initial line)
         LyricEngine.setActiveLyricIndex(-1);
 
-        // Immediately render the current lyric line
+        // Immediately render the current lyric line — pass full object for enhanced LRC
         if (activeLyricIndex !== -1 && currentLyrics[activeLyricIndex]) {
-            triggerCinematicLineFn(currentLyrics[activeLyricIndex].text);
+            triggerCinematicLineFn(currentLyrics[activeLyricIndex]);
+            // Re-set to real index so updateHighlight does NOT retrigger for this same line
+            LyricEngine.setActiveLyricIndex(activeLyricIndex);
+            // Force syncWordSpans to re-query the new wrapper's word spans
+            LyricEngine.invalidateCineCache();
         }
     },
 

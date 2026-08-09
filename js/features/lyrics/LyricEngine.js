@@ -99,6 +99,12 @@ export const LyricEngine = {
 
     setDriftRatio(val)       { driftRatio = val; },
     setActiveLyricIndex(val) { activeLyricIndex = val; },
+    // Force re-query of cine word spans on next syncWordSpans call
+    invalidateCineCache() {
+        _cachedCineWrapper   = null;
+        _lastCineWrapperIdx  = -2;
+        _cachedCineWordSpans = null;
+    },
 
     resetScroll(container) {
         if (_scrollRaf) {
@@ -393,7 +399,7 @@ export const LyricEngine = {
         if (idx === -1) idx = currentLyrics.length - 1;
         activeLyricIndex = Math.max(0, idx - 1);
         if (prepareLineCallback && currentLyrics[activeLyricIndex]) {
-            prepareLineCallback(currentLyrics[activeLyricIndex].text, activeLyricIndex);
+            prepareLineCallback(currentLyrics[activeLyricIndex], activeLyricIndex);
         }
     }
 };

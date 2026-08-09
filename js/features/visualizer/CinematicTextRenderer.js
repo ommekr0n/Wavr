@@ -15,22 +15,15 @@ export function triggerCinematicLine(lyricInput, cinematicTextContainer, deltaSe
 
     if (!text) return;
 
-    // Fast transition duration for quick rap/EDM lyrics vs smooth drift for slow ballads
-    const exitDurationMs = deltaSec < 1.5 ? 450 : 900;
+    // Exit nhanh để không đè lên lyrics mới
+    const exitDurationMs = deltaSec < 1.2 ? 160 : 220;
 
     const oldLines = cinematicTextContainer.querySelectorAll('.cinematic-line-wrapper');
     oldLines.forEach(line => {
         line.classList.remove('cine-enter');
         line.classList.add('cine-exit');
         line.style.animationDuration = `${exitDurationMs}ms`;
-
-        const exitingWords = line.querySelectorAll('.cine-word');
-        exitingWords.forEach(w => { w.classList.add('glitched'); w.classList.remove('glitch-word-anim'); });
-        const rot = (Math.random() - 0.5) * 12;
-        const tx = (Math.random() - 0.5) * 10;
-        line.style.setProperty('--exit-rot', `${rot}deg`);
-        line.style.setProperty('--exit-tx', `${tx}vw`);
-        setTimeout(() => { if (line.parentNode) line.remove(); }, exitDurationMs + 50);
+        setTimeout(() => { if (line.parentNode) line.remove(); }, exitDurationMs + 30);
     });
 
     const newWrapper = document.createElement('div');
@@ -128,8 +121,6 @@ export function triggerCinematicLine(lyricInput, cinematicTextContainer, deltaSe
 
     newWrapper.appendChild(newLine);
     cinematicTextContainer.appendChild(newWrapper);
-
-    // ── Chromatic aberration on enter ──
     applyChromaAberration(newWrapper);
 }
 
