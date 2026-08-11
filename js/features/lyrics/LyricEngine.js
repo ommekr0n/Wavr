@@ -206,7 +206,7 @@ export const LyricEngine = {
         });
     },
 
-    updateHighlight(currentTime, lyricsListEl, lyricsContainer, onAngelicShow, onCinematicTrigger) {
+    updateHighlight(currentTime, lyricsListEl, lyricsContainer, onAngelicShow, onCinematicTrigger, onCinematicClear) {
         if (!currentLyrics || currentLyrics.length === 0 || !currentLyrics[0] || typeof currentLyrics[0].time !== 'number') return;
 
         // Apply 120ms early lead-in for smooth visual anticipation
@@ -269,6 +269,7 @@ export const LyricEngine = {
                 }
 
                 if (onCinematicTrigger && currentLyrics[activeLyricIndex]) {
+                    if (_cineTextContainer) _cineTextContainer._isLineCleared = false;
                     onCinematicTrigger({ ...currentLyrics[activeLyricIndex], index: activeLyricIndex }, deltaSec);
                 }
             }
@@ -377,6 +378,39 @@ export const LyricEngine = {
                         if (span._glitchTimer) { clearTimeout(span._glitchTimer); span._glitchTimer = null; }
                         span.style.setProperty('--word-progress', '0');
                         span._wProg = 0;
+                    }
+                }
+            }
+
+            // Check if cinematic line has ended all its words, and if no next line is due soon, clear it
+            if (isCinematic && onCinematicClear && activeLyricIndex !== -1) {
+                const isLastLine = activeLyricIndex === currentLyrics.length - 1;
+                const lastWord = wordSpans[wordSpans.length - 1];
+                let lineEndTime = -1;
+
+                if (lastWord) {
+                    if (lastWord._wEnd !== undefined && !isNaN(lastWord._wEnd)) {
+                        lineEndTime = lastWord._wEnd * driftRatio;
+                    }
+                }
+
+                // Fallback to line time if no word end metadata
+                if (lineEndTime === -1 && currentLyrics[activeLyricIndex]) {
+                    lineEndTime = (currentLyrics[activeLyricIndex].time + 3.0) * driftRatio;
+                }
+
+                // Buffer delay of 1.2s after last word ends before clearing
+                const CLEAR_BUFFER_SEC = 1.2;
+                if (lineEndTime > 0 && currentTime >= lineEndTime + CLEAR_BUFFER_SEC) {
+                    const nextLine = currentLyrics[activeLyricIndex + 1];
+                    const nextLineTime = nextLine ? nextLine.time * driftRatio : Infinity;
+
+                    // If no next line, or next line is still > 1.0s away, fade out current line
+                    if (currentTime < nextLineTime - 0.5) {
+                        if (!_cineTextContainer._isLineCleared) {
+                            _cineTextContainer._isLineCleared = true;
+                            onCinematicClear();
+                        }
                     }
                 }
             }

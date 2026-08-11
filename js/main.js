@@ -31,7 +31,7 @@ import { setupEQController } from './features/eq/EQController.js';
 import { renderSongGrid, saveLibraryToDB, updateBoxCache, getCachedVinylBoxes, getCachedLibraryOrder, setCachedVinylBoxes, setCachedLibraryOrder } from './features/library/HomeGridRenderer.js';
 import { setupBoxExpansionListeners, closeBoxExpansion } from './features/library/HomeBoxExpansion.js';
 import { setupUploadHandler } from './features/library/UploadHandler.js';
-import { triggerCinematicLine } from './features/visualizer/CinematicTextRenderer.js';
+import { triggerCinematicLine, clearCinematicLine } from './features/visualizer/CinematicTextRenderer.js';
 import {
     updateLyricBreath,
     updateParallax,
@@ -485,6 +485,11 @@ function updateProgress() {
         (text) => {
             if (VisualizerController.getIsCinematicMode()) {
                 triggerCinematicLine(text, cinematicTextContainer);
+            }
+        },
+        () => {
+            if (VisualizerController.getIsCinematicMode()) {
+                clearCinematicLine(cinematicTextContainer, 500);
             }
         }
     );

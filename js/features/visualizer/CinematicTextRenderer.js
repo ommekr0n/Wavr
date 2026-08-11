@@ -5,6 +5,17 @@
 import { calculateFluidLyricStyle } from './AdaptiveLyricSizer.js';
 import { applyChromaAberration } from './VisualFX.js';
 
+export function clearCinematicLine(cinematicTextContainer, durationMs = 400) {
+    if (!cinematicTextContainer) return;
+    const oldLines = cinematicTextContainer.querySelectorAll('.cinematic-line-wrapper');
+    oldLines.forEach(line => {
+        line.classList.remove('cine-enter');
+        line.classList.add('cine-exit');
+        line.style.animationDuration = `${durationMs}ms`;
+        setTimeout(() => { if (line.parentNode) line.remove(); }, durationMs + 30);
+    });
+}
+
 export function triggerCinematicLine(lyricInput, cinematicTextContainer, deltaSec = 3.0) {
     if (!lyricInput || !cinematicTextContainer) return;
 
