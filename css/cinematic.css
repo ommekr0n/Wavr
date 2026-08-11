@@ -206,32 +206,33 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 /* ── Enhanced LRC Word Highlight in Cinematic Mode ─────────────────────── */
 .cine-word.has-enhanced-word {
     display: inline-block;
-    transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), text-shadow 0.15s ease;
+    transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), text-shadow 0.15s ease, color 0.15s ease;
 }
 
 /* Unsung words: dimmed so singer position is obvious */
 .cine-word.has-enhanced-word:not(.word-active):not(.word-past) {
-    opacity: 0.25 !important;
+    color: rgba(255, 255, 255, 0.35) !important;
+    opacity: 0.4 !important;
     text-shadow: none !important;
 }
 
-/* Active sung word: Pops with strong cover-art color halo */
+/* Active sung word: Takes cover art primary color with vibrant glowing halo */
 .cine-word.has-enhanced-word.word-active {
-    color: #ffffff !important;
+    color: var(--blob-1-color, #ff2d55) !important;
     opacity: 1.0 !important;
     transform: scale(1.12) translateZ(10px);
-    text-shadow: 0 0 16px #ffffff,
-                 0 0 35px var(--blob-1-color, #ff2d55),
-                 0 0 60px var(--blob-2-color, #5856d6) !important;
+    text-shadow: 0 0 12px var(--blob-1-color, #ff2d55),
+                 0 0 28px var(--blob-1-color, #ff2d55),
+                 0 0 50px var(--blob-2-color, #5856d6) !important;
 }
 
-/* Past sung words: Stay illuminated with rich cover-art color glow */
+/* Past sung words: Retain cover art accent color with subtle glow */
 .cine-word.has-enhanced-word.word-past {
-    color: #ffffff !important;
-    opacity: 0.95 !important;
+    color: var(--blob-1-color, #ff2d55) !important;
+    opacity: 0.9 !important;
     transform: scale(1.0) translateZ(0);
-    text-shadow: 0 0 15px var(--blob-1-color, #ff2d55),
-                 0 0 30px var(--blob-2-color, #5856d6) !important;
+    text-shadow: 0 0 14px var(--blob-1-color, #ff2d55),
+                 0 0 28px var(--blob-2-color, #5856d6) !important;
 }
 
 @media (max-height: 800px) {
