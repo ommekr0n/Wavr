@@ -211,28 +211,29 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 
 /* Unsung words: dimmed so singer position is obvious */
 .cine-word.has-enhanced-word:not(.word-active):not(.word-past) {
-    color: rgba(255, 255, 255, 0.35) !important;
-    opacity: 0.4 !important;
+    color: rgba(255, 255, 255, 0.3) !important;
+    opacity: 0.35 !important;
     text-shadow: none !important;
 }
 
-/* Active sung word: Takes cover art primary color with vibrant glowing halo */
+/* Active sung word: Crisp bright white core inside + intense cover art color halo outside */
 .cine-word.has-enhanced-word.word-active {
-    color: var(--blob-1-color, #ff2d55) !important;
+    color: #ffffff !important;
     opacity: 1.0 !important;
     transform: scale(1.12) translateZ(10px);
-    text-shadow: 0 0 12px var(--blob-1-color, #ff2d55),
-                 0 0 28px var(--blob-1-color, #ff2d55),
-                 0 0 50px var(--blob-2-color, #5856d6) !important;
+    text-shadow: 0 0 4px #ffffff,
+                 0 0 16px var(--blob-1-color, #ff2d55),
+                 0 0 35px var(--blob-1-color, #ff2d55),
+                 0 0 60px var(--blob-2-color, #5856d6) !important;
 }
 
-/* Past sung words: Retain cover art accent color with subtle glow */
+/* Past sung words: Clean white text with vibrant cover art color glow */
 .cine-word.has-enhanced-word.word-past {
-    color: var(--blob-1-color, #ff2d55) !important;
-    opacity: 0.9 !important;
+    color: #ffffff !important;
+    opacity: 0.95 !important;
     transform: scale(1.0) translateZ(0);
-    text-shadow: 0 0 14px var(--blob-1-color, #ff2d55),
-                 0 0 28px var(--blob-2-color, #5856d6) !important;
+    text-shadow: 0 0 12px var(--blob-1-color, #ff2d55),
+                 0 0 25px var(--blob-2-color, #5856d6) !important;
 }
 
 @media (max-height: 800px) {
