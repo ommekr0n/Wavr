@@ -214,7 +214,8 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     opacity: 1.0 !important;
     transform: scale(1.06) translateZ(10px);
     text-shadow: 0 0 12px #ffffff,
-                 0 0 24px var(--accent-color, #00e5ff) !important;
+                 0 0 25px var(--blob-1-color, #ff2d55),
+                 0 0 45px var(--blob-2-color, #5856d6) !important;
 }
 
 .cine-word.has-enhanced-word.word-past {
