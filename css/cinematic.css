@@ -206,23 +206,32 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 /* ── Enhanced LRC Word Highlight in Cinematic Mode ─────────────────────── */
 .cine-word.has-enhanced-word {
     display: inline-block;
-    transition: color 0.15s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), text-shadow 0.15s ease;
+    transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), text-shadow 0.15s ease;
 }
 
+/* Unsung words: dimmed so singer position is obvious */
+.cine-word.has-enhanced-word:not(.word-active):not(.word-past) {
+    opacity: 0.25 !important;
+    text-shadow: none !important;
+}
+
+/* Active sung word: Pops with strong cover-art color halo */
 .cine-word.has-enhanced-word.word-active {
     color: #ffffff !important;
     opacity: 1.0 !important;
-    transform: scale(1.06) translateZ(10px);
-    text-shadow: 0 0 12px #ffffff,
-                 0 0 25px var(--blob-1-color, #ff2d55),
-                 0 0 45px var(--blob-2-color, #5856d6) !important;
+    transform: scale(1.12) translateZ(10px);
+    text-shadow: 0 0 16px #ffffff,
+                 0 0 35px var(--blob-1-color, #ff2d55),
+                 0 0 60px var(--blob-2-color, #5856d6) !important;
 }
 
+/* Past sung words: Stay illuminated with rich cover-art color glow */
 .cine-word.has-enhanced-word.word-past {
     color: #ffffff !important;
-    opacity: 1.0 !important;
+    opacity: 0.95 !important;
     transform: scale(1.0) translateZ(0);
-    text-shadow: inherit; /* restore parent .cinematic-line blob-color shadows */
+    text-shadow: 0 0 15px var(--blob-1-color, #ff2d55),
+                 0 0 30px var(--blob-2-color, #5856d6) !important;
 }
 
 @media (max-height: 800px) {
