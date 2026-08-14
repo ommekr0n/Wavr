@@ -157,6 +157,34 @@ export const SupabaseService = {
         return data;
     },
 
+    async updateTrack(trackId, updates) {
+        if (!supabase) throw new Error('Supabase is not configured.');
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('User not authenticated.');
+
+        const updatePayload = {};
+        if (updates.title !== undefined) updatePayload.title = updates.title;
+        if (updates.artist !== undefined) updatePayload.artist = updates.artist;
+        if (updates.album !== undefined) updatePayload.album = updates.album;
+        if (updates.audioUrl !== undefined) updatePayload.audio_url = updates.audioUrl;
+        if (updates.coverUrl !== undefined) updatePayload.cover_url = updates.coverUrl;
+        if (updates.lrcText !== undefined) updatePayload.lrc_text = updates.lrcText;
+        if (updates.fileSize !== undefined) updatePayload.file_size = updates.fileSize;
+        if (updates.isEnhanced !== undefined) updatePayload.is_enhanced = updates.isEnhanced;
+        updatePayload.updated_at = new Date().toISOString();
+
+        const { data, error } = await supabase
+            .from('tracks')
+            .update(updatePayload)
+            .eq('id', trackId)
+            .eq('user_id', user.id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    },
+
     async deleteTrack(trackId) {
         if (!supabase) throw new Error('Supabase is not configured.');
         const user = await this.getCurrentUser();

@@ -4,6 +4,7 @@
  */
 import { calculateFluidLyricStyle } from './AdaptiveLyricSizer.js';
 import { applyChromaAberration } from './VisualFX.js';
+import { renderEmojis } from '../lyrics/EmojiRenderer.js';
 
 export function clearCinematicLine(cinematicTextContainer, durationMs = 400) {
     if (!cinematicTextContainer) return;
@@ -20,7 +21,8 @@ export function triggerCinematicLine(lyricInput, cinematicTextContainer, deltaSe
     if (!lyricInput || !cinematicTextContainer) return;
 
     const isObj = typeof lyricInput === 'object' && lyricInput !== null;
-    const text = isObj ? lyricInput.text : lyricInput;
+    const rawText = isObj ? lyricInput.text : lyricInput;
+    const text = rawText; // keep emoji — Twemoji will render them in cinematic style
     const isEnhanced = isObj && lyricInput.isEnhanced && Array.isArray(lyricInput.words);
     const wordList = isEnhanced ? lyricInput.words : [];
 
@@ -133,6 +135,8 @@ export function triggerCinematicLine(lyricInput, cinematicTextContainer, deltaSe
     newWrapper.appendChild(newLine);
     cinematicTextContainer.appendChild(newWrapper);
     applyChromaAberration(newWrapper);
+    // Replace OS emoji with cinematic-styled Twemoji SVGs
+    renderEmojis(newWrapper, 'cinematic');
 }
 
 export function preventOrphanWords(text) {

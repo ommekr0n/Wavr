@@ -589,3 +589,34 @@ body.is-recording .modal-backdrop {
     pointer-events: none !important;
     will-change: opacity, transform;
 }
+
+/* ── Angelic Mode Twemoji Emoji ──────────────────────────────────────── */
+/* Default state (prebuilt, waiting): invisible like unsung angelic words */
+img.lyric-emoji--angelic {
+    display: inline-block;
+    width:  0.72em;
+    height: 0.72em;
+    vertical-align: -0.1em;
+    margin: 0 0.06em;
+    opacity: 0;
+    transform: translateY(24px) scale(0.85);
+    filter: saturate(0.4) brightness(1.2);
+    transition: filter 0.3s ease;
+    pointer-events: none;
+    user-select: none;
+}
+/* Active line: animate in with pop-word — same as angelic words */
+.angelic-enter-wrapper img.lyric-emoji--angelic {
+    animation: pop-word var(--pop-duration, 0.94s) cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.1s; /* slight lead-in so emoji appears with first words */
+    filter: saturate(0.6) brightness(1.35)
+            drop-shadow(0 0 6px rgba(255,255,255,0.7))
+            drop-shadow(0 0 14px var(--blob-1-color, #c9a0ff));
+}
+/* Exit state: fade out with rest of line */
+.angelic-exit img.lyric-emoji--angelic,
+.ink-wash-exit img.lyric-emoji--angelic {
+    opacity: 0 !important;
+    filter: saturate(0) opacity(0) !important;
+    transition: opacity 0.32s ease, filter 0.32s ease !important;
+}

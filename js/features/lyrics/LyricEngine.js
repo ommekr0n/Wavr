@@ -5,6 +5,7 @@
  */
 
 import { parseLyrics } from '../../modules/lyric-parser.js';
+import { renderEmojis } from './EmojiRenderer.js';
 
 // ── Lyrics State ─────────────────────────────────────────────────────────────
 let currentLyrics  = [];
@@ -64,6 +65,23 @@ function smoothScrollTo(el, target, duration = 520) {
     }
 
     _scrollRaf = requestAnimationFrame(step);
+}
+
+// Regex matching emoji unicode ranges (covers most emoji)
+const EMOJI_REGEX = /([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]|\uFE0F|\u20E3|\uFE0E|[\u{1F100}-\u{1F1FF}]|[\u{1F200}-\u{1F2FF}]|[\u{1F300}-\u{1F5FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{1F700}-\u{1F77F}]|[\u{1F780}-\u{1F7FF}]|[\u{1F800}-\u{1F8FF}]|[\u{1F900}-\u{1F9FF}]|[\u{1FA00}-\u{1FA6F}]|[\u{1FA70}-\u{1FAFF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}])/gu;
+
+/**
+ * Wraps emoji characters in a styled span for CSS control per mode.
+ * Strips variation selectors (\uFE0F) to avoid rendering quirks.
+ */
+export function wrapEmojis(text, mode = 'normal') {
+    if (!text) return text;
+    // For cinematic mode — strip emojis entirely (keep dramatic clean typography)
+    if (mode === 'cinematic') {
+        return text.replace(EMOJI_REGEX, '').replace(/\uFE0F/g, '').replace(/  +/g, ' ').trim();
+    }
+    // For angelic & normal: return raw text (Twemoji will parse emoji directly in DOM)
+    return text;
 }
 
 function preventOrphanWords(text) {
@@ -192,6 +210,7 @@ export const LyricEngine = {
                 lineEl.innerHTML = htmlContent;
             } else {
                 let htmlText = preventOrphanWords(lyric.text);
+                htmlText = wrapEmojis(htmlText, 'normal');
                 htmlText = htmlText.replace(/\n\([^)]*\)(\n)?/g, (match) => {
                     const cleanMatch = match.replace(/\n/g, '');
                     let scaleVal = 0.75;
@@ -204,6 +223,9 @@ export const LyricEngine = {
 
             lyricsListEl.appendChild(lineEl);
         });
+
+        // Replace OS emoji with Twemoji SVGs after all lines are in DOM
+        renderEmojis(lyricsListEl, 'normal');
     },
 
     updateHighlight(currentTime, lyricsListEl, lyricsContainer, onAngelicShow, onCinematicTrigger, onCinematicClear) {

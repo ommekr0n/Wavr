@@ -522,6 +522,42 @@ body.user-idle * {
     color: #ffffff !important;
     text-shadow: 0 0 12px rgba(255, 255, 255, 0.65), 0 1px 4px rgba(0, 0, 0, 0.3);
 }
+/* ── Twemoji Emoji Styling — shared base ─────────────────────────────── */
+img.lyric-emoji {
+    display: inline-block;
+    width:  0.85em;
+    height: 0.85em;
+    vertical-align: -0.15em;
+    margin: 0 0.06em;
+    object-fit: contain;
+    pointer-events: none;
+    user-select: none;
+    transition: filter 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Normal Mode Emoji (Standard lyrics) ─────────────────────────────── */
+/* Inactive line: muted, matches rgba(255,255,255,0.4) text opacity */
+img.lyric-emoji--normal {
+    filter: saturate(0.7) opacity(0.4);
+}
+/* Active standard line: full color, bright — matches active line text */
+.am-lyric-line.active img.lyric-emoji--normal {
+    filter: saturate(1.0) opacity(0.9)
+            drop-shadow(0 0 6px rgba(255,255,255,0.5))
+            drop-shadow(0 0 14px var(--accent-color, #00e5ff));
+}
+
+/* ── Normal Mode Emoji (Enhanced lyrics — word-timed lines) ──────────── */
+/* Enhanced inactive: matches unsung word opacity (0.35) */
+.am-lyric-line.has-enhanced img.lyric-emoji--normal {
+    filter: saturate(0.5) opacity(0.35);
+}
+/* Enhanced active line: emoji glows like word-past — full bright with accent halo */
+.am-lyric-line.has-enhanced.active img.lyric-emoji--normal {
+    filter: saturate(1.0) opacity(0.95)
+            drop-shadow(0 0 8px rgba(255,255,255,0.8))
+            drop-shadow(0 0 20px var(--accent-color, #00e5ff));
+}
 
 /* ── Enhanced LRC Word Highlight Engine (Clean, Zero Overflow Box Clipping) ── */
 .am-lyric-line .lyric-word {

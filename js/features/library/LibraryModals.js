@@ -268,12 +268,52 @@ export const LibraryModals = {
                         }
 
                         const finishEdit = async () => {
+                            // If song is stored in Supabase Cloud Vault, update the cloud database record
+                            if (SupabaseService.isConfigured() && song && song.id) {
+                                try {
+                                    const currentUser = await SupabaseService.getCurrentUser();
+                                    if (currentUser) {
+                                        let updatedAudioUrl = song.url;
+                                        let updatedCoverUrl = song.cover;
+
+                                        // Upload new audio file if replaced
+                                        if (audioFile) {
+                                            const fileNameSanitized = audioFile.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                                            updatedAudioUrl = await SupabaseService.uploadMediaFile(audioFile, `tracks/${Date.now()}_${fileNameSanitized}`);
+                                            song.url = updatedAudioUrl;
+                                        }
+
+                                        // Upload new cover file if replaced
+                                        if (coverFile) {
+                                            updatedCoverUrl = await SupabaseService.uploadMediaFile(coverFile, `covers/${Date.now()}.webp`);
+                                            song.cover = updatedCoverUrl;
+                                        }
+
+                                        await SupabaseService.updateTrack(song.id, {
+                                            title: song.title,
+                                            artist: song.artist,
+                                            audioUrl: updatedAudioUrl,
+                                            coverUrl: updatedCoverUrl,
+                                            lrcText: song.lyrics || '',
+                                            fileSize: audioFile ? audioFile.size : song.fileSize
+                                        });
+
+                                        if (_showToast) _showToast('Track updated in Personal Cloud Vault!');
+                                    }
+                                } catch (cloudErr) {
+                                    console.error('Supabase cloud track update error:', cloudErr);
+                                    if (_showToast) _showToast('Cloud update error: ' + cloudErr.message, 'error');
+                                }
+                            }
+
                             _renderSongGrid();
                             _updateMiniPlayerUI();
                             await _saveLibraryToDB();
                             document.dispatchEvent(new CustomEvent('wavr:libraryChanged'));
                             document.getElementById('edit-modal').classList.add('hidden');
                             trackToEditIndex = null;
+                            pendingEditLrcText = null;
+                            if (editLrcStatus) editLrcStatus.textContent = '';
                         };
 
                         if (lrcFile) {

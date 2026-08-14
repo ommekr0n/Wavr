@@ -398,3 +398,39 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     /* Khai báo @property để CSS transition hoạt động trên custom property */
     transition: none; /* JS lerp mỗi frame — không cần CSS transition */
 }
+
+/* ── Cinematic Mode Twemoji Emoji ────────────────────────────────────── */
+/* Base: invisible before cine-enter animation plays */
+img.lyric-emoji--cinematic {
+    display: inline-block;
+    width:  0.75em;
+    height: 0.75em;
+    vertical-align: -0.1em;
+    margin: 0 0.05em;
+    opacity: 0;
+    filter: grayscale(1) brightness(0.5);
+    transition: filter 0.2s ease, opacity 0.15s ease;
+    pointer-events: none;
+    user-select: none;
+}
+/* Cine-enter: emoji animates in with the whole line wrapper */
+.cine-enter img.lyric-emoji--cinematic {
+    /* Inherit cine-enter animation timing from wrapper — appear mid-way */
+    opacity: 1;
+    animation: cine-emoji-in 0.45s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+    filter: grayscale(1) brightness(2.0) contrast(1.1)
+            drop-shadow(0 0 5px rgba(255,255,255,0.9))
+            drop-shadow(0 0 12px var(--blob-1-color, rgba(255,255,255,0.6)));
+}
+@keyframes cine-emoji-in {
+    0%   { opacity: 0; transform: scale(0.6) translateY(10px); }
+    60%  { opacity: 1; transform: scale(1.08) translateY(-2px); }
+    100% { opacity: 1; transform: scale(1.0) translateY(0); }
+}
+/* Enhanced mode unsung: dims like unsung cine-words */
+.cinematic-line-wrapper img.lyric-emoji--cinematic {
+    opacity: 1;
+    filter: grayscale(1) brightness(2.0) contrast(1.1)
+            drop-shadow(0 0 5px rgba(255,255,255,0.9))
+            drop-shadow(0 0 12px var(--blob-1-color, rgba(255,255,255,0.6)));
+}

@@ -11,6 +11,7 @@ import { AngelicParticleSystem } from '../../features/angelic/AngelicParticleSys
 import { AngelicClimaxFX } from '../../features/angelic/AngelicClimaxFX.js';
 import { AngelicStaffAnimator } from '../../features/angelic/AngelicStaffAnimator.js';
 import { applyInkWashExit } from '../../features/visualizer/VisualFX.js';
+import { renderEmojis } from '../../features/lyrics/EmojiRenderer.js';
 
 let lastLineShowTimestamp = 0;
 
@@ -112,6 +113,8 @@ export const AngelicRenderer = {
         newWrapper.setAttribute('data-amp', amp);
         
         angelicTextContainer.appendChild(newWrapper);
+        // Replace OS emoji with angelic-styled Twemoji SVGs after DOM insertion
+        renderEmojis(newWrapper, 'angelic');
     },
 
     /**
