@@ -1224,6 +1224,16 @@ async function initHome() {
                 }));
                 PlayerController.setPlaylist(loadedPlaylist);
             }
+
+            const prefs = await SupabaseService.getUserPreferences();
+            if (prefs) {
+                if (Array.isArray(prefs.vinyl_boxes)) {
+                    setCachedVinylBoxes(prefs.vinyl_boxes);
+                }
+                if (Array.isArray(prefs.library_order)) {
+                    setCachedLibraryOrder(prefs.library_order);
+                }
+            }
         }
     } catch (e) { 
         console.error("Error loading library from Supabase Cloud DB", e); 

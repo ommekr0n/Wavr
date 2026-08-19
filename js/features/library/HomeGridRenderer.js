@@ -1,21 +1,44 @@
 /**
  * HomeGridRenderer.js
  * Renders home view song cards and vinyl boxes grid.
+ * Persistent Local & Supabase Cloud Vault Sync for Vinyl Boxes & Order.
  */
 import coverImgUrl from '../../../assets/images/cover.png';
 import { PlayerController } from '../player/PlayerController.js';
+import { SupabaseService } from '../../services/SupabaseService.js';
 
 let cachedVinylBoxes = [];
 let cachedLibraryOrder = [];
 
+// Initialize immediately from localStorage
+try {
+    const localBoxes = localStorage.getItem('wavr_vinyl_boxes');
+    if (localBoxes) cachedVinylBoxes = JSON.parse(localBoxes);
+    const localOrder = localStorage.getItem('wavr_library_order');
+    if (localOrder) cachedLibraryOrder = JSON.parse(localOrder);
+} catch (e) {
+    console.warn('Error reading vinyl boxes from localStorage:', e);
+}
+
 export function getCachedVinylBoxes() { return cachedVinylBoxes; }
-export function setCachedVinylBoxes(val) { cachedVinylBoxes = val; }
+export function setCachedVinylBoxes(val) {
+    cachedVinylBoxes = val || [];
+    try {
+        localStorage.setItem('wavr_vinyl_boxes', JSON.stringify(cachedVinylBoxes));
+    } catch (e) {}
+}
 export function getCachedLibraryOrder() { return cachedLibraryOrder; }
-export function setCachedLibraryOrder(val) { cachedLibraryOrder = val; }
+export function setCachedLibraryOrder(val) {
+    cachedLibraryOrder = val || [];
+    try {
+        localStorage.setItem('wavr_library_order', JSON.stringify(cachedLibraryOrder));
+    } catch (e) {}
+}
 
 export function updateBoxCache(boxes, order) {
-    cachedVinylBoxes = boxes;
-    cachedLibraryOrder = order;
+    cachedVinylBoxes = boxes || [];
+    cachedLibraryOrder = order || [];
+    saveLibraryToDB();
 }
 
 export async function renderSongGrid({ homeSongGrid, setupBoxExpansionListeners }) {
@@ -103,5 +126,20 @@ export async function renderSongGrid({ homeSongGrid, setupBoxExpansionListeners 
 }
 
 export async function saveLibraryToDB() {
-    // 100% Pure Cloud Storage Architecture - No localforage / IndexedDB
+    try {
+        localStorage.setItem('wavr_vinyl_boxes', JSON.stringify(cachedVinylBoxes));
+        localStorage.setItem('wavr_library_order', JSON.stringify(cachedLibraryOrder));
+
+        if (SupabaseService.isConfigured()) {
+            const user = await SupabaseService.getCurrentUser();
+            if (user) {
+                await SupabaseService.updateUserPreferences({
+                    vinyl_boxes: cachedVinylBoxes,
+                    library_order: cachedLibraryOrder
+                });
+            }
+        }
+    } catch (e) {
+        console.warn('Error saving vinyl boxes / library order:', e);
+    }
 }
