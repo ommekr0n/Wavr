@@ -11,5 +11,17 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/r2-proxy/, '')
       }
     }
+  },
+  build: {
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-aws': ['@aws-sdk/client-s3'],
+          'vendor-twemoji': ['@twemoji/api']
+        }
+      }
+    }
   }
 });
