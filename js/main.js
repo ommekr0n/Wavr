@@ -1261,21 +1261,6 @@ async function initHome() {
     BackgroundManager.init();
 
     initEditLibrary(PlayerController.getPlaylist(), async () => {
-        clearWaveformCache();
-        const updatedPlaylist = PlayerController.getPlaylist();
-        
-        pauseAudio();
-        audio.currentTime = 0;
-        PlayerController.setCurrentTrackIndex(-1);
-        const miniPlayerEl = document.getElementById('mini-player');
-        if (miniPlayerEl) miniPlayerEl.classList.add('hidden');
-
-        updatedPlaylist.forEach(song => {
-            if (song.url) {
-                loadAndDecodeWaveform(song.url);
-            }
-        });
-
         await renderSongGrid({ homeSongGrid, setupBoxExpansionListeners: (boxes) => setupBoxExpansionListeners(homeSongGrid, boxes, openPlayer, syncPlayerControlsUI) });
     });
 

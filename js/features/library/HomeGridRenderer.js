@@ -1,7 +1,7 @@
 /**
  * HomeGridRenderer.js
  * Renders home view song cards and vinyl boxes grid.
- * Persistent Local & Supabase Cloud Vault Sync for Vinyl Boxes & Order.
+ * Instant Local Storage & Non-Blocking Background Supabase Sync.
  */
 import coverImgUrl from '../../../assets/images/cover.png';
 import { PlayerController } from '../player/PlayerController.js';
@@ -9,6 +9,7 @@ import { SupabaseService } from '../../services/SupabaseService.js';
 
 let cachedVinylBoxes = [];
 let cachedLibraryOrder = [];
+let _cloudSyncTimeout = null;
 
 // Initialize immediately from localStorage
 try {
@@ -125,20 +126,29 @@ export async function renderSongGrid({ homeSongGrid, setupBoxExpansionListeners 
     PlayerController.setActiveQueue(playlist.filter(s => !boxedSongIds.has(s.id)));
 }
 
-export async function saveLibraryToDB() {
+export function saveLibraryToDB() {
     try {
+        // 1. Instant synchronous local persistence
         localStorage.setItem('wavr_vinyl_boxes', JSON.stringify(cachedVinylBoxes));
         localStorage.setItem('wavr_library_order', JSON.stringify(cachedLibraryOrder));
 
-        if (SupabaseService.isConfigured()) {
-            const user = await SupabaseService.getCurrentUser();
-            if (user) {
-                await SupabaseService.updateUserPreferences({
-                    vinyl_boxes: cachedVinylBoxes,
-                    library_order: cachedLibraryOrder
-                });
+        // 2. Debounced background cloud sync (zero UI freeze)
+        if (_cloudSyncTimeout) clearTimeout(_cloudSyncTimeout);
+        _cloudSyncTimeout = setTimeout(async () => {
+            if (SupabaseService.isConfigured()) {
+                try {
+                    const user = await SupabaseService.getCurrentUser();
+                    if (user) {
+                        await SupabaseService.updateUserPreferences({
+                            vinyl_boxes: cachedVinylBoxes,
+                            library_order: cachedLibraryOrder
+                        });
+                    }
+                } catch (cloudErr) {
+                    console.warn('Background cloud sync error:', cloudErr);
+                }
             }
-        }
+        }, 600);
     } catch (e) {
         console.warn('Error saving vinyl boxes / library order:', e);
     }

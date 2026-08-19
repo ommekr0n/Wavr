@@ -97,14 +97,16 @@ export async function initEditLibrary(mainPlaylist, onDone) {
     const homeView        = document.getElementById('home-view');
     const editLibraryView = document.getElementById('edit-library-view');
 
-    // ── Enter Edit Library ────────────────────────────────────────────────────
-    btnEditLibrary?.addEventListener('click', async () => {
+    let _isDoneProcessing = false;
+
+    // ── Enter Edit Library (Instant zero-lag switch) ───────────────────────────
+    btnEditLibrary?.addEventListener('click', () => {
         window.appMainContext?.stopPlaybackForEdit?.() ?? document.getElementById('mini-player')?.classList.add('hidden');
 
         if (window.appMainContext?.getPlaylist) {
             setPlaylist([...window.appMainContext.getPlaylist()]);
         }
-        await loadFromStorage();
+        loadFromStorage();
 
         homeView?.classList.add('hidden');
         editLibraryView?.classList.remove('hidden');
@@ -119,23 +121,27 @@ export async function initEditLibrary(mainPlaylist, onDone) {
         }
     });
 
-    // ── Done / Save ───────────────────────────────────────────────────────────
-    btnEditDone?.addEventListener('click', async () => {
-        try {
-            await persistAll();
-        } catch (e) {
-            console.error('Error saving library updates', e);
-        }
+    // ── Done / Save (Instant response + Double-click protected) ───────────────
+    btnEditDone?.addEventListener('click', () => {
+        if (_isDoneProcessing) return;
+        _isDoneProcessing = true;
 
+        // 1. Instant view transition
+        editLibraryView?.classList.add('hidden');
+        homeView?.classList.remove('hidden');
+
+        // 2. Persist state and update main cache
+        persistAll();
         window.appMainContext?.updateBoxCache?.(
             [...state.vinylBoxes],
             [...state.libraryOrder]
         );
 
-        editLibraryView?.classList.add('hidden');
-        homeView?.classList.remove('hidden');
-
         onDoneCallback?.();
+
+        setTimeout(() => {
+            _isDoneProcessing = false;
+        }, 300);
     });
 
     // ── One-time modal & menu setups ──────────────────────────────────────────

@@ -1,8 +1,7 @@
 /**
  * EditLibraryState.js
  * Central state store for the Edit Library feature.
- * All modules import state from here instead of keeping local copies.
- * Syncs seamlessly with localStorage and Supabase Cloud Vault.
+ * Instant zero-lag synchronous state management with background cloud sync.
  */
 import { SupabaseService } from '../services/SupabaseService.js';
 import { getCachedVinylBoxes, getCachedLibraryOrder, updateBoxCache, saveLibraryToDB } from '../features/library/HomeGridRenderer.js';
@@ -32,26 +31,23 @@ export function clearSelection() {
     state.selectedSongIds.clear();
 }
 
-// ── Persistence helpers (localStorage + Supabase Cloud Vault) ────────────────
-export async function persistBoxes() {
+// ── Persistence helpers (Instant localStorage + Background Cloud Vault) ──────
+export function persistBoxes() {
     updateBoxCache([...state.vinylBoxes], [...state.libraryOrder]);
-    await saveLibraryToDB();
 }
 
-export async function persistOrder() {
+export function persistOrder() {
     updateBoxCache([...state.vinylBoxes], [...state.libraryOrder]);
-    await saveLibraryToDB();
 }
 
-export async function persistAll() {
+export function persistAll() {
     updateBoxCache([...state.vinylBoxes], [...state.libraryOrder]);
-    await saveLibraryToDB();
 }
 
-// ── Load from storage ─────────────────────────────────────────────────────────
-export async function loadFromStorage() {
+// ── Load from storage (Instant sync) ──────────────────────────────────────────
+export function loadFromStorage() {
     try {
-        // 1. Try memory cache / localStorage first
+        // 1. Instant load from memory cache / localStorage
         let boxes = getCachedVinylBoxes();
         let order = getCachedLibraryOrder();
 
@@ -64,20 +60,22 @@ export async function loadFromStorage() {
             if (savedOrder) order = JSON.parse(savedOrder);
         }
 
-        // 2. If user is logged into Supabase Cloud Vault, check cloud preferences
-        if (SupabaseService.isConfigured()) {
-            const prefs = await SupabaseService.getUserPreferences();
-            if (prefs && Array.isArray(prefs.vinyl_boxes)) {
-                boxes = prefs.vinyl_boxes;
-                if (Array.isArray(prefs.library_order)) {
-                    order = prefs.library_order;
-                }
-            }
-        }
-
         state.vinylBoxes = boxes || [];
         state.libraryOrder = order || [];
         updateBoxCache(state.vinylBoxes, state.libraryOrder);
+
+        // 2. Background check if cloud preferences have newer data
+        if (SupabaseService.isConfigured()) {
+            SupabaseService.getUserPreferences().then((prefs) => {
+                if (prefs && Array.isArray(prefs.vinyl_boxes) && prefs.vinyl_boxes.length > 0) {
+                    state.vinylBoxes = prefs.vinyl_boxes;
+                    if (Array.isArray(prefs.library_order)) {
+                        state.libraryOrder = prefs.library_order;
+                    }
+                    updateBoxCache(state.vinylBoxes, state.libraryOrder);
+                }
+            }).catch(() => {});
+        }
     } catch (e) {
         console.warn('Error loading vinyl boxes from storage:', e);
         state.vinylBoxes = [];

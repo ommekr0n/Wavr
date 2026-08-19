@@ -12,6 +12,8 @@ let editingBoxId   = null;
 let _pendingDeleteBoxId = null;
 
 // ── Playlist Naming Modal (Create / Edit box) ─────────────────────────────────
+let _isNamingSubmitting = false;
+
 export function setupPlaylistNamingModal() {
     const modal     = document.getElementById('playlist-name-modal');
     const form      = document.getElementById('playlist-name-form');
@@ -30,10 +32,14 @@ export function setupPlaylistNamingModal() {
         document.querySelectorAll('.song-card.selected').forEach(c => c.classList.remove('selected'));
     });
 
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', (e) => {
         e.preventDefault();
+        if (_isNamingSubmitting) return;
+
         const name = input.value.trim();
         if (!name) return;
+
+        _isNamingSubmitting = true;
 
         const selectedColor = colorInput ? colorInput.value : '#5a4232';
 
@@ -50,16 +56,20 @@ export function setupPlaylistNamingModal() {
             };
             state.vinylBoxes.push(newBox);
             state.libraryOrder.push(newBox.id);
-            await persistOrder();
         }
 
-        await persistBoxes();
-        renderEditGrid();
-        if (window.appMainContext?.renderSongGrid) window.appMainContext.renderSongGrid();
-
+        // Close modal and reset input immediately
         modal.classList.add('hidden');
         pendingSongIds = [];
         input.value    = '';
+        state.selectedSongIds.clear();
+
+        // Save & render instantly
+        persistBoxes();
+        renderEditGrid();
+        if (window.appMainContext?.renderSongGrid) window.appMainContext.renderSongGrid();
+
+        _isNamingSubmitting = false;
     });
 }
 
