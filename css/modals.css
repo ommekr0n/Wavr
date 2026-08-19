@@ -237,6 +237,9 @@
 }
 
 /* Image Crop Modal */
+#image-crop-modal {
+    z-index: 10050 !important;
+}
 .crop-modal-content {
     max-width: 680px;
     width: 90vw;

@@ -1,8 +1,10 @@
 /**
  * Wavr - Custom Background Wallpaper & Glass Frost Controller
+ * Full Cloud Sync via Supabase & Cloudflare R2 + Instant Local Cache
  */
 
-let db = null;
+import { SupabaseService } from '../services/SupabaseService.js';
+
 let currentImage = null; // Holds the HTMLImageElement being cropped
 let cropScale = 1;
 let imgX = 0;
@@ -14,30 +16,74 @@ let startY = 0;
 const CROP_WIDTH = 640;
 const CROP_HEIGHT = 360; // 16:9 Aspect Ratio
 
-// Safely get localforage from window or wait for it
-async function getDB() {
-    if (db) return db;
-    if (window.localforage) {
-        db = window.localforage;
-        return db;
-    }
-    // Fallback if localforage is loading
-    return new Promise((resolve) => {
-        const interval = setInterval(() => {
-            if (window.localforage) {
-                db = window.localforage;
-                clearInterval(interval);
-                resolve(db);
+const DB_NAME = 'wavr_background_db';
+const STORE_NAME = 'settings';
+
+function openBackgroundDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME);
             }
-        }, 50);
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
     });
+}
+
+async function getStoredBackground() {
+    try {
+        const db = await openBackgroundDB();
+        return new Promise((resolve) => {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.get('wavr_custom_bg');
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => resolve(null);
+        });
+    } catch (e) {
+        console.warn('Failed to read background from IndexedDB:', e);
+        return null;
+    }
+}
+
+async function setStoredBackground(blob) {
+    try {
+        const db = await openBackgroundDB();
+        return new Promise((resolve) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.put(blob, 'wavr_custom_bg');
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+        });
+    } catch (e) {
+        console.error('Failed to save background to IndexedDB:', e);
+        throw e;
+    }
+}
+
+async function removeStoredBackground() {
+    try {
+        const db = await openBackgroundDB();
+        return new Promise((resolve) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.delete('wavr_custom_bg');
+            req.onsuccess = () => resolve();
+            req.onerror = () => resolve();
+        });
+    } catch (e) {
+        console.error('Failed to remove background from IndexedDB:', e);
+    }
 }
 
 function showNotification(message) {
     if (window.appMainContext && typeof window.appMainContext.showToast === 'function') {
         window.appMainContext.showToast(message);
     } else {
-        // Fallback custom toast if main context is not initialized yet
         let toast = document.getElementById('wavr-toast');
         if (!toast) {
             toast = document.createElement('div');
@@ -82,17 +128,34 @@ function drawCropPreview(canvas, ctx) {
     ctx.stroke();
 
     // Outline viewport border
-    ctx.strokeStyle = 'rgba(0, 229, 255, 0.4)';
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.5)';
     ctx.lineWidth = 2;
     ctx.strokeRect(0, 0, canvas.width, canvas.height);
 }
 
-// Convert image to Blob and save
+// Convert image to Blob and save to Cloudflare R2 / Supabase + Local Cache
 async function saveAndApplyBackground(blob) {
-    const store = await getDB();
     try {
-        await store.setItem('wavr_custom_bg', blob);
+        // 1. Instant local display & cache
+        await setStoredBackground(blob);
         applyBackgroundImage(blob);
+
+        // 2. Upload to Cloudflare R2 / Supabase if user is logged into Cloud Vault
+        if (SupabaseService.isConfigured()) {
+            const user = await SupabaseService.getCurrentUser();
+            if (user) {
+                try {
+                    const cloudPath = `wallpapers/${Date.now()}.webp`;
+                    const cloudUrl = await SupabaseService.uploadMediaFile(blob, cloudPath);
+                    await SupabaseService.updateUserPreferences({ wallpaper_url: cloudUrl });
+                    showNotification("Wallpaper synced to Cloud Vault & R2!");
+                    return;
+                } catch (cloudErr) {
+                    console.warn("Cloud wallpaper upload failed, fallback to local:", cloudErr);
+                }
+            }
+        }
+
         showNotification("Wallpaper updated successfully!");
     } catch (e) {
         console.error("Failed to save custom background", e);
@@ -100,24 +163,28 @@ async function saveAndApplyBackground(blob) {
     }
 }
 
-// Set background image on target layers
-function applyBackgroundImage(blob) {
+// Set background image on target layers (supports Blob or direct URL string)
+function applyBackgroundImage(source) {
     const bgLayer = document.getElementById('app-custom-bg-layer');
     if (!bgLayer) return;
 
-    if (blob) {
-        const url = URL.createObjectURL(blob);
-        
-        // Clean up old object URLs if any
-        if (bgLayer.dataset.bgUrl) {
-            URL.revokeObjectURL(bgLayer.dataset.bgUrl);
+    if (source) {
+        let url = '';
+        if (typeof source === 'string') {
+            url = source;
+        } else if (source instanceof Blob) {
+            url = URL.createObjectURL(source);
+            // Clean up old object URLs if any
+            if (bgLayer.dataset.bgUrl && bgLayer.dataset.bgUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(bgLayer.dataset.bgUrl);
+            }
+            bgLayer.dataset.bgUrl = url;
         }
 
         bgLayer.style.backgroundImage = `url('${url}')`;
-        bgLayer.dataset.bgUrl = url;
         bgLayer.classList.add('active');
     } else {
-        if (bgLayer.dataset.bgUrl) {
+        if (bgLayer.dataset.bgUrl && bgLayer.dataset.bgUrl.startsWith('blob:')) {
             URL.revokeObjectURL(bgLayer.dataset.bgUrl);
             delete bgLayer.dataset.bgUrl;
         }
@@ -128,8 +195,6 @@ function applyBackgroundImage(blob) {
 
 export const BackgroundManager = {
     async init() {
-        const store = await getDB();
-
         // 1. Load saved blur, opacity & grid state
         let savedBlur = localStorage.getItem('wavr_bg_blur');
         if (savedBlur === null) savedBlur = '16';
@@ -190,14 +255,14 @@ export const BackgroundManager = {
             });
         }
 
-        // 2. Load saved background image
-        try {
-            const savedBgBlob = await store.getItem('wavr_custom_bg');
-            if (savedBgBlob) {
-                applyBackgroundImage(savedBgBlob);
-            }
-        } catch (e) {
-            console.error("Failed to load saved background image", e);
+        // 2. Load wallpaper: Prioritize Cloud Vault URL if logged in, fallback to local cache
+        await this.syncWallpaperFromCloudOrLocal();
+
+        // Listen to Auth state changes to auto-sync cloud wallpaper on login
+        if (SupabaseService.isConfigured()) {
+            SupabaseService.onAuthStateChange(async () => {
+                await this.syncWallpaperFromCloudOrLocal();
+            });
         }
 
         // 3. Bind range slider input events
@@ -243,7 +308,10 @@ export const BackgroundManager = {
         if (btnResetBg) {
             btnResetBg.addEventListener('click', async () => {
                 try {
-                    await store.removeItem('wavr_custom_bg');
+                    await removeStoredBackground();
+                    if (SupabaseService.isConfigured()) {
+                        await SupabaseService.updateUserPreferences({ wallpaper_url: null });
+                    }
                     applyBackgroundImage(null);
                     showNotification("Wallpaper reset to default.");
                 } catch(err) {
@@ -256,6 +324,26 @@ export const BackgroundManager = {
         this.setupCropCanvasEvents();
     },
 
+    async syncWallpaperFromCloudOrLocal() {
+        try {
+            if (SupabaseService.isConfigured()) {
+                const prefs = await SupabaseService.getUserPreferences();
+                if (prefs && prefs.wallpaper_url) {
+                    applyBackgroundImage(prefs.wallpaper_url);
+                    return;
+                }
+            }
+
+            // Fallback to local storage
+            const savedBgBlob = await getStoredBackground();
+            if (savedBgBlob) {
+                applyBackgroundImage(savedBgBlob);
+            }
+        } catch (e) {
+            console.error("Failed to load background image", e);
+        }
+    },
+
     processImageFile(file) {
         if (!file.type.startsWith('image/')) {
             showNotification("Please select a valid image file.");
@@ -266,22 +354,7 @@ export const BackgroundManager = {
         reader.onload = (e) => {
             const img = new Image();
             img.onload = () => {
-                const w = img.width;
-                const h = img.height;
-
-                // Scenario A: Image is too large -> Trigger Crop Modal
-                if (w > 1920 || h > 1080) {
-                    this.openCropModal(img);
-                } 
-                // Scenario B: Image is too small -> Warn, upscale, save
-                else if (w < 1280 || h < 720) {
-                    showNotification("Image is below recommended HD resolution. Auto-upscaling to fit...");
-                    this.upscaleImage(img);
-                }
-                // Scenario C: Perfect fit -> Compress to WebP directly
-                else {
-                    this.directSaveImage(img);
-                }
+                this.openCropModal(img);
             };
             img.src = e.target.result;
         };
@@ -397,55 +470,10 @@ export const BackgroundManager = {
                     saveAndApplyBackground(blob);
                     modal.classList.add('hidden');
                     currentImage = null;
-                }, 'image/webp', 0.85);
+                }, 'image/webp', 0.88);
             });
         }
-    },
-
-    upscaleImage(img) {
-        const outCanvas = document.createElement('canvas');
-        outCanvas.width = 1920;
-        outCanvas.height = 1080;
-        const outCtx = outCanvas.getContext('2d');
-
-        // Apply high quality smoothing
-        outCtx.imageSmoothingEnabled = true;
-        outCtx.imageSmoothingQuality = 'high';
-
-        // Fit cover calculation
-        const scale = Math.max(1920 / img.width, 1080 / img.height);
-        const w = img.width * scale;
-        const h = img.height * scale;
-        const x = (1920 - w) / 2;
-        const y = (1080 - h) / 2;
-
-        outCtx.drawImage(img, x, y, w, h);
-
-        outCanvas.toBlob((blob) => {
-            saveAndApplyBackground(blob);
-        }, 'image/webp', 0.85);
-    },
-
-    directSaveImage(img) {
-        const outCanvas = document.createElement('canvas');
-        outCanvas.width = 1920;
-        outCanvas.height = 1080;
-        const outCtx = outCanvas.getContext('2d');
-
-        // Draw cover fit
-        const scale = Math.max(1920 / img.width, 1080 / img.height);
-        const w = img.width * scale;
-        const h = img.height * scale;
-        const x = (1920 - w) / 2;
-        const y = (1080 - h) / 2;
-
-        outCtx.drawImage(img, x, y, w, h);
-
-        outCanvas.toBlob((blob) => {
-            saveAndApplyBackground(blob);
-        }, 'image/webp', 0.85);
     }
 };
 
 window.appMainContext = window.appMainContext || {};
-window.appMainContext.showToast = showNotification;

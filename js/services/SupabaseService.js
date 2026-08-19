@@ -218,5 +218,29 @@ export const SupabaseService = {
             .eq('id', trackId);
 
         if (error) throw error;
+    },
+
+    // ── User Cloud Preferences & Wallpaper ─────────────────────────────────────
+    async updateUserPreferences(prefs) {
+        if (!supabase) return;
+        const user = await this.getCurrentUser();
+        if (!user) return;
+
+        const currentMeta = user.user_metadata || {};
+        const updatedMeta = { ...currentMeta, ...prefs };
+
+        const { data, error } = await supabase.auth.updateUser({
+            data: updatedMeta
+        });
+        if (error) {
+            console.warn('Failed to update user preferences on Supabase:', error);
+        }
+        return data?.user;
+    },
+
+    async getUserPreferences() {
+        if (!supabase) return null;
+        const user = await this.getCurrentUser();
+        return user?.user_metadata || null;
     }
 };
