@@ -28,4 +28,6 @@ assets/covers/
 # Personal & Studio local files
 RULES.md
 lrc_studio/
+.context/
+.agent/
 
