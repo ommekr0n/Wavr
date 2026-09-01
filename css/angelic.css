@@ -569,29 +569,70 @@ body.is-recording .modal-backdrop {
     display: none !important;
 }
 
-/* ── 2. Ink Wash / Mist Radial 360° Expansion Exit (GPU Fast Path 60 FPS) ── */
+/* ── 2. Fluid Ink Wash / Mist Radial Diffusion Exit (GPU 60 FPS) ── */
 @keyframes ink-wash-float {
     0% {
         opacity: 1;
-        filter: blur(0px);
-        transform: scale(1.0) rotate(0deg) translateZ(0);
+        transform: scale(1.0) translateY(0) rotate(0deg) translateZ(0);
+        filter: blur(0px) brightness(1.2);
     }
-    35% {
-        opacity: 0.9;
-        filter: blur(1.5px);
+    25% {
+        opacity: 0.82;
+        transform: scale(1.06) translateY(-6px) rotate(calc(var(--exit-rot, 0.6deg) * 0.4)) translateZ(0);
+        filter: blur(3px) brightness(1.35);
+    }
+    55% {
+        opacity: 0.48;
+        transform: scale(1.15) translateY(-16px) rotate(calc(var(--exit-rot, 0.6deg) * 0.8)) translateZ(0);
+        filter: blur(9px) brightness(1.15);
+    }
+    80% {
+        opacity: 0.18;
+        transform: scale(1.24) translateY(-26px) rotate(var(--exit-rot, 0.6deg)) translateZ(0);
+        filter: blur(16px) brightness(0.95);
     }
     100% {
         opacity: 0;
-        filter: blur(10px);
-        transform: scale(1.22) rotate(var(--exit-rot, 0deg)) translateZ(0);
+        transform: scale(1.32) translateY(-36px) rotate(var(--exit-rot, 0.6deg)) translateZ(0);
+        filter: blur(24px) brightness(0.8);
+    }
+}
+
+@keyframes ink-line-spread {
+    0% {
+        letter-spacing: normal;
+    }
+    100% {
+        letter-spacing: 5px;
+    }
+}
+
+@keyframes ink-floral-fade {
+    0% {
+        opacity: 1;
+        filter: blur(0px);
+        transform: translateY(0) scale(1);
+    }
+    100% {
+        opacity: 0;
+        filter: blur(14px);
+        transform: translateY(-24px) scale(1.12);
     }
 }
 
 .angelic-line-wrapper.ink-wash-exit {
     transform-origin: center center !important;
-    animation: ink-wash-float 0.72s cubic-bezier(0.16, 0.9, 0.25, 1) forwards !important;
+    animation: ink-wash-float 0.88s cubic-bezier(0.2, 0.8, 0.3, 1) forwards !important;
     pointer-events: none !important;
-    will-change: opacity, transform;
+    will-change: opacity, transform, filter;
+}
+
+.angelic-line-wrapper.ink-wash-exit .angelic-line {
+    animation: ink-line-spread 0.88s cubic-bezier(0.2, 0.8, 0.3, 1) forwards !important;
+}
+
+.angelic-line-wrapper.ink-wash-exit .angelic-floral-svg {
+    animation: ink-floral-fade 0.88s cubic-bezier(0.2, 0.8, 0.3, 1) forwards !important;
 }
 
 /* ── Angelic Mode Twemoji Emoji ──────────────────────────────────────── */
@@ -622,5 +663,5 @@ img.lyric-emoji--angelic {
 .ink-wash-exit img.lyric-emoji--angelic {
     opacity: 0 !important;
     filter: saturate(0) opacity(0) !important;
-    transition: opacity 0.72s ease, filter 0.72s ease !important;
+    transition: opacity 0.88s ease, filter 0.88s ease !important;
 }

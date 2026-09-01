@@ -60,7 +60,7 @@ export function applyInkWashExit(wrapper) {
     wrapper.classList.add('ink-wash-exit');
     const rot = (Math.random() - 0.5) * 2;
     wrapper.style.setProperty('--exit-rot', `${rot}deg`);
-    setTimeout(() => { if (wrapper.parentNode) wrapper.remove(); }, 750);
+    setTimeout(() => { if (wrapper.parentNode) wrapper.remove(); }, 900);
 }
 
 // ── 3. Parallax Depth (Removed as requested) ──────────────────────────────────
