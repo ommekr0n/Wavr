@@ -103,7 +103,7 @@ export const CinematicRenderer = {
                     fireGifBlobUrl = URL.createObjectURL(blob);
                 }
             })
-            .catch(() => console.log('No fire.gif found for preloading'));
+            .catch(() => console.warn('No fire.gif found for preloading'));
     },
 
     updateConcertColors(colors) {

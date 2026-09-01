@@ -229,10 +229,10 @@ export function setupUploadHandler({ uploadModal, uploadForm, uploadAudio, uploa
                         const dt = new DataTransfer();
                         dt.items.add(imgFile);
                         uploadCover.files = dt.files;
-                    } catch (err) { console.log("Could not attach cover art", err); }
+                    } catch (err) { console.warn("Could not attach cover art", err); }
                 }
             },
-            onError: (error) => console.log('Error reading tags', error)
+            onError: (error) => console.warn('Error reading tags', error)
         });
     });
 }
