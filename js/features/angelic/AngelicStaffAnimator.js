@@ -59,9 +59,7 @@ export const AngelicStaffAnimator = {
                 p.style.opacity = (0.2 + ((zDepth + 1) / 2) * 0.4).toFixed(3);
             }
             
-            // 2. Update motifs & florals
-            const isExiting = wrapper.classList.contains('angelic-exit') || wrapper.classList.contains('ink-wash-exit');
-            if (isExiting) continue;
+            // 2. Update motifs & florals (keep waving during exit for continuous fluid motion)
 
             const motifs = wrapper.querySelectorAll('.staff-motif-anim');
             for (let i = 0; i < motifs.length; i++) {
