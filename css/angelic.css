@@ -578,17 +578,8 @@ body.is-recording .modal-backdrop {
     }
     100% {
         opacity: 0;
-        transform: scale(1.26) translateY(-32px) rotate(var(--exit-rot, 0.6deg)) translateZ(0);
+        transform: scale(1.24) translateY(-30px) rotate(var(--exit-rot, 0.6deg)) translateZ(0);
         filter: blur(20px) brightness(0.75);
-    }
-}
-
-@keyframes ink-line-spread {
-    0% {
-        letter-spacing: normal;
-    }
-    100% {
-        letter-spacing: 6px;
     }
 }
 
@@ -614,7 +605,6 @@ body.is-recording .modal-backdrop {
 
 .angelic-line-wrapper.ink-wash-exit .angelic-word-pop {
     opacity: 1 !important;
-    transform: translateY(0) scale(1) rotate(0) !important;
     animation: none !important;
     transition: none !important;
 }
@@ -631,7 +621,8 @@ body.is-recording .modal-backdrop {
 }
 
 .angelic-line-wrapper.ink-wash-exit .angelic-line {
-    animation: ink-line-spread 0.88s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    letter-spacing: inherit !important;
+    transition: none !important;
 }
 
 .angelic-line-wrapper.ink-wash-exit .angelic-floral-svg {
