@@ -612,9 +612,22 @@ body.is-recording .modal-backdrop {
     will-change: opacity, transform, filter;
 }
 
-.angelic-line-wrapper.ink-wash-exit,
-.angelic-line-wrapper.ink-wash-exit * {
-    transition: none !important; /* Disable all child transitions to prevent jank */
+.angelic-line-wrapper.ink-wash-exit .angelic-word-pop {
+    opacity: 1 !important;
+    transform: translateY(0) scale(1) rotate(0) !important;
+    animation: none !important;
+    transition: none !important;
+}
+
+.angelic-line-wrapper.ink-wash-exit .angelic-branch {
+    stroke-dashoffset: 0 !important;
+    transition: none !important;
+}
+
+.angelic-line-wrapper.ink-wash-exit .angelic-bloom {
+    opacity: 1 !important;
+    transform: scale(1) !important;
+    transition: none !important;
 }
 
 .angelic-line-wrapper.ink-wash-exit .angelic-line {

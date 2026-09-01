@@ -57,7 +57,6 @@ export function updateLyricBreath(intensity, angelicTextContainer) {
  */
 export function applyInkWashExit(wrapper) {
     if (!wrapper) return;
-    wrapper.classList.remove('angelic-enter-wrapper');
     wrapper.classList.add('ink-wash-exit');
     const rot = (Math.random() - 0.5) * 2;
     wrapper.style.setProperty('--exit-rot', `${rot}deg`);
