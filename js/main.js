@@ -131,11 +131,16 @@ let lastFormattedSec = -1;
 let lastBeatIntensity = -1;
 let winWidth = window.innerWidth;
 let winHeight = window.innerHeight;
+let resizeRaf = null;
 
 window.addEventListener('resize', () => {
-    winWidth = window.innerWidth;
-    winHeight = window.innerHeight;
-});
+    if (resizeRaf) cancelAnimationFrame(resizeRaf);
+    resizeRaf = requestAnimationFrame(() => {
+        winWidth = window.innerWidth;
+        winHeight = window.innerHeight;
+        resizeRaf = null;
+    });
+}, { passive: true });
 
 // ── 6. UI Helper Functions ───────────────────────────────────────────────────
 function showToast(message) {

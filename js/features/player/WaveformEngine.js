@@ -1,10 +1,11 @@
 /**
  * WaveformEngine.js
- * Real-audio waveform decoding and mini-player canvas rendering.
+ * Real-audio waveform decoding, LRU caching, and mini-player canvas rendering.
  */
 
 const waveformCtx   = new (window.AudioContext || window.webkitAudioContext)();
-const waveformCache = new Map();
+const MAX_CACHE_SIZE = 30; // LRU limit to prevent excessive memory usage
+const waveformCache = new Map(); // Map preserves insertion order for LRU eviction
 let currentWaveformData = null;
 let currentWaveformUrl  = null;
 
@@ -19,12 +20,37 @@ export function clearWaveformCache() {
     waveformCache.clear();
 }
 
+/**
+ * Access LRU Cache: Re-inserts key to mark as most recently used.
+ */
+function getFromCache(url) {
+    if (!waveformCache.has(url)) return null;
+    const val = waveformCache.get(url);
+    waveformCache.delete(url);
+    waveformCache.set(url, val);
+    return val;
+}
+
+/**
+ * Put into LRU Cache: Evicts oldest entry if size exceeds limit.
+ */
+function putInCache(url, data) {
+    if (waveformCache.has(url)) {
+        waveformCache.delete(url);
+    } else if (waveformCache.size >= MAX_CACHE_SIZE) {
+        const oldestKey = waveformCache.keys().next().value;
+        if (oldestKey) waveformCache.delete(oldestKey);
+    }
+    waveformCache.set(url, data);
+}
+
 export async function loadAndDecodeWaveform(url) {
     if (!url) return;
     currentWaveformUrl = url;
 
-    if (waveformCache.has(url)) {
-        currentWaveformData = waveformCache.get(url);
+    const cached = getFromCache(url);
+    if (cached) {
+        currentWaveformData = cached;
         const pct = (!_audio || isNaN(_audio.duration)) ? 0 : (_audio.currentTime / _audio.duration) * 100;
         drawMiniWaveform(pct);
         return;
@@ -68,7 +94,7 @@ export async function loadAndDecodeWaveform(url) {
             return 0.1 + Math.pow(p / maxVal, 0.75) * 0.9;
         });
 
-        waveformCache.set(url, normalizedPoints);
+        putInCache(url, normalizedPoints);
         if (currentWaveformUrl === url) {
             currentWaveformData = normalizedPoints;
             const pct = (!_audio || isNaN(_audio.duration)) ? 0 : (_audio.currentTime / _audio.duration) * 100;
@@ -79,7 +105,7 @@ export async function loadAndDecodeWaveform(url) {
         const fallback = Array.from({ length: 140 }, (_, i) =>
             0.15 + Math.abs(Math.sin(i * 0.15) * Math.cos(i * 0.05)) * 0.7
         );
-        waveformCache.set(url, fallback);
+        putInCache(url, fallback);
         if (currentWaveformUrl === url) {
             currentWaveformData = fallback;
             const pct = (!_audio || isNaN(_audio.duration)) ? 0 : (_audio.currentTime / _audio.duration) * 100;

@@ -1,10 +1,10 @@
 /**
  * VisualizerController.js
  * Manages Cinematic / Angelic view mode transitions and mouse-hide auto-timeout.
- * Extracted 1:1 from backup_prime/js/main.js (lines 156-157, 2567-2625)
  */
 
 import { LyricEngine } from '../lyrics/LyricEngine.js';
+import { AngelicStaffAnimator } from '../angelic/AngelicStaffAnimator.js';
 
 // ── Mode State ───────────────────────────────────────────────────────────────
 let isCinematicMode = false;
@@ -23,7 +23,6 @@ export const VisualizerController = {
 
     /**
      * Enters Cinematic Mode.
-     * Extracted 1:1 from backup_prime/js/main.js lines 2567-2582.
      *
      * @param {HTMLElement} playerView        - #player-view
      * @param {HTMLElement} cinematicView     - #cinematic-view
@@ -42,34 +41,27 @@ export const VisualizerController = {
         cinematicView.classList.remove('hidden');
         document.body.classList.add('mouse-active');
 
-        // Start auto-hide timeout immediately on mode entrance so button fades out when idle
         clearTimeout(mouseTimeout);
         mouseTimeout = setTimeout(() => {
             document.body.classList.remove('mouse-active');
         }, 2000);
 
-        // Resize canvas using cached values
-        cinematicCanvas.width  = winWidth;
-        cinematicCanvas.height = winHeight;
+        if (cinematicCanvas) {
+            cinematicCanvas.width  = winWidth;
+            cinematicCanvas.height = winHeight;
+        }
 
-        // Force reset so updateHighlight re-evaluates, but set AFTER trigger
-        // to prevent double-fire (which replaced wrapper 1 with wrapper 2 immediately,
-        // causing enhanced LRC to miss the initial line)
         LyricEngine.setActiveLyricIndex(-1);
 
-        // Immediately render the current lyric line — pass full object for enhanced LRC
         if (activeLyricIndex !== -1 && currentLyrics[activeLyricIndex]) {
             triggerCinematicLineFn(currentLyrics[activeLyricIndex]);
-            // Re-set to real index so updateHighlight does NOT retrigger for this same line
             LyricEngine.setActiveLyricIndex(activeLyricIndex);
-            // Force syncWordSpans to re-query the new wrapper's word spans
             LyricEngine.invalidateCineCache();
         }
     },
 
     /**
      * Exits Cinematic Mode.
-     * Extracted 1:1 from backup_prime/js/main.js lines 2584-2589.
      *
      * @param {HTMLElement} cinematicView          - #cinematic-view
      * @param {HTMLElement} playerView             - #player-view
@@ -79,13 +71,12 @@ export const VisualizerController = {
         isCinematicMode = false;
         cinematicView.classList.add('hidden');
         playerView.classList.remove('hidden');
-        cinematicTextContainer.innerHTML = '';
+        if (cinematicTextContainer) cinematicTextContainer.innerHTML = '';
         LyricEngine.setActiveLyricIndex(-1);
     },
 
     /**
      * Enters Angelic Mode.
-     * Extracted 1:1 from backup_prime/js/main.js lines 2591-2605.
      *
      * @param {HTMLElement} playerView           - #player-view
      * @param {HTMLElement} angelicView          - #angelic-view
@@ -102,15 +93,12 @@ export const VisualizerController = {
         angelicView.classList.remove('hidden');
         document.body.classList.add('mouse-active');
 
-        // Start auto-hide timeout immediately on mode entrance so button fades out when idle
         clearTimeout(mouseTimeout);
         mouseTimeout = setTimeout(() => {
             document.body.classList.remove('mouse-active');
         }, 2000);
         LyricEngine.setActiveLyricIndex(-1);
 
-        // Immediately show current line, but DEFER pre-building the next line
-        // to an idle frame so the mode transition frame remains buttery 60 FPS!
         if (activeLyricIndex !== -1 && currentLyrics[activeLyricIndex]) {
             showAngelicLineFn(activeLyricIndex);
             if (currentLyrics[activeLyricIndex + 1]) {
@@ -127,7 +115,6 @@ export const VisualizerController = {
 
     /**
      * Exits Angelic Mode.
-     * Extracted 1:1 from backup_prime/js/main.js lines 2607-2613.
      *
      * @param {HTMLElement} angelicView              - #angelic-view
      * @param {HTMLElement} playerView               - #player-view
@@ -136,16 +123,16 @@ export const VisualizerController = {
      */
     exitAngelicMode(angelicView, playerView, angelicTextContainer, angelicParticleContainer) {
         isAngelicMode = false;
+        AngelicStaffAnimator.stop();
         angelicView.classList.add('hidden');
         playerView.classList.remove('hidden');
-        angelicTextContainer.innerHTML = '';
+        if (angelicTextContainer) angelicTextContainer.innerHTML = '';
         if (angelicParticleContainer) angelicParticleContainer.innerHTML = '';
         LyricEngine.setActiveLyricIndex(-1);
     },
 
     /**
      * Sets up the single unified mouse-idle auto-hide listener for Player View, Cinematic, and Angelic modes.
-     * Hides cursor and all top header controls simultaneously after 2000ms of inactivity.
      */
     setupAutoHide() {
         let globalIdleTimeout = null;
@@ -158,12 +145,11 @@ export const VisualizerController = {
             globalIdleTimeout = setTimeout(() => {
                 const playerView = document.getElementById('player-view');
                 const isPlayerActive = playerView && playerView.classList.contains('player-active') && !playerView.classList.contains('hidden');
-
-                if (isPlayerActive || isCinematicMode || isAngelicMode) {
+                if (isCinematicMode || isAngelicMode || isPlayerActive) {
                     document.body.classList.add('user-idle');
                     document.body.classList.remove('mouse-active');
                 }
-            }, 2000);
-        });
-    },
+            }, 2500);
+        }, { passive: true });
+    }
 };

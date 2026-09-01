@@ -143,6 +143,21 @@ export const AngelicRenderer = {
             }
         });
 
+        // DOM Garbage Collection: Purge distant old wrappers to prevent DOM bloat on long tracks
+        if (allWrappers.length > 3) {
+            allWrappers.forEach(line => {
+                if (line !== wrapper && !line.classList.contains('angelic-prebuilt')) {
+                    const idxAttr = line.getAttribute('data-lyric-index');
+                    if (idxAttr !== null) {
+                        const lineIdx = parseInt(idxAttr, 10);
+                        if (Math.abs(lineIdx - index) > 2 && line.parentNode) {
+                            line.remove();
+                        }
+                    }
+                }
+            });
+        }
+
         lastLineShowTimestamp = Date.now();
         wrapper.classList.remove('angelic-prebuilt');
 
@@ -154,7 +169,7 @@ export const AngelicRenderer = {
             if (clef && !clef.classList.contains('enter')) clef.classList.add('enter');
         });
 
-        // Start Canvas-like sine wave animation for the active line!
+        // Start Canvas-like sine wave animation for the active line
         const w = parseFloat(wrapper.getAttribute('data-w'));
         const staffLineGap = parseFloat(wrapper.getAttribute('data-staff-gap'));
         const yCenter = parseFloat(wrapper.getAttribute('data-y-center'));
