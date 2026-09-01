@@ -576,16 +576,20 @@ body.is-recording .modal-backdrop {
         filter: blur(0px);
         transform: scale(1.0) rotate(0deg) translateZ(0);
     }
+    35% {
+        opacity: 0.9;
+        filter: blur(1.5px);
+    }
     100% {
         opacity: 0;
-        filter: blur(8px);
-        transform: scale(1.28) rotate(var(--exit-rot, 0deg)) translateZ(0);
+        filter: blur(10px);
+        transform: scale(1.22) rotate(var(--exit-rot, 0deg)) translateZ(0);
     }
 }
 
 .angelic-line-wrapper.ink-wash-exit {
     transform-origin: center center !important;
-    animation: ink-wash-float 0.32s cubic-bezier(0.1, 0.9, 0.2, 1) forwards !important;
+    animation: ink-wash-float 0.72s cubic-bezier(0.16, 0.9, 0.25, 1) forwards !important;
     pointer-events: none !important;
     will-change: opacity, transform;
 }
@@ -618,5 +622,5 @@ img.lyric-emoji--angelic {
 .ink-wash-exit img.lyric-emoji--angelic {
     opacity: 0 !important;
     filter: saturate(0) opacity(0) !important;
-    transition: opacity 0.32s ease, filter 0.32s ease !important;
+    transition: opacity 0.72s ease, filter 0.72s ease !important;
 }
