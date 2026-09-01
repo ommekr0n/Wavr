@@ -139,13 +139,16 @@ export function saveLibraryToDB() {
                 try {
                     const user = await SupabaseService.getCurrentUser();
                     if (user) {
+                        document.dispatchEvent(new CustomEvent('wavr:syncStatusChange', { detail: { state: 'syncing' } }));
                         await SupabaseService.updateUserPreferences({
                             vinyl_boxes: cachedVinylBoxes,
                             library_order: cachedLibraryOrder
                         });
+                        document.dispatchEvent(new CustomEvent('wavr:syncStatusChange', { detail: { state: 'synced' } }));
                     }
                 } catch (cloudErr) {
                     console.warn('Background cloud sync error:', cloudErr);
+                    document.dispatchEvent(new CustomEvent('wavr:syncStatusChange', { detail: { state: 'offline' } }));
                 }
             }
         }, 600);

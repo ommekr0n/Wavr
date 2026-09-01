@@ -28,6 +28,8 @@ import { initGlobalKeyHandlers } from './features/navigation/GlobalKeyHandlers.j
 import { setupIdleAutoHide } from './features/navigation/IdleController.js';
 import { preloadAngelicAssets, preloadCinematicAssets } from './features/visualizer/AssetPreloader.js';
 import { runSplashBootstrapper } from './features/splash/AppBootstrapper.js';
+import { setupSongCardDropHandler } from './features/library/SongCardDropHandler.js';
+import { CloudSyncIndicator } from './features/vault/CloudSyncIndicator.js';
 
 import {
     renderSongGrid,
@@ -867,6 +869,22 @@ function setupEventListeners() {
         audio,
         PlayerController
     });
+
+    setupSongCardDropHandler({
+        PlayerController,
+        LyricEngine,
+        lyricsList,
+        angelicTextContainer,
+        cinematicTextContainer,
+        showToast,
+        loadTrack,
+        updateProgress,
+        homeSongGrid,
+        openPlayer,
+        syncPlayerControlsUI,
+        audio,
+        coverArt
+    });
 }
 
 document.addEventListener('click', (e) => {
@@ -885,6 +903,7 @@ async function initHome() {
     CinematicRenderer.init();
     initWaveform(audio);
     attachParallax();
+    CloudSyncIndicator.init();
 
     let loadedPlaylist = [];
     try {

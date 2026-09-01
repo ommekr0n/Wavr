@@ -3,6 +3,7 @@
  * Modular UI handler for Personal Cloud Vault Auth & Cloud Sync Modal.
  */
 import { SupabaseService } from '../../services/SupabaseService.js';
+import { CloudSyncIndicator } from './CloudSyncIndicator.js';
 
 export function initCloudVaultUI(showToast) {
     const btnAuthVault = document.getElementById('btn-auth-vault');
@@ -54,6 +55,7 @@ export function initCloudVaultUI(showToast) {
                 if (homeVaultText) homeVaultText.textContent = 'Log In / Sign Up';
                 if (btnAuthVault) btnAuthVault.title = 'Log In / Sign Up to Personal Cloud Vault';
             }
+            CloudSyncIndicator.updateUI();
         } catch (err) {
             console.warn('Vault UI update error:', err);
         }
