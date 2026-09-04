@@ -145,9 +145,11 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 }
 
 .cinematic-line {
-    font-family: 'DearPix', 'DotGothic16', 'Chakra Petch', sans-serif;
+    font-family: 'DearPix', 'DotGothic16', 'Dela Gothic One', 'Chakra Petch', sans-serif;
     font-size: clamp(3.0rem, 9.8vmin, 7.2rem);
-    font-weight: normal;
+    font-weight: 700;
+    -webkit-text-stroke: 1.2px currentColor;
+    paint-order: stroke fill;
     text-transform: uppercase; text-align: center; 
     line-height: 1.2; padding: 10px 20px;
     letter-spacing: 0.04em;
