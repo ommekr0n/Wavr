@@ -145,7 +145,7 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 }
 
 .cinematic-line {
-    font-family: 'DearPix', 'Chakra Petch', sans-serif;
+    font-family: 'DearPix', 'DotGothic16', 'Chakra Petch', sans-serif;
     font-size: clamp(3.0rem, 9.8vmin, 7.2rem);
     font-weight: normal;
     text-transform: uppercase; text-align: center; 
