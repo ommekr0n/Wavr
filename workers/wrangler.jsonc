@@ -8,6 +8,6 @@
   "vars": {
     "SUPABASE_URL": "https://stbzeroodquuevmrwfyi.supabase.co",
     "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_DTIzsD_0Qwotf4MZWsHs4w_N6uj-UQh",
-    "ALLOWED_ORIGINS": "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001"
+    "ALLOWED_ORIGINS": "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,https://wavr-omme.vercel.app"
   }
 }
