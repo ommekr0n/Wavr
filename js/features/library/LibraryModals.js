@@ -7,6 +7,7 @@
 
 import { searchLRCLIB, autoSelectBestMatch, openLrcPickerModal } from '../../modules/lrc-fetcher.js';
 import { SupabaseService } from '../../services/SupabaseService.js';
+import { escapeHtml, safeImageUrl } from '../../modules/safe-html.js';
 
 // ── Modal State ──────────────────────────────────────────────────────────────
 // These mirror the exact variables scattered in main.js
@@ -434,10 +435,10 @@ export const LibraryModals = {
                 const item = document.createElement('div');
                 item.className = 'add-song-item';
                 item.innerHTML = `
-                    <img src="${song.cover || 'assets/images/cover.png'}" alt="Cover">
+                    <img src="${escapeHtml(safeImageUrl(song.cover, 'assets/images/cover.png'))}" alt="Cover">
                     <div class="add-song-info">
-                        <div class="title">${song.title}</div>
-                        <div class="artist">${song.artist}</div>
+                        <div class="title">${escapeHtml(song.title)}</div>
+                        <div class="artist">${escapeHtml(song.artist)}</div>
                     </div>
                     <button class="add-song-quick-btn glass-icon-btn primary" title="Add to Box">
                         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

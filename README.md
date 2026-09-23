@@ -1,59 +1,56 @@
-# Wavr 🎵 — Your Personal Music Visualizer & Gallery
+# Wavr
 
-> **Wavr** transforms your personal music collection into an immersive, highly visual, and emotional audio experience right inside your browser.
+Wavr is a personal music player with a visual library, lyric display, equalizer, and full-screen visualizers. It runs in a modern web browser.
 
----
+## What you can do
 
-## 🚀 [Update] Latest Release Notes
+- Add audio files from your computer and arrange them in Vinyl Boxes.
+- Add or edit album art, song information, and timed `.lrc` lyrics.
+- Play music with an equalizer, waveform seek bar, and Media Session controls.
+- Switch between Cinematic and Angelic visualizer modes.
+- Optionally sign in to Cloud Vault to keep your library and settings between devices.
 
-- 🖼️ **Custom Wallpaper Background Engine**: Upload any custom image as your personal background across Home and Edit Library views.
-  - **Smart Resolution Processing**: Images larger than 1920×1080 automatically trigger an interactive 16:9 Canvas Cropping modal. Undersized images are seamlessly upscaled with high-quality smoothing.
-  - **Glass Frost & Overlay Controls**: Adjust **Glass Frost Blur** (0–40px) and **Dark Overlay Tint** (0–90%) sliders in Settings for maximum legibility and glassmorphic depth.
-  - **Checkerboard Toggle**: Easily toggle the signature 240px conic-gradient checkerboard background pattern on/off.
-- 📦 **Reborn 3D Vinyl Crate Shelf**: Expanded Vinyl Box view redesigned with an ultra-smooth spring slide animation, 1:1 proportioned album tiles with hover play overlays, and refined glassmorphic aesthetics.
-- 🌊 **Real-Time Audio Waveform Auto-Sync**: Upgraded transient peak + RMS audio decoding for the Mini Player waveform seekbar with automatic cache refresh when returning from Edit Library.
-- ⚡ **Audio State Safety & Workflow**: Automatically pauses playback and hides the Mini Player when entering Edit Library to prevent audio desync and provide a clean editing experience.
+## Getting started
 
----
+1. Open Wavr in your browser.
+2. Select **Add Song** (the `+` button), then choose an audio file. You can also drag audio files onto the page.
+3. Press a song cover to start playing. Open the mini player for the full-screen visualizer.
+4. Use **Edit Library** to group songs into Vinyl Boxes.
 
-## 🌟 Visualizer & Player Experience
+### Keyboard shortcuts
 
-- 📦 **Interactive Vinyl Boxes**: Organize and group your favorite tracks into tactile, draggable Vinyl Boxes for an intuitive gallery experience.
-- 🪽 **Angelic Mode**: A poetic visualizer featuring dynamic fluid staff lines, blooming floral branches, soaring giant butterflies, and water ripple bursts synced perfectly to musical climaxes.
-- 🎬 **Cinematic Mode**: An immersive concert visualizer with 3D stage lighting, ambient smoke particle physics, and dynamic LED pillars reacting live to your music's beat.
-- 📜 **Synchronized Lyrics**: Load `.lrc` files to enjoy smoothly scrolling, karaoke-style lyrics perfectly timed with your audio.
-- 🎛️ **Audio Equalizer**: Custom multi-band EQ with built-in sound presets (Pop, Rock, Bass Boost, Flat...) to tailor your audio experience.
-- 🔒 **100% Local & Private**: Everything runs entirely in your local browser. Your audio files and personal media are never uploaded to any remote server.
-
----
-
-## 📖 User Guide
-
-### 1. Adding & Managing Songs
-1. Click the **`+`** button in the main library header to load local audio files (`.mp3`, `.wav`, `.flac`).
-2. **Wavr** automatically reads track titles, artist names, and album cover art.
-3. To attach `.lrc` lyric files or update cover art manually, click the **`⋮` (Options)** button on any song card and select **Edit Metadata**.
-
-### 2. Launching Visualizers
-- Click the **Mini Player** at the bottom of your screen to expand into full-screen visualizer mode.
-- Use the **Angelic Mode** or **Cinematic Mode** icons on the top control bar to switch visual themes on the fly.
-
-### 3. Keyboard Controls
 | Key | Action |
-| :--- | :--- |
-| **`Space`** | Play / Pause playback |
-| **`Left / Right Arrows`** | Skip backward / forward 5 seconds |
-| **`Up / Down Arrows`** | Increase / Decrease volume |
-| **`B`** | *[Angelic Mode]* Manually trigger Giant Butterfly & Water Ripple climax combo |
+| --- | --- |
+| Space | Play or pause |
+| Left / Right | Move backward / forward 5 seconds |
+| Up / Down | Change volume |
+| B | Trigger Angelic-mode climax effects |
 
----
+## Your privacy
 
-## 🛠 Quick Start
+Without Cloud Vault, your library settings and media stay in this browser on this device. Clearing browser data can remove this local information.
 
-Wavr is lightweight and ready to run out of the box:
+Cloud Vault is optional. If you choose to sign in and upload tracks, Wavr saves song information and account settings with Supabase, while the larger audio files, cover art, and wallpaper are kept private in Cloudflare R2. Wavr requests short-lived media links only after you sign in. This is private storage, not end-to-end encryption: the cloud services process and store the data needed to provide sync.
 
-1. **Instant Launch:** Open `index.html` directly in any modern web browser (Chrome, Edge, Firefox, Safari).
-2. **Dev Mode (Local Server):**
-   ```bash
-   npm run dev
-   ```
+When you choose **Auto Match** or **Pick Version** for lyrics, Wavr sends the song title and artist you entered or that it detected to LRCLIB to search for lyrics. You can always attach an `.lrc` file yourself instead.
+
+## Run Wavr locally
+
+Wavr requires Node.js 18 or newer.
+
+```bash
+npm install
+npm run dev
+```
+
+Open the address shown in the terminal (normally `http://localhost:3000`). To make a production build:
+
+```bash
+npm run build
+```
+
+## Cloud Vault setup (maintainers)
+
+Cloud Vault uses Supabase for authentication and library data, plus a Cloudflare Worker connected to a private R2 bucket for media. Create a Supabase project, put its browser-safe URL and publishable key in `.env.local`, then run [`supabase_schema.sql`](supabase_schema.sql) in the Supabase SQL Editor. Configure the Worker from [`workers/wrangler.jsonc`](workers/wrangler.jsonc), set `MEDIA_SIGNING_KEY` as a Worker secret, and update `ALLOWED_ORIGINS` with the exact deployed site address.
+
+Never put storage-provider secret keys in `VITE_*` variables or any browser file. If an older deployment used an R2 key exposed in frontend code, revoke and replace that key immediately; then migrate any public media before relying on Cloud Vault for private storage.

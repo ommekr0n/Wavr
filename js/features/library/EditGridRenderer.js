@@ -8,6 +8,7 @@ import { showSongContextMenu } from './SongContextMenu.js';
 import { toggleEditBoxExpansion } from './BoxExpansion.js';
 import { showDeleteBoxModal } from './BoxModals.js';
 import { updateSelectionBar } from './SelectionManager.js';
+import { escapeHtml, safeImageUrl } from '../../modules/safe-html.js';
 
 export function renderEditGrid() {
     const editGrid = document.getElementById('edit-song-grid');
@@ -52,6 +53,7 @@ export function renderEditGrid() {
 
         if (item.type === 'song') {
             const song = item.raw;
+            const coverUrl = safeImageUrl(song.cover, coverImgUrl);
             card.className = 'song-card';
             card.setAttribute('data-id', song.id);
 
@@ -60,7 +62,7 @@ export function renderEditGrid() {
             card.innerHTML = `
                 <div class="card-drag-handle" title="Drag to reorder grid">⋮⋮</div>
                 <div class="song-cover-wrapper" style="position:relative;aspect-ratio:1/1;border-radius:8px;overflow:hidden;margin-bottom:10px;">
-                    <img src="${song.cover || coverImgUrl}" alt="${song.title}" draggable="false" style="width:100%;height:100%;object-fit:cover;pointer-events:none;user-select:none;">
+                    <img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(song.title)}" draggable="false" style="width:100%;height:100%;object-fit:cover;pointer-events:none;user-select:none;">
                     <button class="song-options-btn" data-id="${song.id}" title="Options">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                             <circle cx="12" cy="5" r="2"></circle>
@@ -70,8 +72,8 @@ export function renderEditGrid() {
                     </button>
                 </div>
                 <div class="song-info" style="display:flex;flex-direction:column;gap:4px;min-width:0;">
-                    <div class="song-card-title" style="color:#fff;margin-bottom:0;">${song.title}</div>
-                    <div class="song-card-artist">${song.artist}</div>
+                    <div class="song-card-title" style="color:#fff;margin-bottom:0;">${escapeHtml(song.title)}</div>
+                    <div class="song-card-artist">${escapeHtml(song.artist)}</div>
                 </div>
             `;
 
@@ -101,7 +103,8 @@ export function renderEditGrid() {
 
             let sleevesHTML = '';
             recent.forEach((song, i) => {
-                sleevesHTML += `<div class="peeking-sleeve sleeve-${i}" style="background-image:url('${song.cover || coverImgUrl}')"></div>`;
+                const coverUrl = safeImageUrl(song.cover, coverImgUrl);
+                sleevesHTML += `<div class="peeking-sleeve sleeve-${i}" style="background-image:url('${escapeHtml(coverUrl)}')"></div>`;
             });
 
             card.className = 'song-card vinyl-box-card';
@@ -123,7 +126,7 @@ export function renderEditGrid() {
                         </div>
                     </div>
                 </div>
-                <div class="song-card-title">${box.name}</div>
+                <div class="song-card-title">${escapeHtml(box.name)}</div>
                 <div class="song-card-artist">${boxSongs.length} Tracks</div>
             `;
 

@@ -1,6 +1,6 @@
 /**
  * Wavr - Custom Background Wallpaper & Glass Frost Controller
- * Full Cloud Sync via Supabase & Cloudflare R2 + Instant Local Cache
+ * Optional private Supabase cloud sync with an instant local cache.
  */
 
 import { SupabaseService } from '../services/SupabaseService.js';
@@ -133,14 +133,14 @@ function drawCropPreview(canvas, ctx) {
     ctx.strokeRect(0, 0, canvas.width, canvas.height);
 }
 
-// Convert image to Blob and save to Cloudflare R2 / Supabase + Local Cache
+// Convert image to a Blob and save it to private Supabase Storage plus the local cache.
 async function saveAndApplyBackground(blob) {
     try {
         // 1. Instant local display & cache
         await setStoredBackground(blob);
         applyBackgroundImage(blob);
 
-        // 2. Upload to Cloudflare R2 / Supabase if user is logged into Cloud Vault
+        // 2. Upload to private Supabase Storage if the user is signed into Cloud Vault
         if (SupabaseService.isConfigured()) {
             const user = await SupabaseService.getCurrentUser();
             if (user) {
@@ -148,7 +148,7 @@ async function saveAndApplyBackground(blob) {
                     const cloudPath = `wallpapers/${Date.now()}.webp`;
                     const cloudUrl = await SupabaseService.uploadMediaFile(blob, cloudPath);
                     await SupabaseService.updateUserPreferences({ wallpaper_url: cloudUrl });
-                    showNotification("Wallpaper synced to Cloud Vault & R2!");
+                    showNotification("Wallpaper synced to your Cloud Vault!");
                     return;
                 } catch (cloudErr) {
                     console.warn("Cloud wallpaper upload failed, fallback to local:", cloudErr);
@@ -329,7 +329,10 @@ export const BackgroundManager = {
             if (SupabaseService.isConfigured()) {
                 const prefs = await SupabaseService.getUserPreferences();
                 if (prefs && prefs.wallpaper_url) {
-                    applyBackgroundImage(prefs.wallpaper_url);
+                    // Cloud media is stored as an r2:// reference. Resolve it through
+                    // the authenticated gateway before assigning it to CSS.
+                    const wallpaperUrl = await SupabaseService.resolveMediaUrl(prefs.wallpaper_url);
+                    applyBackgroundImage(wallpaperUrl);
                     return;
                 }
             }

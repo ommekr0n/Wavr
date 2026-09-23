@@ -117,12 +117,13 @@ CREATE POLICY "Users can manage own playlist tracks"
 
 -- 5. Create Media Storage Bucket Policies (wavr-media)
 INSERT INTO storage.buckets (id, name, public) 
-VALUES ('wavr-media', 'wavr-media', true)
-ON CONFLICT (id) DO NOTHING;
+VALUES ('wavr-media', 'wavr-media', false)
+ON CONFLICT (id) DO UPDATE SET public = false;
 
 DROP POLICY IF EXISTS "Users can upload own media" ON storage.objects;
 DROP POLICY IF EXISTS "Users can access own media" ON storage.objects;
 DROP POLICY IF EXISTS "Users can delete own media" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update own media" ON storage.objects;
 
 CREATE POLICY "Users can upload own media"
     ON storage.objects FOR INSERT
@@ -142,6 +143,17 @@ CREATE POLICY "Users can access own media"
 CREATE POLICY "Users can delete own media"
     ON storage.objects FOR DELETE
     USING (
+        bucket_id = 'wavr-media'
+        AND (storage.foldername(name))[1] = auth.uid()::text
+    );
+
+CREATE POLICY "Users can update own media"
+    ON storage.objects FOR UPDATE
+    USING (
+        bucket_id = 'wavr-media'
+        AND (storage.foldername(name))[1] = auth.uid()::text
+    )
+    WITH CHECK (
         bucket_id = 'wavr-media'
         AND (storage.foldername(name))[1] = auth.uid()::text
     );

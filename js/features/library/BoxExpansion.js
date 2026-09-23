@@ -8,6 +8,7 @@ import { state, persistBoxes } from '../../shared/EditLibraryState.js';
 import { renderEditGrid } from './EditGridRenderer.js';
 import { showSongContextMenu } from './SongContextMenu.js';
 import { showDeleteBoxModal } from './BoxModals.js';
+import { escapeHtml, safeImageUrl } from '../../modules/safe-html.js';
 
 let activeEditExpandedCard = null;
 
@@ -52,7 +53,7 @@ export function toggleEditBoxExpansion(card, boxId) {
                 <div class="song-card box-slider-song-card inner-editable-song" data-song-id="${song.id}" data-box-id="${box.id}" draggable="true">
                     <div class="card-drag-handle" draggable="true" title="Drag to reorder or unbox">⋮⋮</div>
                     <div class="song-cover-wrapper" style="position:relative;aspect-ratio:1/1;border-radius:8px;overflow:hidden;margin-bottom:10px;">
-                        <img src="${song.cover || coverImgUrl}" alt="${song.title}" draggable="false" style="width:100%;height:100%;object-fit:cover;pointer-events:none;user-select:none;">
+                        <img src="${escapeHtml(safeImageUrl(song.cover, coverImgUrl))}" alt="${escapeHtml(song.title)}" draggable="false" style="width:100%;height:100%;object-fit:cover;pointer-events:none;user-select:none;">
                         <button class="song-options-btn" data-id="${song.id}" title="Options">
                             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                                 <circle cx="12" cy="5" r="2"></circle>
@@ -61,8 +62,8 @@ export function toggleEditBoxExpansion(card, boxId) {
                             </svg>
                         </button>
                     </div>
-                    <div class="song-card-title">${song.title}</div>
-                    <div class="song-card-artist">${song.artist}</div>
+                    <div class="song-card-title">${escapeHtml(song.title)}</div>
+                    <div class="song-card-artist">${escapeHtml(song.artist)}</div>
                 </div>
             `;
         });
@@ -73,7 +74,7 @@ export function toggleEditBoxExpansion(card, boxId) {
         <div class="box-expansion-content">
             <div class="box-expansion-header">
                 <div style="display:flex;align-items:center;gap:12px;">
-                    <h2 class="box-expansion-title">${box.name}</h2>
+                    <h2 class="box-expansion-title">${escapeHtml(box.name)}</h2>
                     <span class="box-track-badge" style="background:color-mix(in srgb,${boxColor} 20%,rgba(255,255,255,0.08));border:1px solid color-mix(in srgb,${boxColor} 40%,rgba(255,255,255,0.15));color:#fff;">${boxSongs.length} Tracks</span>
                 </div>
                 <div class="box-expansion-controls">

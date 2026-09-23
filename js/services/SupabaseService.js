@@ -4,11 +4,11 @@
  * and Row Level Security (RLS) operations for Wavr Personal Vault.
  */
 import { createClient } from '@supabase/supabase-js';
-import { R2Service } from './R2Service.js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://stbzeroodquuevmrwfyi.supabase.co';
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_DTIzsD_0Qwotf4MZWsHs4w_N6uj-UQh';
-const R2_PUBLIC_DOMAIN = (import.meta.env.VITE_R2_PUBLIC_DOMAIN || 'https://pub-ad9d2da16833484899017a239642b570.r2.dev').replace(/\/$/, '');
+const R2_URI_PREFIX = 'r2://';
+const MEDIA_WORKER_URL = (import.meta.env.VITE_MEDIA_WORKER_URL || 'https://wavr-media-gateway.vinhvy-vn.workers.dev').replace(/\/$/, '');
 
 export const isSupabaseConfigured = Boolean(
     SUPABASE_URL && 
@@ -81,7 +81,11 @@ export const SupabaseService = {
             console.error('Error fetching user tracks:', error);
             throw error;
         }
-        return data || [];
+        return Promise.all((data || []).map(async (track) => ({
+            ...track,
+            audio_url: await this.resolveMediaUrl(track.audio_url),
+            cover_url: await this.resolveMediaUrl(track.cover_url)
+        })));
     },
 
     async getUserStorageBytes() {
@@ -106,26 +110,43 @@ export const SupabaseService = {
         if (!user) throw new Error('User not authenticated. Please sign in to your Cloud Vault.');
 
         const fullPath = `${user.id}/${path}`;
+        const response = await this.requestMediaWorker(`/v1/media/${this.encodeMediaPath(fullPath)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': file.type || 'application/octet-stream' },
+            body: file
+        });
+        if (!response.ok) throw new Error('Could not upload media to the private vault.');
+        return `${R2_URI_PREFIX}${fullPath}`;
+    },
 
-        if (R2Service.isConfigured()) {
+    encodeMediaPath(path) {
+        return path.split('/').map(encodeURIComponent).join('/');
+    },
+
+    async requestMediaWorker(path, options = {}) {
+        if (!supabase) throw new Error('Supabase is not configured.');
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) throw new Error('User not authenticated. Please sign in to your Cloud Vault.');
+        const headers = new Headers(options.headers);
+        headers.set('Authorization', `Bearer ${session.access_token}`);
+        return fetch(`${MEDIA_WORKER_URL}${path}`, { ...options, headers });
+    },
+
+    /** Returns a short-lived Worker URL only for media owned by the signed-in user. */
+    async resolveMediaUrl(uri) {
+        if (!uri) return uri;
+        let path = null;
+        if (uri.startsWith(R2_URI_PREFIX)) path = uri.slice(R2_URI_PREFIX.length);
+        else {
             try {
-                return await R2Service.uploadMediaFile(file, fullPath);
-            } catch (r2Err) {
-                console.warn('Cloudflare R2 upload fallback to Supabase Storage:', r2Err);
-            }
+                const legacyUrl = new URL(uri);
+                if (legacyUrl.hostname.endsWith('.r2.dev')) path = decodeURIComponent(legacyUrl.pathname.replace(/^\//, ''));
+            } catch (_) {}
         }
-
-        const { data, error } = await supabase.storage
-            .from('wavr-media')
-            .upload(fullPath, file, { upsert: true });
-
-        if (error) throw error;
-
-        const { data: publicUrlData } = supabase.storage
-            .from('wavr-media')
-            .getPublicUrl(fullPath);
-
-        return publicUrlData.publicUrl;
+        if (!path) return uri;
+        const response = await this.requestMediaWorker(`/v1/signed/${this.encodeMediaPath(path)}`, { method: 'POST' });
+        if (!response.ok) throw new Error('Could not access private cloud media.');
+        return (await response.json()).url;
     },
 
     async saveTrack(trackData) {
@@ -199,23 +220,31 @@ export const SupabaseService = {
 
         if (track) {
             const filesToRemove = [];
-            if (track.audio_url && track.audio_url.includes('/wavr-media/')) {
+            if (track.audio_url?.startsWith(R2_URI_PREFIX)) {
+                filesToRemove.push(track.audio_url.slice(R2_URI_PREFIX.length));
+            } else if (track.audio_url && track.audio_url.includes('/wavr-media/')) {
                 const parts = track.audio_url.split('/wavr-media/');
                 if (parts[1]) filesToRemove.push(decodeURIComponent(parts[1]));
             }
-            if (track.cover_url && track.cover_url.includes('/wavr-media/')) {
+            if (track.cover_url?.startsWith(R2_URI_PREFIX)) {
+                filesToRemove.push(track.cover_url.slice(R2_URI_PREFIX.length));
+            } else if (track.cover_url && track.cover_url.includes('/wavr-media/')) {
                 const parts = track.cover_url.split('/wavr-media/');
                 if (parts[1]) filesToRemove.push(decodeURIComponent(parts[1]));
             }
             if (filesToRemove.length > 0) {
-                await supabase.storage.from('wavr-media').remove(filesToRemove);
+                await Promise.all(filesToRemove.map(async (path) => {
+                    const response = await this.requestMediaWorker(`/v1/media/${this.encodeMediaPath(path)}`, { method: 'DELETE' });
+                    if (!response.ok) console.warn('Cloud media file cleanup failed.');
+                }));
             }
         }
 
         const { error } = await supabase
             .from('tracks')
             .delete()
-            .eq('id', trackId);
+            .eq('id', trackId)
+            .eq('user_id', user.id);
 
         if (error) throw error;
     },

@@ -6,6 +6,7 @@
 import coverImgUrl from '../../../assets/images/cover.png';
 import { PlayerController } from '../player/PlayerController.js';
 import { SupabaseService } from '../../services/SupabaseService.js';
+import { escapeHtml, safeImageUrl } from '../../modules/safe-html.js';
 
 let cachedVinylBoxes = [];
 let cachedLibraryOrder = [];
@@ -79,15 +80,16 @@ export async function renderSongGrid({ homeSongGrid, setupBoxExpansionListeners 
         const card = document.createElement('div');
         if (item.type === 'song') {
             const song = item.raw;
+            const coverUrl = safeImageUrl(song.cover, coverImgUrl);
             card.className = 'song-card';
             card.setAttribute('data-index', item.index);
             card.setAttribute('data-id', song.id);
             card.innerHTML = `
                 <div class="song-card-inner">
-                    <img src="${song.cover || coverImgUrl}" alt="Cover">
+                    <img src="${escapeHtml(coverUrl)}" alt="Cover">
                 </div>
-                <div class="song-card-title">${song.title}</div>
-                <div class="song-card-artist">${song.artist}</div>
+                <div class="song-card-title">${escapeHtml(song.title)}</div>
+                <div class="song-card-artist">${escapeHtml(song.artist)}</div>
             `;
         } else {
             const box = item.raw;
@@ -101,7 +103,7 @@ export async function renderSongGrid({ homeSongGrid, setupBoxExpansionListeners 
             let sleevesHTML = '';
             for (let i = 0; i < recentSongs.length; i++) {
                 const song = recentSongs[i];
-                const coverUrl = song.cover || coverImgUrl;
+                const coverUrl = safeImageUrl(song.cover, coverImgUrl);
                 const sleeveClass = `sleeve-${i}`;
                 sleevesHTML += `<div class="peeking-sleeve ${sleeveClass}" style="background-image: url('${coverUrl}')"></div>`;
             }
@@ -115,7 +117,7 @@ export async function renderSongGrid({ homeSongGrid, setupBoxExpansionListeners 
                         </div>
                     </div>
                 </div>
-                <div class="song-card-title">${box.name}</div>
+                <div class="song-card-title">${escapeHtml(box.name)}</div>
                 <div class="song-card-artist">${box.songIds ? box.songIds.length : 0} Tracks</div>
             `;
         }

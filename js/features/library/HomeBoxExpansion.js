@@ -4,6 +4,7 @@
  */
 import coverImgUrl from '../../../assets/images/cover.png';
 import { PlayerController } from '../player/PlayerController.js';
+import { escapeHtml, safeImageUrl } from '../../modules/safe-html.js';
 
 let activeExpandedCard = null;
 
@@ -38,13 +39,13 @@ export function toggleBoxExpansion(card, boxId, vinylBoxes, openPlayer, syncPlay
             songsHTML += `
                 <div class="song-card box-slider-song-card" data-idx="${idx}">
                     <div class="song-cover-wrapper">
-                        <img src="${song.cover || coverImgUrl}" alt="${song.title}">
+                        <img src="${escapeHtml(safeImageUrl(song.cover, coverImgUrl))}" alt="${escapeHtml(song.title)}">
                         <div class="box-song-play-overlay">
                             <svg viewBox="0 0 24 24" width="22" height="22" fill="#ffffff"><path d="M8 5v14l11-7z"></path></svg>
                         </div>
                     </div>
-                    <div class="song-card-title">${song.title}</div>
-                    <div class="song-card-artist">${song.artist}</div>
+                    <div class="song-card-title">${escapeHtml(song.title)}</div>
+                    <div class="song-card-artist">${escapeHtml(song.artist)}</div>
                 </div>
             `;
         });
@@ -55,7 +56,7 @@ export function toggleBoxExpansion(card, boxId, vinylBoxes, openPlayer, syncPlay
         <div class="box-expansion-content">
             <div class="box-expansion-header">
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <h2 class="box-expansion-title">${box.name}</h2>
+                    <h2 class="box-expansion-title">${escapeHtml(box.name)}</h2>
                     <span class="box-track-badge" style="background: color-mix(in srgb, ${boxColor} 20%, rgba(255,255,255,0.08)); border: 1px solid color-mix(in srgb, ${boxColor} 40%, rgba(255,255,255,0.15)); color: #fff;">${boxSongs.length} Tracks</span>
                 </div>
                 <div class="box-expansion-controls">

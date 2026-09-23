@@ -2,6 +2,8 @@
  * lrc-fetcher.js — LRCLIB Online Lyrics Integration for Wavr
  */
 
+import { escapeHtml } from './safe-html.js';
+
 /**
  * Searches LRCLIB for all matching synced lyrics entries.
  * @param {string} title - Track title
@@ -129,12 +131,12 @@ export function openLrcPickerModal(results, onSelectCallback) {
 
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div style="font-weight: 600; color: #fff; font-size: 0.95rem;">${item.trackName || 'Track'} — <span style="color: var(--accent-color);">${item.artistName || 'Artist'}</span></div>
+                    <div style="font-weight: 600; color: #fff; font-size: 0.95rem;">${escapeHtml(item.trackName || 'Track')} — <span style="color: var(--accent-color);">${escapeHtml(item.artistName || 'Artist')}</span></div>
                     <span style="font-size: 0.8rem; background: rgba(0,229,255,0.15); color: var(--accent-color); padding: 3px 8px; border-radius: 12px;">⏱ ${durationMin}</span>
                 </div>
-                <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6);">Album: ${item.albumName || 'Single / N/A'}</div>
+                <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6);">Album: ${escapeHtml(item.albumName || 'Single / N/A')}</div>
                 <div style="font-size: 0.82rem; font-style: italic; color: rgba(255,255,255,0.85); background: rgba(0,0,0,0.2); padding: 6px 10px; border-radius: 6px; margin-top: 4px;">
-                    "${preview || 'Synced lyrics available'}"
+                    "${escapeHtml(preview || 'Synced lyrics available')}"
                 </div>
                 <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
                     <button type="button" class="glass-btn primary btn-select-lrc-version" style="padding: 6px 12px; font-size: 0.8rem;">

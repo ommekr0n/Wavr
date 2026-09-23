@@ -265,18 +265,8 @@ function loadTrack(index) {
 
     if (track.cover) {
         const offscreenImg = new Image();
-        let coverUrl = track.cover;
-        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
-        if (coverUrl.includes('.r2.dev') && isLocalhost) {
-            coverUrl = coverUrl.replace(/https:\/\/[^/]+\.r2\.dev/, '/r2-proxy');
-            offscreenImg.crossOrigin = 'anonymous';
-        } else {
-            offscreenImg.crossOrigin = 'anonymous';
-            if (coverUrl.includes('.r2.dev') && !coverUrl.includes('?')) {
-                coverUrl += '?cors=1';
-            }
-        }
+        const coverUrl = track.cover;
+        offscreenImg.crossOrigin = 'anonymous';
         offscreenImg.onload = () => extractColorsFromImage(offscreenImg, applyColors);
         offscreenImg.onerror = (err) => {
             console.warn('Color extraction image load failed, using fallback colors:', err);
