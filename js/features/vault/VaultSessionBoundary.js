@@ -3,14 +3,15 @@ export function initVaultSessionBoundary(service, { clearPrivateState, reload })
     let initialized = false, userId = null, transitioning = false;
     return service.onAuthStateChange((event, session) => {
         if (transitioning) return;
+        if (!['SIGNED_IN', 'SIGNED_OUT', 'INITIAL_SESSION'].includes(event)) return;
         const nextId = session?.user?.id || null;
-        if (!initialized && event === 'INITIAL_SESSION') {
+        // Restoring a cached session can emit SIGNED_IN before INITIAL_SESSION.
+        // The first identity event establishes the baseline for this page load.
+        if (!initialized) {
             initialized = true;
             userId = nextId;
             return;
         }
-        if (!['SIGNED_IN', 'SIGNED_OUT', 'INITIAL_SESSION'].includes(event)) return;
-        initialized = true;
         if (userId === nextId) return;
         userId = nextId;
         transitioning = true;

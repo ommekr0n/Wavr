@@ -187,6 +187,74 @@ test('identity changes clear private state before one reload; token refresh and 
     }
 });
 
+test('restored SIGNED_IN before INITIAL_SESSION establishes the startup identity without reloading', () => {
+    let notify;
+    const effects = [];
+    initVaultSessionBoundary({ onAuthStateChange(callback) { notify = callback; } }, {
+        clearPrivateState: () => effects.push('clear'), reload: () => effects.push('reload')
+    });
+    const restoredSession = { user: { id: 'restored-user' } };
+    notify('SIGNED_IN', restoredSession);
+    notify('INITIAL_SESSION', restoredSession);
+    notify('SIGNED_IN', restoredSession);
+    notify('TOKEN_REFRESHED', restoredSession);
+    assert.deepEqual(effects, []);
+    notify('SIGNED_OUT', null);
+    assert.deepEqual(effects, ['clear', 'reload']);
+});
+
+test('the installed SDK restores the same cached identity across page loads without a reload loop', async t => {
+    const cachedSession = {
+        access_token: 'cached-access-token', refresh_token: 'cached-refresh-token',
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        token_type: 'bearer', user: { id: 'cached-user' }
+    };
+    const storageKey = 'restored-session-boundary-test';
+    const stored = new Map([[storageKey, JSON.stringify(cachedSession)]]);
+    for (let pageLoad = 0; pageLoad < 3; pageLoad++) {
+        const client = createClient('https://auth.example', 'public-key', {
+            auth: {
+                ...vaultClientAuthOptions, autoRefreshToken: false, storageKey,
+                storage: {
+                    getItem: key => stored.get(key) || null,
+                    setItem: (key, value) => stored.set(key, value),
+                    removeItem: key => stored.delete(key)
+                }
+            },
+            global: { fetch: async () => { throw new Error('Restoring this cached session must not use the network'); } }
+        });
+        t.after(() => client.auth.dispose());
+        const events = [], effects = [];
+        let receivedInitial;
+        const initialDelivered = new Promise(resolve => { receivedInitial = resolve; });
+        const unsubscribe = initVaultSessionBoundary({ onAuthStateChange(callback) {
+            return subscribeToVaultAuth(client, (event, session) => {
+                events.push(event);
+                callback(event, session);
+                if (event === 'INITIAL_SESSION') receivedInitial();
+            });
+        } }, { clearPrivateState: () => effects.push('clear'), reload: () => effects.push('reload') });
+        t.after(unsubscribe);
+        await initialDelivered;
+        assert.deepEqual(events.slice(0, 2), ['SIGNED_IN', 'INITIAL_SESSION']);
+        assert.deepEqual(effects, [], `page load ${pageLoad + 1} must finish without restarting`);
+        unsubscribe();
+        await client.auth.dispose();
+    }
+});
+
+test('a new login after an initial guest session still clears state and reloads once', () => {
+    let notify;
+    const effects = [];
+    initVaultSessionBoundary({ onAuthStateChange(callback) { notify = callback; } }, {
+        clearPrivateState: () => effects.push('clear'), reload: () => effects.push('reload')
+    });
+    notify('INITIAL_SESSION', null);
+    notify('SIGNED_IN', { user: { id: 'new-user' } });
+    notify('SIGNED_IN', { user: { id: 'new-user' } });
+    assert.deepEqual(effects, ['clear', 'reload']);
+});
+
 test('logout cleanup stops audio and clears library caches without deleting unrelated browser data', () => {
     const elements = Object.fromEntries(['audio-player', 'home-song-grid', 'edit-song-grid', 'edit-library-view'].map(id => [id, new Element()]));
     const audio = elements['audio-player'];
