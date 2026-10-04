@@ -4,7 +4,9 @@
  */
 
 import { LyricEngine } from '../lyrics/LyricEngine.js';
+import { cancelAngelicLyricPreparation, scheduleAngelicLyricPreparation } from '../angelic/AngelicLyricPreparation.js';
 import { AngelicStaffAnimator } from '../angelic/AngelicStaffAnimator.js';
+import { cancelAngelicLineTransitions } from '../angelic/AngelicLineLifecycle.js';
 
 // ── Mode State ───────────────────────────────────────────────────────────────
 let isCinematicMode = false;
@@ -26,14 +28,11 @@ export const VisualizerController = {
      *
      * @param {HTMLElement} playerView        - #player-view
      * @param {HTMLElement} cinematicView     - #cinematic-view
-     * @param {HTMLCanvasElement} cinematicCanvas - #cinematic-canvas
-     * @param {number}      winWidth          - Cached window.innerWidth
-     * @param {number}      winHeight         - Cached window.innerHeight
      * @param {number}      activeLyricIndex  - Current active lyric index
      * @param {object[]}    currentLyrics     - Parsed lyrics array
      * @param {function}    triggerCinematicLineFn - Callback to render the current line
      */
-    enterCinematicMode(playerView, cinematicView, cinematicCanvas, winWidth, winHeight, activeLyricIndex, currentLyrics, triggerCinematicLineFn) {
+    enterCinematicMode(playerView, cinematicView, activeLyricIndex, currentLyrics, triggerCinematicLineFn) {
         isCinematicMode = true;
         isAngelicMode   = false;
 
@@ -45,11 +44,6 @@ export const VisualizerController = {
         mouseTimeout = setTimeout(() => {
             document.body.classList.remove('mouse-active');
         }, 2000);
-
-        if (cinematicCanvas) {
-            cinematicCanvas.width  = winWidth;
-            cinematicCanvas.height = winHeight;
-        }
 
         LyricEngine.setActiveLyricIndex(-1);
 
@@ -104,11 +98,9 @@ export const VisualizerController = {
             if (currentLyrics[activeLyricIndex + 1]) {
                 const nextLyricObj = currentLyrics[activeLyricIndex + 1];
                 const nextIdx  = activeLyricIndex + 1;
-                if ('requestIdleCallback' in window) {
-                    requestIdleCallback(() => prepareAngelicLineFn(nextLyricObj, nextIdx));
-                } else {
-                    setTimeout(() => prepareAngelicLineFn(nextLyricObj, nextIdx), 50);
-                }
+                scheduleAngelicLyricPreparation(angelicView.querySelector('#angelic-text-container'),
+                    () => prepareAngelicLineFn(nextLyricObj, nextIdx),
+                    nextLyricObj.time * LyricEngine.getDriftRatio() - document.getElementById('audio-player').currentTime);
             }
         }
     },
@@ -123,6 +115,8 @@ export const VisualizerController = {
      */
     exitAngelicMode(angelicView, playerView, angelicTextContainer, angelicParticleContainer) {
         isAngelicMode = false;
+        cancelAngelicLyricPreparation(angelicTextContainer);
+        cancelAngelicLineTransitions(angelicTextContainer);
         AngelicStaffAnimator.stop();
         angelicView.classList.add('hidden');
         playerView.classList.remove('hidden');

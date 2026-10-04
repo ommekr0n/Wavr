@@ -1,108 +1,61 @@
 /**
- * PlayerController.js
- * Encapsulates playback state variables and queue management logic.
- * Extracted 1:1 from backup_prime/js/main.js (lines 137-148, 813-818, 2218-2241)
+ * PlayerController.js — Queue compatibility facade
+ * ─────────────────────────────────────────────────────────────
+ * Thin adapter that re-exports QueueManager methods under the
+ * original PlayerController surface.  All callers can continue
+ * using PlayerController without changes during the migration.
+ *
+ * Phase 3: isPlaying is now authoritative in PlaybackEngine.
+ *   getIsPlaying() delegates to playbackEngine.state.
+ *   setIsPlaying() is a no-op kept for backward compatibility
+ *   (nothing should call it after PlaybackCoordinator wires up).
+ *
+ *   setPlaybackEngine(engine) must be called once during app
+ *   initialisation (from main.js) before any playback begins.
  */
 
-// ── Playback State ───────────────────────────────────────────────────────────
-let playlist            = [];
-let activeQueue         = [];
-let activePlaylistContext = 'library'; // 'library' or a vinyl box ID like 'vinyl-xxx'
-let currentTrackIndex   = 0;
-let isPlaying           = false;
-let isShuffle           = false;
-let repeatMode          = 0; // 0: None, 1: All, 2: One
-let shuffledQueue       = []; // Holds indices for shuffle mode
+import { queueManager } from '../../core/QueueManager.js';
+import { PLAYBACK_STATES } from '../../core/PlaybackEngine.js';
+
+let _engine = null;
+
+/** Called once from main.js after PlaybackEngine is created. */
+export function setPlaybackEngine(engine) {
+    _engine = engine;
+}
 
 export const PlayerController = {
-
-    // ── Getters ─────────────────────────────────────────────────────────────
-    getPlaylist()              { return playlist; },
-    getActiveQueue()           { return activeQueue; },
-    getActivePlaylistContext()  { return activePlaylistContext; },
-    getCurrentTrackIndex()     { return currentTrackIndex; },
-    getIsPlaying()             { return isPlaying; },
-    getIsShuffle()             { return isShuffle; },
-    getRepeatMode()            { return repeatMode; },
-    getShuffledQueue()         { return shuffledQueue; },
-
-    // ── Setters ─────────────────────────────────────────────────────────────
-    setPlaylist(val)            { playlist = val; },
-    setActiveQueue(val)         { activeQueue = val; },
-    setActivePlaylistContext(v) { activePlaylistContext = v; },
-    setCurrentTrackIndex(val)   { currentTrackIndex = val; },
-    setIsPlaying(val)           { isPlaying = val; },
-    setIsShuffle(val)           { isShuffle = val; },
-    setRepeatMode(val)          { repeatMode = val; },
-    setShuffledQueue(val)       { shuffledQueue = val; },
+    getPlaylist:              () => queueManager.playlist,
+    getActiveQueue:           () => queueManager.activeQueue,
+    getActivePlaylistContext: () => queueManager.activePlaylistContext,
+    getCurrentTrackIndex:     () => queueManager.currentTrackIndex,
+    getIsShuffle:             () => queueManager.isShuffle,
+    getRepeatMode:            () => queueManager.repeatMode,
+    getShuffledQueue:         () => queueManager.shuffledQueue,
 
     /**
-     * Returns the correct playback source array based on current shuffle and repeat mode.
-     * Matches prime line 813-818 exactly:
-     *   if (isShuffle && repeatMode === 0) return playlist;
-     *   return activeQueue;
+     * Authoritative source: PlaybackEngine state.
+     * Falls back to false when engine not yet initialised.
      */
-    getPlaybackSource() {
-        if (isShuffle && repeatMode === 0) {
-            return playlist;
-        }
-        return activeQueue;
+    getIsPlaying() {
+        if (!_engine) return false;
+        return _engine.state === PLAYBACK_STATES.PLAYING;
     },
 
-    /**
-     * Toggles shuffle state.
-     * Re-maps currentTrackIndex to the new source after isShuffle changes.
-     * Called from the shuffle button click handler in main.js.
-     */
-    toggleShuffle() {
-        const currentTrack = PlayerController.getPlaybackSource()[currentTrackIndex];
-        isShuffle = !isShuffle;
+    /** No-op – kept so legacy call sites compile without error. */
+    // eslint-disable-next-line no-unused-vars
+    setIsPlaying(_value) {},
 
-        // Re-map currentTrackIndex to new source after state switch
-        const newSource = PlayerController.getPlaybackSource();
-        if (currentTrack) {
-            const newIdx = newSource.findIndex(s => s.id === currentTrack.id);
-            if (newIdx !== -1) currentTrackIndex = newIdx;
-        }
+    setPlaylist:              (value) => queueManager.setPlaylist(value),
+    setActiveQueue:           (value) => queueManager.setActiveQueue(value),
+    setActivePlaylistContext: (value) => queueManager.setActivePlaylistContext(value),
+    setCurrentTrackIndex:     (value) => queueManager.setCurrentTrackIndex(value),
+    setIsShuffle:             (value) => queueManager.setShuffle(value),
+    setRepeatMode:            (value) => queueManager.setRepeatMode(value),
+    setShuffledQueue:         (value) => queueManager.setShuffledQueue(value),
 
-        if (isShuffle) {
-            PlayerController.generateShuffleQueue(false);
-        }
-
-        return isShuffle;
-    },
-
-    /**
-     * Generates a Fisher-Yates shuffled queue of indices from the current playback source.
-     * Extracted 1:1 from backup_prime/js/main.js lines 2218-2241.
-     *
-     * @param {boolean} excludeCurrent - If true, places current track at the end (loop/reshuffle).
-     *                                   If false, places current track at start (first-toggle).
-     */
-    generateShuffleQueue(excludeCurrent = false) {
-        shuffledQueue = [];
-        const source = PlayerController.getPlaybackSource();
-        for (let i = 0; i < source.length; i++) shuffledQueue.push(i);
-
-        // Fisher-Yates
-        for (let i = shuffledQueue.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffledQueue[i], shuffledQueue[j]] = [shuffledQueue[j], shuffledQueue[i]];
-        }
-
-        // Handle current track placement to avoid immediate repeat on loop/reshuffle
-        if (currentTrackIndex !== -1 && source.length > 1) {
-            const currentQIdx = shuffledQueue.indexOf(currentTrackIndex);
-            if (currentQIdx !== -1) {
-                shuffledQueue.splice(currentQIdx, 1);
-                if (excludeCurrent) {
-                    // Put current track at the end so it plays last in the new queue
-                    shuffledQueue.push(currentTrackIndex);
-                } else {
-                    // Put current track at the beginning (e.g. when shuffle is first toggled on)
-                    shuffledQueue.unshift(currentTrackIndex);
-                }
-            }
-        }
-    },
+    getPlaybackSource:    () => queueManager.getPlaybackSource(),
+    toggleShuffle:        () => queueManager.toggleShuffle(),
+    generateShuffleQueue: (excludeCurrent = false) =>
+        queueManager.generateShuffleQueue(excludeCurrent),
 };

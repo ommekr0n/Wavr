@@ -1,0 +1,58 @@
+/* Keep the original .88s mist dissolve, with filters on the painted content
+   rather than the full-viewport wrapper. Frozen descendants can reuse raster. */
+@keyframes ink-wash-float-composite {
+    from { opacity: 1; transform: scale(1) translateY(0) rotate(0deg) translateZ(0); }
+    to { opacity: 0; transform: scale(1.24) translateY(-30px) rotate(var(--exit-rot, .6deg)) translateZ(0); }
+}
+
+@keyframes ink-wash-text-mist {
+    from { filter: blur(0) brightness(1.2); }
+    to { filter: blur(20px) brightness(.75); }
+}
+
+@keyframes ink-floral-fade-composite {
+    from { opacity: 1; filter: blur(0) brightness(1.2); transform: translateY(0) scale(1); }
+    /* Merge the two original blur passes (20px + 16px) into one, accounting
+       for the floral's own scale. The wrapper still supplies the outer fade. */
+    to { opacity: 0; filter: blur(24px) brightness(.75); transform: translateY(-26px) scale(1.15); }
+}
+
+.angelic-line-wrapper.ink-wash-exit {
+    animation-name: ink-wash-float-composite !important;
+    animation-duration: var(--angelic-exit-duration, .88s) !important;
+    filter: none !important;
+    will-change: opacity, transform;
+}
+
+.angelic-line-wrapper.ink-wash-exit .angelic-line {
+    animation: ink-wash-text-mist var(--angelic-exit-duration, .88s) cubic-bezier(.16, 1, .3, 1) forwards;
+}
+
+.angelic-line-wrapper.ink-wash-exit .angelic-floral-svg {
+    animation-name: ink-floral-fade-composite !important;
+    animation-duration: var(--angelic-exit-duration, .88s) !important;
+}
+
+.angelic-line-wrapper.ink-wash-exit .angelic-word-sway,
+.angelic-line-wrapper.ink-wash-exit .sprite-butterfly {
+    animation-play-state: paused !important;
+}
+/* visibility:hidden prevents raster warmup. A bounded, one-alpha-step surface
+   lets text and glow paint ahead of time. Floral growth keeps its original
+   initial state so warming never consumes its draw animation. */
+.angelic-line-wrapper.angelic-prebuilt.angelic-prewarm {
+    visibility: visible !important;
+    opacity: .004 !important;
+}
+
+.angelic-prebuilt.angelic-prewarm .angelic-line .angelic-word-pop {
+    opacity: 1 !important;
+}
+
+.angelic-prebuilt.angelic-prewarm .angelic-word-sway {
+    animation-play-state: paused;
+}
+.angelic-sampled-reveal .angelic-branch,
+.angelic-sampled-reveal .angelic-bloom {
+    transition: none;
+}

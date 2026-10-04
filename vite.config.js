@@ -11,7 +11,8 @@ export default defineConfig({
       output: {
         manualChunks: {
           'vendor-supabase': ['@supabase/supabase-js'],
-          'vendor-twemoji': ['@twemoji/api']
+          'vendor-twemoji': ['@twemoji/api'],
+          'vendor-three': ['three']
         }
       }
     }

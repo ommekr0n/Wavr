@@ -6,12 +6,20 @@
 
 import { parseLyrics } from '../../modules/lyric-parser.js';
 import { renderEmojis } from './EmojiRenderer.js';
+import { EnhancedWordHighlighter } from './EnhancedWordHighlighter.js';
+import { LyricTimeline } from './LyricTimeline.js';
+import { LyricListFocus } from './LyricListFocus.js';
+import { LyricReleaseController } from './LyricReleaseController.js';
+import { escapeLyricText } from './EnhancedLrcText.js';
 
 // ── Lyrics State ─────────────────────────────────────────────────────────────
 let currentLyrics  = [];
 let activeLyricIndex = -1;
 let driftRatio     = 1.0;
-const EARLY_LEAD_IN_SEC = 0.12;
+const timeline = new LyricTimeline();
+const wordHighlighter = new EnhancedWordHighlighter();
+const listFocus = new LyricListFocus();
+const releaseController = new LyricReleaseController();
 
 let _scrollRaf = null;
 let _skipNextScroll = false;
@@ -19,14 +27,6 @@ let _skipNextScroll = false;
 // ── Cached DOM refs (set once, reused every frame) ────────────────────────
 let _cineTextContainer   = null;
 let _angelicTextContainer = null;
-let _cachedCineWrapper   = null;
-let _lastCineWrapperIdx  = -2;
-// Word-span caches (avoid querySelectorAll every frame)
-let _cachedCineWordSpans    = null; // Array of .cine-word spans for current cine line
-let _cachedAngelicWordSpans = null; // Array of .angelic-word-pop spans
-let _cachedListWordSpans    = null; // Array of .lyric-word spans for current list line
-let _cachedListContainer    = null; // cached [data-index] element
-let _lastWordSpanIdx        = -2;   // activeLyricIndex when spans were last cached
 
 function smoothScrollTo(el, target, duration = 520) {
     if (_skipNextScroll) {
@@ -108,21 +108,17 @@ function preventOrphanWords(text) {
     return processedLines.join('\n');
 }
 
-const WORD_EARLY_LEAD_IN_SEC = 0.04; // 40ms Micro Lead-in to match acoustic vocal attack without leading reader eyes
 
 export const LyricEngine = {
     getCurrentLyrics()    { return currentLyrics; },
     getActiveLyricIndex() { return activeLyricIndex; },
     getDriftRatio()       { return driftRatio; },
 
-    setDriftRatio(val)       { driftRatio = val; },
+    setDriftRatio(val) { driftRatio = val; timeline.setLyrics(currentLyrics, driftRatio); },
     setActiveLyricIndex(val) { activeLyricIndex = val; },
-    // Force re-query of cine word spans on next syncWordSpans call
-    invalidateCineCache() {
-        _cachedCineWrapper   = null;
-        _lastCineWrapperIdx  = -2;
-        _cachedCineWordSpans = null;
-    },
+    getAngelicTiming(index, time) { return timeline.angelicTiming(index, time); },
+    invalidateSeek() { activeLyricIndex = -1; wordHighlighter.reset(); releaseController.reset(); },
+    invalidateCineCache() { wordHighlighter.invalidate(_cineTextContainer); },
 
     resetScroll(container) {
         if (_scrollRaf) {
@@ -131,14 +127,7 @@ export const LyricEngine = {
         }
         _skipNextScroll = false;
         activeLyricIndex = -1;
-        // Invalidate cine wrapper cache
-        _cachedCineWrapper    = null;
-        _lastCineWrapperIdx   = -2;
-        _cachedCineWordSpans  = null;
-        _cachedAngelicWordSpans = null;
-        _cachedListWordSpans  = null;
-        _cachedListContainer  = null;
-        _lastWordSpanIdx      = -2;
+        wordHighlighter.reset(); listFocus.reset(); releaseController.reset();
         if (container) {
             container.scrollTop = 0;
             requestAnimationFrame(() => {
@@ -150,20 +139,14 @@ export const LyricEngine = {
     setLyrics(lrcText) {
         currentLyrics    = parseLyrics(lrcText);
         activeLyricIndex = -1;
-        // Invalidate all caches on new song
-        _cachedCineWrapper    = null;
-        _lastCineWrapperIdx   = -2;
-        _cineTextContainer    = null;
-        _angelicTextContainer = null;
-        _cachedCineWordSpans  = null;
-        _cachedAngelicWordSpans = null;
-        _cachedListWordSpans  = null;
-        _cachedListContainer  = null;
-        _lastWordSpanIdx      = -2;
+        timeline.setLyrics(currentLyrics, driftRatio);
+        wordHighlighter.reset(); listFocus.reset(); releaseController.reset();
+        _cineTextContainer = null; _angelicTextContainer = null;
         return currentLyrics;
     },
 
     renderLyrics(lyricsListEl, angelicContainer, cinematicContainer) {
+        wordHighlighter.reset(); listFocus.reset(); releaseController.reset();
         lyricsListEl.innerHTML = '';
         if (angelicContainer)   angelicContainer.innerHTML   = '';
         if (cinematicContainer) cinematicContainer.innerHTML = '';
@@ -185,7 +168,7 @@ export const LyricEngine = {
                 const parenWords = [];
 
                 lyric.words.forEach(wObj => {
-                    if (wObj.word.includes('(') || wObj.word.includes(')')) {
+                    if (wObj.isBackingVocal) {
                         parenWords.push(wObj);
                     } else {
                         mainWords.push(wObj);
@@ -194,7 +177,7 @@ export const LyricEngine = {
 
                 let mainHTML = '';
                 mainWords.forEach((wObj, wIdx) => {
-                    mainHTML += `<span class="lyric-word" data-word-idx="${wIdx}" data-start="${wObj.time}" data-end="${wObj.endTime}">${wObj.word}</span> `;
+                    mainHTML += `<span class="lyric-word" data-word-idx="${wIdx}" data-start="${wObj.time}" data-end="${wObj.endTime}">${escapeLyricText(wObj.word)}</span> `;
                 });
 
                 let htmlContent = `<div class="lyric-main-row">${mainHTML.trim()}</div>`;
@@ -202,7 +185,7 @@ export const LyricEngine = {
                 if (parenWords.length > 0) {
                     let parenHTML = '';
                     parenWords.forEach((wObj, wIdx) => {
-                        parenHTML += `<span class="lyric-word lyric-parenthesis-word" data-word-idx="p_${wIdx}" data-start="${wObj.time}" data-end="${wObj.endTime}">${wObj.word}</span> `;
+                        parenHTML += `<span class="lyric-word lyric-parenthesis-word" data-word-idx="p_${wIdx}" data-start="${wObj.time}" data-end="${wObj.endTime}">${escapeLyricText(wObj.word)}</span> `;
                     });
                     htmlContent += `<div class="lyric-parenthesis-row">${parenHTML.trim()}</div>`;
                 }
@@ -228,234 +211,33 @@ export const LyricEngine = {
         renderEmojis(lyricsListEl, 'normal');
     },
 
-    updateHighlight(currentTime, lyricsListEl, lyricsContainer, onAngelicShow, onCinematicTrigger, onCinematicClear) {
-        if (!currentLyrics || currentLyrics.length === 0 || !currentLyrics[0] || typeof currentLyrics[0].time !== 'number') return;
-
-        // Apply 120ms early lead-in for smooth visual anticipation
-        const effectiveTime = currentTime + EARLY_LEAD_IN_SEC;
-
-        let newActiveIndex = activeLyricIndex >= 0 ? activeLyricIndex : 0;
-
-        while (
-            newActiveIndex < currentLyrics.length - 1 &&
-            currentLyrics[newActiveIndex + 1] &&
-            typeof currentLyrics[newActiveIndex + 1].time === 'number' &&
-            effectiveTime >= currentLyrics[newActiveIndex + 1].time * driftRatio
-        ) {
-            newActiveIndex++;
-        }
-        while (
-            newActiveIndex > 0 &&
-            currentLyrics[newActiveIndex] &&
-            typeof currentLyrics[newActiveIndex].time === 'number' &&
-            effectiveTime < currentLyrics[newActiveIndex].time * driftRatio
-        ) {
-            newActiveIndex--;
-        }
-        if (currentLyrics[0] && effectiveTime < currentLyrics[0].time * driftRatio) {
-            newActiveIndex = -1;
-        }
-
+    updateHighlight(currentTime, lyricsListEl, lyricsContainer, onAngelicShow, onCinematicTrigger, onCinematicClear, onAngelicClear) {
+        if (!currentLyrics.length) return;
+        const newActiveIndex = timeline.indexAt(currentTime);
         if (newActiveIndex !== activeLyricIndex) {
             activeLyricIndex = newActiveIndex;
-
-            const lines = lyricsListEl.querySelectorAll('.am-lyric-line');
-            lines.forEach((line, idx) => {
-                line.classList.remove('active', 'next-line');
-                if (idx === activeLyricIndex)     line.classList.add('active');
-                else if (idx === activeLyricIndex + 1) line.classList.add('next-line');
-            });
-
-            if (activeLyricIndex === -1) {
-                if (lyricsContainer) {
-                    smoothScrollTo(lyricsContainer, 0, 350);
-                }
-            } else {
-                const activeLine = lines[activeLyricIndex];
-                if (activeLine && lyricsContainer) {
-                    const containerHeight = lyricsContainer.clientHeight;
-                    const lineOffsetTop   = activeLine.offsetTop;
-                    const lineHeight      = activeLine.clientHeight;
-                    const targetScroll    = lineOffsetTop - (containerHeight * 0.4) + (lineHeight / 2);
-                    smoothScrollTo(lyricsContainer, targetScroll, 520);
-                }
-
-                if (onAngelicShow && currentLyrics[activeLyricIndex]) {
-                    onAngelicShow(activeLyricIndex, currentLyrics[activeLyricIndex]);
-                }
-
-                // Calculate time gap to next lyric for adaptive animation duration
-                let deltaSec = 3.0;
-                if (currentLyrics[activeLyricIndex + 1]) {
-                    deltaSec = Math.max(0.5, (currentLyrics[activeLyricIndex + 1].time - currentLyrics[activeLyricIndex].time) * driftRatio);
-                }
-
-                if (onCinematicTrigger && currentLyrics[activeLyricIndex]) {
-                    if (_cineTextContainer) _cineTextContainer._isLineCleared = false;
-                    onCinematicTrigger({ ...currentLyrics[activeLyricIndex], index: activeLyricIndex }, deltaSec);
-                }
+            releaseController.reset();
+            if (activeLyricIndex >= 0) {
+                onAngelicShow?.(activeLyricIndex, currentLyrics[activeLyricIndex]);
+                const next = currentLyrics[activeLyricIndex + 1];
+                const deltaSec = next ? Math.max(.5, (next.time - currentLyrics[activeLyricIndex].time) * driftRatio) : 3;
+                onCinematicTrigger?.({ ...currentLyrics[activeLyricIndex], index: activeLyricIndex }, deltaSec);
             }
         }
-
-        // ── Real-Time Karaoke Word Highlight Sync (optimized) ──────────────────────────
-        const syncWordSpans = (parentEl, wordSelector, isCinematic = false) => {
-            if (!parentEl) return;
-
-            let container;
-            let wordSpans;
-
-            if (isCinematic) {
-                // Re-query wrapper only when active lyric changes
-                if (_lastCineWrapperIdx !== activeLyricIndex) {
-                    _lastCineWrapperIdx  = activeLyricIndex;
-                    _cachedCineWrapper   = parentEl.querySelector('.cinematic-line-wrapper.cine-enter');
-                    _cachedCineWordSpans = _cachedCineWrapper
-                        ? Array.from(_cachedCineWrapper.querySelectorAll(wordSelector))
-                        : null;
-                }
-                container = _cachedCineWrapper;
-                wordSpans = _cachedCineWordSpans;
-            } else if (parentEl === _cineTextContainer) {
-                // Shouldn't reach here but guard anyway
-                return;
-            } else if (parentEl === _angelicTextContainer) {
-                // Angelic: rebuild spans cache on lyric change
-                if (_lastWordSpanIdx !== activeLyricIndex) {
-                    const ac = parentEl.querySelector(
-                        `[data-index="${activeLyricIndex}"], [data-lyric-index="${activeLyricIndex}"]`
-                    );
-                    _cachedAngelicWordSpans = ac
-                        ? Array.from(ac.querySelectorAll(wordSelector))
-                        : null;
-                }
-                wordSpans = _cachedAngelicWordSpans;
-                container = wordSpans ? {} : null; // just needs to be truthy
-            } else {
-                // Lyrics list panel
-                if (_lastWordSpanIdx !== activeLyricIndex) {
-                    _cachedListContainer = parentEl.querySelector(
-                        `[data-index="${activeLyricIndex}"], [data-lyric-index="${activeLyricIndex}"]`
-                    );
-                    _cachedListWordSpans = _cachedListContainer
-                        ? Array.from(_cachedListContainer.querySelectorAll(wordSelector))
-                        : null;
-                }
-                container = _cachedListContainer;
-                wordSpans = _cachedListWordSpans;
-            }
-
-            if (!container || !wordSpans || wordSpans.length === 0) return;
-
-            for (let si = 0; si < wordSpans.length; si++) {
-                const span = wordSpans[si];
-
-                // Parse data-start/end once and cache on the element
-                if (span._wStart === undefined) {
-                    span._wStart = parseFloat(span.getAttribute('data-start'));
-                    span._wEnd   = parseFloat(span.getAttribute('data-end'));
-                    span._wProg  = -1; // last written --word-progress value
-                }
-                const wStart = span._wStart;
-                const wEnd   = span._wEnd;
-                if (isNaN(wStart) || isNaN(wEnd)) continue;
-
-                const rawStart = wStart * driftRatio;
-                const startEff = rawStart - WORD_EARLY_LEAD_IN_SEC;
-                const endEff   = wEnd   * driftRatio;
-
-                if (currentTime >= endEff) {
-                    if (!span.classList.contains('word-past')) {
-                        span.classList.remove('word-active', 'glitch-word-anim');
-                        if (span._glitchTimer) { clearTimeout(span._glitchTimer); span._glitchTimer = null; }
-                        span.classList.add('word-past');
-                        span.style.setProperty('--word-progress', '1');
-                        span._wProg = 1;
-                    }
-                } else if (currentTime >= startEff) {
-                    if (!span.classList.contains('word-active')) {
-                        span.classList.remove('word-past');
-                        span.classList.add('word-active');
-                        if (isCinematic && (span.classList.contains('has-enhanced-word') || span.hasAttribute('data-start'))) {
-                            if (Math.random() < 0.20) {
-                                span.classList.add('glitch-word-anim');
-                                if (span._glitchTimer) clearTimeout(span._glitchTimer);
-                                span._glitchTimer = setTimeout(() => {
-                                    span.classList.remove('glitch-word-anim');
-                                    span._glitchTimer = null;
-                                }, 380);
-                            }
-                        }
-                    }
-                    const dur   = Math.max(0.08, endEff - rawStart);
-                    const ratio = Math.min(1, Math.max(0, (currentTime - rawStart) / dur));
-                    // Only write CSS var when change is significant (saves DOM write per frame)
-                    const rounded = Math.round(ratio * 1000) / 1000;
-                    if (Math.abs(rounded - span._wProg) >= 0.005) {
-                        span.style.setProperty('--word-progress', rounded);
-                        span._wProg = rounded;
-                    }
-                } else {
-                    if (span.classList.contains('word-active') || span.classList.contains('word-past')) {
-                        span.classList.remove('word-active', 'word-past', 'glitch-word-anim');
-                        if (span._glitchTimer) { clearTimeout(span._glitchTimer); span._glitchTimer = null; }
-                        span.style.setProperty('--word-progress', '0');
-                        span._wProg = 0;
-                    }
-                }
-            }
-
-            // Check if cinematic line has ended all its words, and if no next line is due soon, clear it
-            if (isCinematic && onCinematicClear && activeLyricIndex !== -1) {
-                const isLastLine = activeLyricIndex === currentLyrics.length - 1;
-                const lastWord = wordSpans[wordSpans.length - 1];
-                let lineEndTime = -1;
-
-                if (lastWord) {
-                    if (lastWord._wEnd !== undefined && !isNaN(lastWord._wEnd)) {
-                        lineEndTime = lastWord._wEnd * driftRatio;
-                    }
-                }
-
-                // Fallback to line time if no word end metadata
-                if (lineEndTime === -1 && currentLyrics[activeLyricIndex]) {
-                    lineEndTime = (currentLyrics[activeLyricIndex].time + 3.0) * driftRatio;
-                }
-
-                // Buffer delay of 1.2s after last word ends before clearing
-                const CLEAR_BUFFER_SEC = 1.2;
-                if (lineEndTime > 0 && currentTime >= lineEndTime + CLEAR_BUFFER_SEC) {
-                    const nextLine = currentLyrics[activeLyricIndex + 1];
-                    const nextLineTime = nextLine ? nextLine.time * driftRatio : Infinity;
-
-                    // If no next line, or next line is still > 1.0s away, fade out current line
-                    if (currentTime < nextLineTime - 0.5) {
-                        if (!_cineTextContainer._isLineCleared) {
-                            _cineTextContainer._isLineCleared = true;
-                            onCinematicClear();
-                        }
-                    }
-                }
-            }
-        };
-
-        if (lyricsListEl) syncWordSpans(lyricsListEl, '.lyric-word', false);
-
-        if (!_cineTextContainer)    _cineTextContainer    = document.getElementById('cinematic-text-container');
+        listFocus.update(lyricsListEl, lyricsContainer, activeLyricIndex, smoothScrollTo);
+        if (!_cineTextContainer) _cineTextContainer = document.getElementById('cinematic-text-container');
         if (!_angelicTextContainer) _angelicTextContainer = document.getElementById('angelic-text-container');
-        if (_cineTextContainer)    syncWordSpans(_cineTextContainer,    '.cine-word',          true);
-        if (_angelicTextContainer) syncWordSpans(_angelicTextContainer, '.angelic-word-pop',   false);
-
-        // Update shared lyric-change index marker AFTER all three containers ran
-        _lastWordSpanIdx = activeLyricIndex;
+        wordHighlighter.sync(lyricsListEl, activeLyricIndex, currentTime, driftRatio, 'normal');
+        wordHighlighter.sync(_cineTextContainer, activeLyricIndex, currentTime, driftRatio, 'cinematic');
+        wordHighlighter.sync(_angelicTextContainer, activeLyricIndex, currentTime, driftRatio, 'angelic');
+        releaseController.update(timeline, activeLyricIndex, currentTime, wordHighlighter,
+            _cineTextContainer, _angelicTextContainer, onCinematicClear, onAngelicClear);
     },
 
     prepareLyricNearTime(time, prepareLineCallback) {
         if (!currentLyrics || currentLyrics.length === 0) return;
-        let idx = currentLyrics.findIndex(s => s.time * driftRatio >= time);
-        if (idx === -1) idx = currentLyrics.length - 1;
-        activeLyricIndex = Math.max(0, idx - 1);
-        if (prepareLineCallback && currentLyrics[activeLyricIndex]) {
-            prepareLineCallback(currentLyrics[activeLyricIndex], activeLyricIndex);
-        }
+        const index = Math.max(0, timeline.indexAt(time));
+        this.invalidateSeek();
+        if (prepareLineCallback) prepareLineCallback(currentLyrics[index], index);
     }
 };

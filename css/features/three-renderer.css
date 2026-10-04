@@ -1,0 +1,14 @@
+/* Three.js surfaces preserve the existing layout and DOM lyrics. */
+.wavr-three-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+}
+.three-surface-ready { opacity: 0 !important; }
+body.three-renderer-enabled #angelic-vinyl-container.three-vinyl-ready { visibility: hidden; }
+body.three-renderer-enabled .giant-butterfly.three-butterfly-ready { visibility: hidden; }
+#cinematic-view .wavr-three-canvas { z-index: 1; }
+#angelic-view .wavr-three-canvas { z-index: 1; }

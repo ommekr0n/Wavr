@@ -49,6 +49,18 @@ Open the address shown in the terminal (normally `http://localhost:3000`). To ma
 npm run build
 ```
 
+## Three.js rendering
+
+Open `http://localhost:3000/`. Three.js is the default graphics renderer in the main application. The separate preview, renderer comparison toolbar, demo library and legacy Cinematic Canvas/GIF renderer have been removed.
+
+The English UI, existing layout, playback engine, library, equalizer and controls are retained. WebGL gives the existing cover cards and Vinyl Boxes depth, renders the Cinematic LED stage, concert lights, lasers and smoke, and renders Angelic vinyl and giant butterflies. Cinematic fire uses procedural 3D volumes and a fixed GPU ember pool, bursting on strong bass/climax events. Lyrics, staff, florals and CRT overlays remain in DOM/SVG/CSS to preserve their appearance and readability.
+
+Rendering is demand-driven in Library/Player and stops when a paused scene has settled. Vinyl grooves and smoke use instancing; visualizers share existing audio analysis and cap canvas resolution while DOM text remains at full resolution. A lost WebGL context pauses graphics until Three.js restores it. If WebGL cannot start, music, DOM artwork and lyrics remain usable, with a graphics availability notification.
+
+Angelic caches SVG geometry and samples its slow staff wave and floral reveal at 30 Hz using the established motion curves. Breathing changes only the container transform, and WebGL butterflies follow the existing flight paths without per-frame layout reads. Upcoming lyric surfaces are warmed before activation. Mist exits last 240–880 ms according to incoming line density; outgoing geometry and word sway freeze during the dissolve.
+
+Enhanced LRC preserves authored word/end timestamps, sustained vocals, tagged phrases and backing groups. Highlights change at timestamp boundaries and skip hidden modes; normal and Angelic glow share Cinematic's cover palette. Paused entry and seeking synchronize immediately. Run `npm test` for rendering cadence, flame bursts, motion fidelity, lyric timing, cleanup and context recovery checks, then `npm run build`. Development samples are available on `canvas.wavr-three-canvas` through `data-frame-stats` and `data-lyric-transition-stats` (or enable them with `?perf` in a production build). Frame rates depend on viewport, hardware and effects; the changes do not guarantee sustained 60 FPS.
+
 ## Cloud Vault setup (maintainers)
 
 Cloud Vault uses Supabase for authentication and library data, plus a Cloudflare Worker connected to a private R2 bucket for media. Create a Supabase project, put its browser-safe URL and publishable key in `.env.local`, then run [`supabase_schema.sql`](supabase_schema.sql) in the Supabase SQL Editor. Configure the Worker from [`workers/wrangler.jsonc`](workers/wrangler.jsonc), set `MEDIA_SIGNING_KEY` as a Worker secret, and update `ALLOWED_ORIGINS` with the exact deployed site address.

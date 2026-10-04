@@ -83,3 +83,18 @@ export function extractColorsFromImage(imgEl, updateCSSVariables) {
         return defaultSpotlightColors;
     }
 }
+
+export function loadImageForColorExtraction(source) {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.crossOrigin = 'anonymous';
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+
+        const sourceUrl = new URL(source, window.location.href);
+        if ((sourceUrl.protocol === 'http:' || sourceUrl.protocol === 'https:') && sourceUrl.origin !== window.location.origin) {
+            sourceUrl.searchParams.set('_wavr_cors', '1');
+        }
+        image.src = sourceUrl.href;
+    });
+}

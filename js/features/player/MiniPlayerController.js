@@ -1,26 +1,40 @@
 /**
  * MiniPlayerController.js
  * Controls Mini Player UI updates, interactive waveform seeking, and view transitions.
+ *
+ * Phase 3: setupListeners() no longer receives a raw `audio` element or
+ * `PlayerController`. It now receives `engine` (PlaybackEngine) from which
+ * all audio state is read, and `PlayerController` is accessed only via
+ * queue accessors (getCurrentTrackIndex, getPlaybackSource, etc.) which
+ * remain stable.  updateUI() still receives the full context it needs
+ * through its own narrowed parameter object.
  */
 
 import coverImgUrl from '../../../assets/images/cover.png';
 import { drawMiniWaveform } from './WaveformEngine.js';
+import { PLAYBACK_STATES } from '../../core/PlaybackEngine.js';
 
 export const MiniPlayerController = {
     _isDraggingSlider: false,
-    _isTransitioning: false,
+    _isTransitioning:  false,
 
     isDragging() {
         return this._isDraggingSlider;
     },
 
-    updateUI({ audio, getPlaybackSource, PlayerController }) {
+    /**
+     * @param {object} opts
+     * @param {import('../../core/PlaybackEngine.js').PlaybackEngine} opts.engine
+     * @param {() => any[]} opts.getPlaybackSource
+     * @param {object} opts.PlayerController  – queue-only façade (index, shuffle, repeat)
+     */
+    updateUI({ engine, getPlaybackSource, PlayerController }) {
         const miniPlayerEl = document.getElementById('mini-player');
         if (!miniPlayerEl) return;
 
         const source = getPlaybackSource();
         const currentTrackIndex = PlayerController.getCurrentTrackIndex();
-        const isPlaying = PlayerController.getIsPlaying();
+        const isPlaying = engine.state === PLAYBACK_STATES.PLAYING;
 
         if (currentTrackIndex === -1 || !source[currentTrackIndex]) {
             miniPlayerEl.classList.add('hidden');
@@ -28,15 +42,15 @@ export const MiniPlayerController = {
         }
 
         const song = source[currentTrackIndex];
-        const miniCover = document.getElementById('mini-cover');
-        const miniTitle = document.getElementById('mini-title');
+        const miniCover  = document.getElementById('mini-cover');
+        const miniTitle  = document.getElementById('mini-title');
         const miniArtist = document.getElementById('mini-artist');
 
-        if (miniCover) miniCover.src = song.cover || coverImgUrl;
-        if (miniTitle) miniTitle.textContent = song.title || 'Unknown Title';
+        if (miniCover)  miniCover.src        = song.cover  || coverImgUrl;
+        if (miniTitle)  miniTitle.textContent  = song.title  || 'Unknown Title';
         if (miniArtist) miniArtist.textContent = song.artist || 'Unknown Artist';
 
-        const btnMiniPlay = document.getElementById('btn-mini-play');
+        const btnMiniPlay  = document.getElementById('btn-mini-play');
         const btnMiniPause = document.getElementById('btn-mini-pause');
         if (btnMiniPlay && btnMiniPause) {
             if (isPlaying) {
@@ -48,27 +62,27 @@ export const MiniPlayerController = {
             }
         }
 
-        const pct = isNaN(audio.duration) ? 0 : (audio.currentTime / audio.duration) * 100;
+        const pct = isNaN(engine.duration) ? 0 : (engine.currentTime / engine.duration) * 100;
         drawMiniWaveform(pct);
 
-        const btnMiniRepeat = document.getElementById('btn-mini-repeat');
+        const btnMiniRepeat  = document.getElementById('btn-mini-repeat');
         const btnMiniShuffle = document.getElementById('btn-mini-shuffle');
         if (btnMiniRepeat) {
-            const miniIconRepeat = btnMiniRepeat.querySelector('.icon-repeat');
+            const miniIconRepeat  = btnMiniRepeat.querySelector('.icon-repeat');
             const miniIconRepeat1 = btnMiniRepeat.querySelector('.icon-repeat-1');
             const repeatMode = PlayerController.getRepeatMode();
 
             if (repeatMode === 0) {
                 btnMiniRepeat.classList.remove('active-state');
-                if (miniIconRepeat) miniIconRepeat.classList.remove('hidden');
+                if (miniIconRepeat)  miniIconRepeat.classList.remove('hidden');
                 if (miniIconRepeat1) miniIconRepeat1.classList.add('hidden');
             } else if (repeatMode === 1) {
                 btnMiniRepeat.classList.add('active-state');
-                if (miniIconRepeat) miniIconRepeat.classList.remove('hidden');
+                if (miniIconRepeat)  miniIconRepeat.classList.remove('hidden');
                 if (miniIconRepeat1) miniIconRepeat1.classList.add('hidden');
             } else if (repeatMode === 2) {
                 btnMiniRepeat.classList.add('active-state');
-                if (miniIconRepeat) miniIconRepeat.classList.add('hidden');
+                if (miniIconRepeat)  miniIconRepeat.classList.add('hidden');
                 if (miniIconRepeat1) miniIconRepeat1.classList.remove('hidden');
             }
         }
@@ -82,8 +96,23 @@ export const MiniPlayerController = {
         }
     },
 
+    /**
+     * @param {object} opts
+     * @param {import('../../core/PlaybackEngine.js').PlaybackEngine} opts.engine
+     * @param {object} opts.PlayerController
+     * @param {object} opts.LyricEngine
+     * @param {() => void} opts.togglePlay
+     * @param {(isAutoNext?: boolean) => void} opts.nextTrack
+     * @param {() => void} opts.prevTrack
+     * @param {() => void} opts.updateProgress
+     * @param {(time: number) => void} opts.prepareLyricNearTime
+     * @param {HTMLElement} opts.homeView
+     * @param {HTMLElement} opts.playerView
+     * @param {HTMLElement} opts.lyricsContainer
+     * @param {() => void} opts.updateMiniPlayerUI
+     */
     setupListeners({
-        audio,
+        engine,
         PlayerController,
         LyricEngine,
         togglePlay,
@@ -96,17 +125,17 @@ export const MiniPlayerController = {
         lyricsContainer,
         updateMiniPlayerUI
     }) {
-        const miniPlayer = document.getElementById('mini-player');
-        const miniSlider = document.getElementById('mini-progress-slider');
-        const miniCenter = document.querySelector('.mini-center');
-        const btnMiniPlay = document.getElementById('btn-mini-play');
-        const btnMiniPause = document.getElementById('btn-mini-pause');
-        const btnMiniNext = document.getElementById('btn-mini-next');
-        const btnMiniPrev = document.getElementById('btn-mini-prev');
-        const btnMiniRepeat = document.getElementById('btn-mini-repeat');
+        const miniPlayer     = document.getElementById('mini-player');
+        const miniSlider     = document.getElementById('mini-progress-slider');
+        const miniCenter     = document.querySelector('.mini-center');
+        const btnMiniPlay    = document.getElementById('btn-mini-play');
+        const btnMiniPause   = document.getElementById('btn-mini-pause');
+        const btnMiniNext    = document.getElementById('btn-mini-next');
+        const btnMiniPrev    = document.getElementById('btn-mini-prev');
+        const btnMiniRepeat  = document.getElementById('btn-mini-repeat');
         const btnMiniShuffle = document.getElementById('btn-mini-shuffle');
-        const btnRepeat = document.getElementById('btn-repeat');
-        const btnShuffle = document.getElementById('btn-shuffle');
+        const btnRepeat      = document.getElementById('btn-repeat');
+        const btnShuffle     = document.getElementById('btn-shuffle');
 
         if (miniPlayer) {
             miniPlayer.addEventListener('click', (e) => {
@@ -121,7 +150,7 @@ export const MiniPlayerController = {
 
                     const currentLyrics = LyricEngine.getCurrentLyrics();
                     const drift = LyricEngine.getDriftRatio();
-                    const currentTime = audio.currentTime || 0;
+                    const currentTime = engine.currentTime || 0;
 
                     LyricEngine.setActiveLyricIndex(-1);
 
@@ -136,7 +165,7 @@ export const MiniPlayerController = {
 
                     setTimeout(() => {
                         homeView.classList.add('hidden');
-                        if (!currentLyrics || currentLyrics.length === 0 || !currentLyrics[0] || audio.currentTime < currentLyrics[0].time * LyricEngine.getDriftRatio()) {
+                        if (!currentLyrics || currentLyrics.length === 0 || !currentLyrics[0] || engine.currentTime < currentLyrics[0].time * LyricEngine.getDriftRatio()) {
                             if (lyricsContainer) lyricsContainer.scrollTop = 0;
                         }
                         this._isTransitioning = false;
@@ -146,9 +175,9 @@ export const MiniPlayerController = {
         }
 
         if (miniCenter) {
-            miniCenter.addEventListener('click', (e) => e.stopPropagation());
+            miniCenter.addEventListener('click',     (e) => e.stopPropagation());
             miniCenter.addEventListener('mousedown', (e) => e.stopPropagation());
-            miniCenter.addEventListener('mouseup', (e) => e.stopPropagation());
+            miniCenter.addEventListener('mouseup',   (e) => e.stopPropagation());
         }
 
         if (miniSlider) {
@@ -156,26 +185,26 @@ export const MiniPlayerController = {
                 this._isDraggingSlider = true;
                 const percent = parseFloat(e.target.value);
                 drawMiniWaveform(percent);
-                if (!isNaN(audio.duration)) {
-                    prepareLyricNearTime((percent / 100) * audio.duration);
+                if (!isNaN(engine.duration)) {
+                    prepareLyricNearTime((percent / 100) * engine.duration);
                 }
             });
 
             miniSlider.addEventListener('change', (e) => {
-                if (!isNaN(audio.duration)) {
-                    const targetTime = (parseFloat(e.target.value) / 100) * audio.duration;
+                if (!isNaN(engine.duration)) {
+                    const targetTime = (parseFloat(e.target.value) / 100) * engine.duration;
                     prepareLyricNearTime(targetTime);
-                    audio.currentTime = targetTime;
-                    if (!PlayerController.getIsPlaying()) updateProgress();
+                    engine.seek(targetTime);
+                    if (engine.isPaused) updateProgress();
                 }
                 this._isDraggingSlider = false;
             });
         }
 
-        if (btnMiniPlay) btnMiniPlay.addEventListener('click', () => togglePlay());
+        if (btnMiniPlay)  btnMiniPlay.addEventListener('click',  () => togglePlay());
         if (btnMiniPause) btnMiniPause.addEventListener('click', () => togglePlay());
-        if (btnMiniNext) btnMiniNext.addEventListener('click', () => nextTrack(false));
-        if (btnMiniPrev) btnMiniPrev.addEventListener('click', prevTrack);
+        if (btnMiniNext)  btnMiniNext.addEventListener('click',  () => nextTrack(false));
+        if (btnMiniPrev)  btnMiniPrev.addEventListener('click',  prevTrack);
 
         if (btnMiniRepeat) {
             btnMiniRepeat.addEventListener('click', () => {

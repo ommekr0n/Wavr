@@ -1,0 +1,51 @@
+/* Match Cinematic's cover palette; the application's cyan UI accent stays independent. */
+:root {
+    --enhanced-glow-primary: var(--blob-1-color, #ff2d55);
+    --enhanced-glow-secondary: var(--blob-2-color, #5856d6);
+}
+
+.am-lyric-line.has-enhanced .lyric-word {
+    transition: color var(--word-attack, .14s) cubic-bezier(.16,1,.3,1);
+    will-change: auto;
+}
+
+.am-lyric-line.has-enhanced.active .lyric-word.word-active {
+    text-shadow: 0 0 8px #fff, 0 0 18px var(--enhanced-glow-primary),
+                 0 0 28px var(--enhanced-glow-secondary) !important;
+}
+
+.am-lyric-line.has-enhanced.active .lyric-word.word-past {
+    text-shadow: 0 0 8px rgba(255,255,255,.65),
+                 0 0 12px var(--enhanced-glow-primary) !important;
+}
+
+.am-lyric-line.has-enhanced.active img.lyric-emoji--normal {
+    filter: saturate(1) opacity(.95) drop-shadow(0 0 8px rgba(255,255,255,.8))
+            drop-shadow(0 0 20px var(--enhanced-glow-primary));
+}
+
+.angelic-word-pop.has-enhanced-word {
+    transition: transform var(--word-attack, .14s) cubic-bezier(.16,1,.3,1),
+                opacity var(--word-attack, .14s) ease;
+}
+
+.angelic-word-pop.has-enhanced-word:not(.word-active):not(.word-past) {
+    text-shadow: none !important;
+}
+
+.angelic-word-pop.has-enhanced-word.word-active,
+.angelic-line-wrapper.angelic-prebuilt.angelic-prewarm .has-enhanced-word {
+    text-shadow: 0 0 7px #fff, 0 0 22px var(--enhanced-glow-primary),
+                 0 0 34px var(--enhanced-glow-secondary) !important;
+}
+
+.angelic-word-pop.has-enhanced-word.word-past {
+    text-shadow: 0 0 8px rgba(255,255,255,.85),
+                 0 0 14px var(--enhanced-glow-primary) !important;
+}
+
+/* Freeze the actual enhanced word pose, including dim future words, during mist exit. */
+.angelic-line-wrapper.ink-wash-exit .angelic-word-pop.has-enhanced-word {
+    opacity: var(--exit-word-opacity, 1) !important;
+    transform: var(--exit-word-transform, none) !important;
+}

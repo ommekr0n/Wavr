@@ -1,3 +1,5 @@
+import { parseEnhancedLrc } from '../features/lyrics/EnhancedLrcTiming.js';
+
 /**
  * Parses timestamp string into total seconds.
  * Supports: [01:23.45], <01:23.45>, (01:23:456), etc.
@@ -43,44 +45,11 @@ export function parseLyrics(lrcString) {
             const rawContent = line.replace(/\[\d{2}:\d{2}(?:\.\d{2,3})?\]/g, '').trim();
             if (!rawContent) continue;
 
-            // Check if line contains word-level timestamps <mm:ss.xx> or (mm:ss.xx)
-            const wordTagRegex = /(?:<|\()(\d{2}:\d{2}(?:[\.:]\d{2,3})?)(?:>|\))\s*([^\s<>]+)/g;
-            const words = [];
-            let wordMatch;
-            let cleanTextParts = [];
-
-            while ((wordMatch = wordTagRegex.exec(rawContent)) !== null) {
-                const wTime = parseTimeToSeconds(wordMatch[1]);
-                const wText = wordMatch[2].trim();
-                if (wText) {
-                    const isParen = wText.startsWith('(') || wText.endsWith(')');
-                    words.push({
-                        word: wText,
-                        time: wTime,
-                        endTime: wTime + 0.4,
-                        isBackingVocal: isParen
-                    });
-                    cleanTextParts.push(wText);
-                }
-            }
-
+            const enhanced = parseEnhancedLrc(rawContent, lineTime, parseTimeToSeconds);
+            const words = enhanced?.words || [];
             const isEnhanced = words.length > 0;
-            // Get clean text with all <timestamps> stripped
-            let cleanText = isEnhanced 
-                ? cleanTextParts.join(' ') 
-                : rawContent.replace(/(?:<|\()\d{2}:\d{2}(?:[\.:]\d{2,3})?(?:>|\))/g, '').replace(/\s+/g, ' ').trim();
-
-            if (isEnhanced) {
-                // Refine word endTimes: each word ends when the next word starts (clamped to max 1.2s duration)
-                for (let i = 0; i < words.length; i++) {
-                    if (i < words.length - 1) {
-                        words[i].endTime = Math.min(words[i].time + 1.2, words[i + 1].time);
-                    } else {
-                        // Last word in line
-                        words[i].endTime = words[i].time + 1.0;
-                    }
-                }
-            }
+            const cleanText = enhanced ? enhanced.text : rawContent.replace(/\s+/g, ' ').trim();
+            if (!cleanText) continue;
 
             parsedLyrics.push({
                 time: lineTime,
@@ -106,10 +75,10 @@ export function parseLyrics(lrcString) {
         }
 
         if (item.isEnhanced && item.words.length > 0) {
-            // Refine last word duration: max 0.45 seconds so last word completes prompt fill
+            // Only infer a missing final end tag. Explicit vocal timing remains authoritative.
             const lastWord = item.words[item.words.length - 1];
-            if (lastWord) {
-                lastWord.endTime = Math.min(lastWord.time + 0.45, item.endTime);
+            if (lastWord && !lastWord.explicitEnd) {
+                lastWord.endTime = Math.max(lastWord.time, Math.min(lastWord.time + 0.45, item.endTime));
             }
         }
     }

@@ -11,4 +11,7 @@
 @import './vinyl-crates.css';
 @import './cinematic.css';
 @import './angelic.css';
+@import './features/angelic-lyric-transitions.css';
+@import './features/enhanced-lyrics.css';
+@import './features/three-renderer.css';
 @import './custom-background.css';

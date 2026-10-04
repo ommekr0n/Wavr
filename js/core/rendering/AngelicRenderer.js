@@ -10,7 +10,8 @@ import { AngelicLyricBuilder } from '../../features/angelic/AngelicLyricBuilder.
 import { AngelicParticleSystem } from '../../features/angelic/AngelicParticleSystem.js';
 import { AngelicClimaxFX } from '../../features/angelic/AngelicClimaxFX.js';
 import { AngelicStaffAnimator } from '../../features/angelic/AngelicStaffAnimator.js';
-import { applyInkWashExit } from '../../features/visualizer/VisualFX.js';
+import { warmAngelicLyric } from '../../features/angelic/AngelicLyricWarmup.js';
+import { activateAngelicLine, clearAngelicLine } from '../../features/angelic/AngelicLineLifecycle.js';
 import { renderEmojis } from '../../features/lyrics/EmojiRenderer.js';
 
 let lastLineShowTimestamp = 0;
@@ -63,14 +64,14 @@ export const AngelicRenderer = {
     },
 
     /**
-     * Pre-builds the DOM for a lyric line off-screen so it's GPU-compiled before display.
+     * Pre-builds and primes bounded lyric surfaces before display.
      * @param {string|Object} textOrLyric            - Raw lyric line text or rich lyric object
      * @param {number} index                         - Lyric index (used as data-lyric-index)
      * @param {HTMLElement} angelicTextContainer     - #angelic-text-container
      */
     prepareLine(textOrLyric, index, angelicTextContainer) {
         if (!textOrLyric) return;
-        if (angelicTextContainer.querySelector(`[data-lyric-index="${index}"]`)) return;
+        if (angelicTextContainer.querySelector(`[data-lyric-index="${index}"]:not(.ink-wash-exit)`)) return;
 
         const newWrapper = document.createElement('div');
         newWrapper.className = 'angelic-line-wrapper angelic-prebuilt';
@@ -115,59 +116,27 @@ export const AngelicRenderer = {
         angelicTextContainer.appendChild(newWrapper);
         // Replace OS emoji with angelic-styled Twemoji SVGs after DOM insertion
         renderEmojis(newWrapper, 'angelic');
+        warmAngelicLyric(newWrapper);
     },
 
     /**
      * Activates a pre-built lyric line and exits older lines gracefully.
      */
-    showLine(index, textOrLyric, lyrics, angelicTextContainer) {
+    showLine(index, textOrLyric, lyrics, angelicTextContainer, timing) {
         // Đảm bảo Khung 5 dây & Khóa Sol đã được vẽ L-to-R và duy trì đung đưa cố định
         this.ensureGlobalStaff(angelicTextContainer);
 
-        let wrapper = angelicTextContainer.querySelector(`[data-lyric-index="${index}"]`);
+        let wrapper = angelicTextContainer.querySelector(`[data-lyric-index="${index}"]:not(.ink-wash-exit)`);
         const lyricObj = (lyrics && lyrics[index]) ? lyrics[index] : textOrLyric;
 
         if (!wrapper && lyricObj) {
             AngelicRenderer.prepareLine(lyricObj, index, angelicTextContainer);
-            wrapper = angelicTextContainer.querySelector(`[data-lyric-index="${index}"]`);
+            wrapper = angelicTextContainer.querySelector(`[data-lyric-index="${index}"]:not(.ink-wash-exit)`);
         }
         if (!wrapper) return;
 
-        const allWrappers = angelicTextContainer.querySelectorAll('.angelic-line-wrapper');
-        allWrappers.forEach(line => {
-            if (line !== wrapper &&
-                !line.classList.contains('angelic-prebuilt') &&
-                !line.classList.contains('angelic-exit') &&
-                !line.classList.contains('ink-wash-exit')) {
-                applyInkWashExit(line);
-            }
-        });
-
-        // DOM Garbage Collection: Purge distant old wrappers to prevent DOM bloat on long tracks
-        if (allWrappers.length > 3) {
-            allWrappers.forEach(line => {
-                if (line !== wrapper && !line.classList.contains('angelic-prebuilt')) {
-                    const idxAttr = line.getAttribute('data-lyric-index');
-                    if (idxAttr !== null) {
-                        const lineIdx = parseInt(idxAttr, 10);
-                        if (Math.abs(lineIdx - index) > 2 && line.parentNode) {
-                            line.remove();
-                        }
-                    }
-                }
-            });
-        }
-
         lastLineShowTimestamp = Date.now();
-        wrapper.classList.remove('angelic-prebuilt');
-
-        // Single rAF — kích hoạt animation ngay lập tức ở frame kế tiếp mà không bị trễ 2-frame
-        requestAnimationFrame(() => {
-            wrapper.classList.add('angelic-enter-wrapper');
-
-            const clef = angelicTextContainer.querySelector('.angelic-clef-symbol');
-            if (clef && !clef.classList.contains('enter')) clef.classList.add('enter');
-        });
+        activateAngelicLine(angelicTextContainer, wrapper, index, timing);
 
         // Start Canvas-like sine wave animation for the active line
         const w = parseFloat(wrapper.getAttribute('data-w'));
@@ -176,6 +145,8 @@ export const AngelicRenderer = {
         const amp = parseFloat(wrapper.getAttribute('data-amp'));
         AngelicStaffAnimator.start(wrapper, w, staffLineGap, yCenter, amp);
     },
+
+    clearLine(container, duration) { clearAngelicLine(container, duration); },
 
     getLastLineShowTimestamp() { return lastLineShowTimestamp; },
 

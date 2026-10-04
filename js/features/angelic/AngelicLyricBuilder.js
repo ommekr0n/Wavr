@@ -5,6 +5,7 @@
  */
 
 import { splitSyllables } from '../visualizer/VisualFX.js';
+import { buildAngelicEnhancedWords } from './AngelicEnhancedWords.js';
 
 export const AngelicLyricBuilder = {
     /**
@@ -30,15 +31,13 @@ export const AngelicLyricBuilder = {
         const isObj = typeof inputData === 'object' && inputData !== null;
         const rawText = isObj ? inputData.text : inputData;
         const isEnhanced = isObj && inputData.isEnhanced && Array.isArray(inputData.words);
-        const wordList = isEnhanced ? inputData.words : [];
-        const lineTime = isObj ? (inputData.time || 0) : 0;
 
         if (!rawText) return '';
+        if (isEnhanced) return buildAngelicEnhancedWords(inputData);
 
         const safeText = this.preventOrphanWords(rawText);
         const textLines = safeText.split('\n');
         let wordsHTML = '';
-        let globalWordIdx = 0;
         let globalSyllableIdx = 0;
 
         textLines.forEach((lineText) => {
@@ -61,19 +60,7 @@ export const AngelicLyricBuilder = {
                 const syllableStep = isRecording ? 0.025 : 0.018;
 
                 const syllables = splitSyllables(word);
-                const wObj = isEnhanced && wordList[globalWordIdx] ? wordList[globalWordIdx] : null;
-
-                let wordPopDelay = 0;
-                let dataAttrs = '';
-
-                if (wObj) {
-                    const offsetSec = Math.max(0, wObj.time - lineTime);
-                    wordPopDelay = STAFF_DRAW_DURATION + offsetSec;
-                    dataAttrs = `data-start="${wObj.time}" data-end="${wObj.endTime}"`;
-                } else {
-                    wordPopDelay = STAFF_DRAW_DURATION + globalSyllableIdx * syllableStep;
-                }
-                globalWordIdx++;
+                const wordPopDelay = STAFF_DRAW_DURATION + globalSyllableIdx * syllableStep;
 
                 // Butterfly attached to word wrapper
                 let bFly = '';
@@ -97,15 +84,15 @@ export const AngelicLyricBuilder = {
 
                 if (syllables.length <= 1) {
                     wordsHTML += `<span class="angelic-word-sway" style="animation-delay: ${wordPopDelay}s">
-                        <span class="angelic-word-pop ${wObj ? 'has-enhanced-word' : ''}" ${dataAttrs} style="animation-delay: ${wordPopDelay}s">${word}</span>
+                        <span class="angelic-word-pop" style="animation-delay: ${wordPopDelay}s">${word}</span>
                         ${bFly}
                     </span> `;
                     globalSyllableIdx++;
                 } else {
                     wordsHTML += `<span class="angelic-word-sway" style="animation-delay: ${wordPopDelay}s">`;
                     syllables.forEach((syl) => {
-                        const sylDelay = wObj ? wordPopDelay : (STAFF_DRAW_DURATION + globalSyllableIdx * syllableStep);
-                        wordsHTML += `<span class="angelic-word-pop ${wObj ? 'has-enhanced-word' : ''}" ${dataAttrs} style="animation-delay: ${sylDelay}s">${syl}</span>`;
+                        const sylDelay = STAFF_DRAW_DURATION + globalSyllableIdx * syllableStep;
+                        wordsHTML += `<span class="angelic-word-pop" style="animation-delay: ${sylDelay}s">${syl}</span>`;
                         globalSyllableIdx++;
                     });
                     wordsHTML += `${bFly}</span> `;

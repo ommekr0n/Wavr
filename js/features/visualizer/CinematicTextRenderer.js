@@ -5,6 +5,7 @@
 import { calculateFluidLyricStyle } from './AdaptiveLyricSizer.js';
 import { applyChromaAberration } from './VisualFX.js';
 import { renderEmojis } from '../lyrics/EmojiRenderer.js';
+import { expandEnhancedDisplayWords } from '../lyrics/EnhancedLrcText.js';
 
 export function clearCinematicLine(cinematicTextContainer, durationMs = 400) {
     if (!cinematicTextContainer) return;
@@ -24,7 +25,7 @@ export function triggerCinematicLine(lyricInput, cinematicTextContainer, deltaSe
     const rawText = isObj ? lyricInput.text : lyricInput;
     const text = rawText; // keep emoji — Twemoji will render them in cinematic style
     const isEnhanced = isObj && lyricInput.isEnhanced && Array.isArray(lyricInput.words);
-    const wordList = isEnhanced ? lyricInput.words : [];
+    const wordList = isEnhanced ? expandEnhancedDisplayWords(lyricInput.words) : [];
 
     if (!text) return;
 

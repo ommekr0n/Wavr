@@ -18,7 +18,8 @@
  */
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let _breathScale     = 1.0;   // Smoothed breath scale (lerp target)
+import { updateAngelicBreath } from '../angelic/AngelicBreathMotion.js';
+import { exitAngelicLyric } from '../angelic/AngelicLyricExit.js';
 let _vignetteOpacity = 0.0;   // Smoothed vignette opacity
 let _mouseX          = 0;     // Normalised mouse X (-1 to 1)
 let _mouseY          = 0;     // Normalised mouse Y (-1 to 1)
@@ -36,31 +37,17 @@ let _chromaTimeout   = null;
  * @param {HTMLElement} angelicTextContainer
  */
 export function updateLyricBreath(intensity, angelicTextContainer) {
-    if (!angelicTextContainer) return;
-
-    // Target scale: rất nhỏ (1.0 → 1.025 max) để không bị choking khi nhạc mạnh
-    const targetScale = 1.0 + Math.min(intensity * 0.04, 0.025);
-
-    // Lerp mượt: attack nhanh (0.15), decay chậm (0.06) — giống cơ hoành thở
-    const lerpRate = targetScale > _breathScale ? 0.15 : 0.06;
-    _breathScale += (_breathScale < targetScale ? 1 : -1) * lerpRate * Math.abs(targetScale - _breathScale);
-
-    // Dùng CSS var thay vì style trực tiếp — tránh layout thrash
-    angelicTextContainer.style.setProperty('--breath-scale', _breathScale.toFixed(4));
+    updateAngelicBreath(intensity, angelicTextContainer);
 }
 
 // ── 2. Ink Wash Exit (Sumi-e) ─────────────────────────────────────────────────
 /**
  * Thêm class .ink-wash-exit vào wrapper thay vì .angelic-exit bình thường.
- * CSS sẽ apply SVG turbulence filter cho hiệu ứng mực tan trong nước.
+ * CSS fades cached text/floral surfaces with the original mist timing.
  * @param {HTMLElement} wrapper - .angelic-line-wrapper đang thoát
  */
 export function applyInkWashExit(wrapper) {
-    if (!wrapper) return;
-    wrapper.classList.add('ink-wash-exit');
-    const rot = (Math.random() - 0.5) * 2;
-    wrapper.style.setProperty('--exit-rot', `${rot}deg`);
-    setTimeout(() => { if (wrapper.parentNode) wrapper.remove(); }, 900);
+    exitAngelicLyric(wrapper);
 }
 
 // ── 3. Parallax Depth (Removed as requested) ──────────────────────────────────

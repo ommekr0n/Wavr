@@ -1,11 +1,17 @@
 /**
  * RecordingModalController.js
  * Manages the screen recording mode selection popover and setup modal.
+ *
+ * Phase 3: Receives `engine` (PlaybackEngine) instead of a bare `audio`
+ * element and `PlayerController`.  The resetPlaybackState callback uses
+ * engine.seek(0) instead of direct audio.currentTime mutation.
+ * getCurrentTrack still reads through PlayerController (queue) + engine (track).
  */
 
 import { startScreenRecording } from '../../modules/recorder.js';
 
 export function setupRecordingController({
+    engine,
     playAudio,
     pauseAudio,
     showToast,
@@ -15,14 +21,13 @@ export function setupRecordingController({
     lyricsList,
     angelicTextContainer,
     cinematicTextContainer,
-    updateProgress,
-    audio
+    updateProgress
 }) {
-    const btnRecord = document.getElementById('btn-record');
-    const recordPopover = document.getElementById('record-popover');
-    const recordingSetupModal = document.getElementById('recording-setup-modal');
-    const btnCancelRecording = document.getElementById('btn-cancel-recording');
-    const btnConfirmRecording = document.getElementById('btn-confirm-recording');
+    const btnRecord            = document.getElementById('btn-record');
+    const recordPopover        = document.getElementById('record-popover');
+    const recordingSetupModal  = document.getElementById('recording-setup-modal');
+    const btnCancelRecording   = document.getElementById('btn-cancel-recording');
+    const btnConfirmRecording  = document.getElementById('btn-confirm-recording');
 
     const recordingModes = [
         {
@@ -109,14 +114,14 @@ export function setupRecordingController({
             },
             resetPlaybackState: () => {
                 pauseAudio();
-                audio.currentTime = 0;
+                engine.seek(0);
                 LyricEngine.setActiveLyricIndex(-1);
                 LyricEngine.renderLyrics(lyricsList, angelicTextContainer, cinematicTextContainer);
                 updateProgress();
                 const lc = document.getElementById('lyrics-container');
                 if (lc) lc.scrollTop = 0;
                 if (cinematicTextContainer) cinematicTextContainer.innerHTML = '';
-                if (angelicTextContainer) angelicTextContainer.innerHTML = '';
+                if (angelicTextContainer)   angelicTextContainer.innerHTML   = '';
             }
         });
     });

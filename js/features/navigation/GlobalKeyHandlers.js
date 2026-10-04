@@ -1,9 +1,16 @@
 /**
  * GlobalKeyHandlers.js
  * Handles global keybindings: ESC modal handling, clipboard security, and playback shortcuts.
+ *
+ * Phase 3: Receives PlaybackEngine (engine) instead of a bare audio element
+ * and PlayerController.  engine.isPaused replaces the old
+ * PlayerController.getIsPlaying() guard, and engine.seek() replaces
+ * direct audio.currentTime mutations.
+ * The volume and volumeSlider DOM references are still needed for ArrowUp/Down.
  */
 import { VisualizerController } from '../visualizer/VisualizerController.js';
 import { AngelicRenderer } from '../../core/rendering/AngelicRenderer.js';
+import { dismissRecordingPopover } from '../player/RecordingPopoverDismissal.js';
 
 export function initGlobalKeyHandlers({
     closePlayer,
@@ -15,9 +22,10 @@ export function initGlobalKeyHandlers({
     prepareLyricNearTime,
     volumeSlider,
     updateVolumeIcon,
-    audio,
-    PlayerController
+    engine
 }) {
+    const audio = engine.audioElement;
+
     // ── 1. Global Security Rules ─────────────────────────────────────────────
     document.addEventListener('copy', (e) => {
         if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') e.preventDefault();
@@ -29,6 +37,7 @@ export function initGlobalKeyHandlers({
     // ── 2. Global ESC Handler ────────────────────────────────────────────────
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
+            if (dismissRecordingPopover()) return;
             const activeMenu = document.querySelector('.context-menu.active');
             if (activeMenu) { activeMenu.classList.remove('active'); return; }
 
@@ -94,8 +103,8 @@ export function initGlobalKeyHandlers({
             case 'MediaStop':
                 e.preventDefault();
                 pauseAudio();
-                audio.currentTime = 0;
-                if (!PlayerController.getIsPlaying()) updateProgress();
+                engine.seek(0);
+                if (engine.isPaused) updateProgress();
                 break;
             case 'KeyB': {
                 if (VisualizerController.getIsAngelicMode()) {
@@ -112,22 +121,22 @@ export function initGlobalKeyHandlers({
                 e.preventDefault();
                 const t = Math.max(0, audio.currentTime - 5);
                 prepareLyricNearTime(t);
-                audio.currentTime = t;
-                if (!PlayerController.getIsPlaying()) updateProgress();
+                engine.seek(t);
+                if (engine.isPaused) updateProgress();
                 break;
             }
             case 'ArrowRight': {
                 e.preventDefault();
                 const t = Math.min(audio.duration || 0, audio.currentTime + 5);
                 prepareLyricNearTime(t);
-                audio.currentTime = t;
-                if (!PlayerController.getIsPlaying()) updateProgress();
+                engine.seek(t);
+                if (engine.isPaused) updateProgress();
                 break;
             }
             case 'ArrowUp': {
                 e.preventDefault();
                 const v = Math.min(1, audio.volume + 0.05);
-                audio.volume = v;
+                engine.setVolume(v);
                 if (volumeSlider) volumeSlider.value = v * 100;
                 updateVolumeIcon(v);
                 break;
@@ -135,7 +144,7 @@ export function initGlobalKeyHandlers({
             case 'ArrowDown': {
                 e.preventDefault();
                 const v = Math.max(0, audio.volume - 0.05);
-                audio.volume = v;
+                engine.setVolume(v);
                 if (volumeSlider) volumeSlider.value = v * 100;
                 updateVolumeIcon(v);
                 break;
