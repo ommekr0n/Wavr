@@ -4,6 +4,8 @@
  * and Row Level Security (RLS) operations for Wavr Personal Vault.
  */
 import { createClient } from '@supabase/supabase-js';
+import { createVaultAuthOperations, subscribeToVaultAuth } from '../features/vault/VaultAuthOperations.js';
+import { vaultClientAuthOptions } from '../features/vault/VaultClientOptions.js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://stbzeroodquuevmrwfyi.supabase.co';
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_DTIzsD_0Qwotf4MZWsHs4w_N6uj-UQh';
@@ -18,13 +20,13 @@ export const isSupabaseConfigured = Boolean(
 
 export const supabase = isSupabaseConfigured 
     ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        auth: {
-            persistSession: true,
-            autoRefreshToken: true,
-            detectSessionInUrl: true
-        }
+        auth: vaultClientAuthOptions
     }) 
     : null;
+
+const vaultAuth = createVaultAuthOperations(supabase, {
+    captchaRequired: Boolean(import.meta.env.VITE_TURNSTILE_SITE_KEY)
+});
 
 export const SupabaseService = {
     isConfigured() {
@@ -32,18 +34,12 @@ export const SupabaseService = {
     },
 
     // ── Authentication ─────────────────────────────────────────────────────────
-    async signUp(email, password) {
-        if (!supabase) throw new Error('Supabase is not configured.');
-        const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        return data;
+    async signUp(email, password, captchaToken) {
+        return vaultAuth.submit(true, email, password, captchaToken);
     },
 
-    async signIn(email, password) {
-        if (!supabase) throw new Error('Supabase is not configured.');
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        return data;
+    async signIn(email, password, captchaToken) {
+        return vaultAuth.submit(false, email, password, captchaToken);
     },
 
     async signOut() {
@@ -59,11 +55,7 @@ export const SupabaseService = {
     },
 
     onAuthStateChange(callback) {
-        if (!supabase) return () => {};
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-            callback(event, session);
-        });
-        return () => subscription.unsubscribe();
+        return subscribeToVaultAuth(supabase, callback);
     },
 
     // ── Private Track Storage & Database ──────────────────────────────────────

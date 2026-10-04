@@ -877,7 +877,7 @@
             <div class="vault-header">
                 <div class="vault-icon-badge">☁️</div>
                 <h2>Wavr Personal Cloud Vault</h2>
-                <p class="modal-subtitle">Private, end-to-end user isolation with Supabase Cloud Database</p>
+                <p class="modal-subtitle">Your personal music library in private cloud storage</p>
             </div>
 
             <div id="vault-auth-section" class="vault-auth-box">
@@ -889,14 +889,16 @@
                 <form id="vault-auth-form" class="vault-form">
                     <div class="form-group">
                         <label for="vault-email">Email Address</label>
-                        <input type="email" id="vault-email" placeholder="you@example.com" required autocomplete="email">
+                        <input type="email" id="vault-email" name="email" placeholder="you@example.com" required maxlength="254" autocomplete="email">
                     </div>
                     <div class="form-group">
-                        <label for="vault-password">Master Key (Password)</label>
-                        <input type="password" id="vault-password" placeholder="••••••••••••" required autocomplete="current-password">
+                        <label for="vault-password">Password</label>
+                        <input type="password" id="vault-password" name="password" placeholder="••••••••••••" required maxlength="1024" autocomplete="current-password" aria-describedby="vault-password-hint">
+                        <p id="vault-password-hint" class="modal-subtitle hidden">Use at least 12 characters. A long, unique passphrase is recommended.</p>
                     </div>
-                    <div id="vault-auth-error" class="vault-error-msg hidden"></div>
-                    <div id="vault-auth-success" class="vault-success-msg hidden"></div>
+                    <div id="vault-captcha" class="hidden"></div>
+                    <div id="vault-auth-error" class="vault-error-msg hidden" role="alert"></div>
+                    <div id="vault-auth-success" class="vault-success-msg hidden" role="status"></div>
                     
                     <button type="submit" id="btn-vault-submit" class="glass-btn primary full-width">
                         Connect to Private Vault

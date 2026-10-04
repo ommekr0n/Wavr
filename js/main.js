@@ -34,6 +34,7 @@ import { observeGraphicsAvailability } from './features/visualizer/GraphicsAvail
 import { LibraryModals } from './features/library/LibraryModals.js';
 import { setupEQController } from './features/eq/EQController.js';
 import { initCloudVaultUI } from './features/vault/CloudVaultUI.js';
+import { initVaultSessionBoundary, clearVaultBrowserState } from './features/vault/VaultSessionBoundary.js';
 import { initWaveform, loadAndDecodeWaveform, drawMiniWaveform } from './features/player/WaveformEngine.js';
 import { setupMediaSession, updateMediaSessionMetadata } from './features/player/MediaSessionManager.js';
 import { MiniPlayerController } from './features/player/MiniPlayerController.js';
@@ -905,5 +906,9 @@ async function initHome() {
 // ── 12. App Launch ───────────────────────────────────────────────────────────
 preloadAngelicAssets();
 preloadCinematicAssets();
+initVaultSessionBoundary(SupabaseService, {
+    clearPrivateState: clearVaultBrowserState,
+    reload: () => window.location.reload()
+});
 initHome();
 initCloudVaultUI(showToast);
