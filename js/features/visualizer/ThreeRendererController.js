@@ -8,6 +8,8 @@ import { ThreeAngelicButterflies } from '../../core/rendering/three/ThreeAngelic
 import { RenderFrameStats } from '../../core/rendering/three/RenderFrameStats.js';
 import { RenderScheduler } from '../../core/rendering/three/RenderScheduler.js';
 import { attachThreeContextRecovery } from './ThreeContextRecovery.js';
+import { ThreeChromaticAtelier } from '../../core/rendering/three/ThreeChromaticAtelier.js';
+import { ThreeLivingSleeve } from '../../core/rendering/three/ThreeLivingSleeve.js';
 
 /** Owns one GPU context and the lifecycle of Wavr's separate render modules. */
 export class ThreeRendererController {
@@ -25,6 +27,8 @@ export class ThreeRendererController {
         this.invalidate = () => this.scheduler.requestFrame();
         this.textures = new ThreeTextureCache(() => { this.surfaces?.markDirty(); this.invalidate(); });
         this.surfaces = new ThreeArtworkSurfaces(this.textures, this.invalidate);
+        this.atelier = new ThreeChromaticAtelier();
+        this.sleeve = new ThreeLivingSleeve(this.textures, this.invalidate, this.surfaces.pointer);
         this.stage = new ThreeConcertStage();
         this.vinyl = new ThreeAngelicVinyl(this.textures, this.invalidate);
         this.butterflies = new ThreeAngelicButterflies(this.textures, this.invalidate);
@@ -43,6 +47,7 @@ export class ThreeRendererController {
         document.addEventListener('transitionend', () => this.surfaces.markDirty(), { signal });
         for (const event of ['play', 'pause', 'ended']) this.audio.addEventListener(event, () => this.syncLoop(), { signal });
         document.addEventListener('visibilitychange', () => this.syncLoop(), { signal });
+        document.addEventListener('wavr:palettechange', () => { this.nextPaletteRead = 0; this.invalidate(); }, { signal });
         this.viewObserver = new MutationObserver(() => this.syncMode());
         for (const id of ['home-view', 'edit-library-view', 'player-view', 'cinematic-view', 'angelic-view']) this.viewObserver.observe(document.getElementById(id), { attributes: true, attributeFilter: ['class'] });
         attachThreeContextRecovery(this, signal);
@@ -56,11 +61,13 @@ export class ThreeRendererController {
     setEnabled(enabled) {
         this.enabled = enabled;
         document.body.classList.toggle('three-renderer-enabled', enabled);
+        document.getElementById('player-view').classList.toggle('atelier-ready', enabled);
         this.renderer.domElement.hidden = !enabled;
         if (!enabled) {
             this.stage.fire.reset();
             this.butterflies.active = false;
             this.surfaces.clear(); this.butterflies.clear();
+            this.sleeve.clear();
             this.mode = null;
             document.getElementById('reactive-dim').style.opacity = 0;
         } else this.syncMode();
@@ -76,11 +83,12 @@ export class ThreeRendererController {
         this.surfaces.clear(); this.surfaces.mode = null;
         if (this.mode === 'angelic') this.butterflies.clear();
         this.mode = mode;
+        this.sleeve.setActive(mode === 'player');
         this.butterflies.active = mode === 'angelic';
         const parent = mode === 'cinematic' ? document.querySelector('.crt-screen-container') : document.getElementById(mode === 'angelic' ? 'angelic-view' : mode === 'player' ? 'player-view' : 'home-view');
         parent.appendChild(this.renderer.domElement);
         this.renderer.domElement.hidden = mode === 'edit';
-        if (mode === 'library' || mode === 'player') this.surfaces.setMode(mode);
+        if (mode === 'library') this.surfaces.setMode(mode);
         this.resize(); this.syncLoop();
     }
 
@@ -96,6 +104,7 @@ export class ThreeRendererController {
     needsAnimation() {
         if (this.mode === 'cinematic') return !this.audio.paused;
         if (this.mode === 'angelic') return (!this.audio.paused && !this.reducedMotion) || this.butterflies.records.length > 0;
+        if (this.mode === 'player') return (!this.audio.paused && !this.reducedMotion) || this.sleeve.animating || this.atelier.settling || this.atelier.dirty;
         return this.surfaces.animating;
     }
 
@@ -105,7 +114,7 @@ export class ThreeRendererController {
         const cap = this.mode === 'cinematic' || this.mode === 'angelic' ? 1 : 1.5;
         this.renderer.setPixelRatio(Math.min(devicePixelRatio, cap, Math.sqrt(2000000 / (this.width * this.height))));
         this.renderer.setSize(this.width, this.height);
-        for (const module of [this.surfaces, this.stage, this.vinyl, this.butterflies]) module.resize(this.width, this.height);
+        for (const module of [this.surfaces, this.stage, this.vinyl, this.butterflies, this.atelier, this.sleeve]) module.resize(this.width, this.height);
         this.invalidate();
     }
 
@@ -114,7 +123,7 @@ export class ThreeRendererController {
         const cpuStart = performance.now(); this.renderer.info.reset();
         const playing = !this.audio.paused;
         const state = { playing, data: playing ? this.audioFrame.data : null, intensity: playing ? this.audioFrame.intensity : 0, energy: playing ? this.audioFrame.energy : 0, analysis: this.audioFrame.analysis };
-        if ((this.mode === 'cinematic' || this.mode === 'angelic') && now > this.nextPaletteRead) {
+        if (this.mode !== 'library' && now > this.nextPaletteRead) {
             this.nextPaletteRead = now + 1000;
             const style = getComputedStyle(document.documentElement);
             this.colors.forEach((color, index) => { const value = style.getPropertyValue(`--blob-${index + 1}-color`).trim(); if (value) color.set(value); });
@@ -129,6 +138,11 @@ export class ThreeRendererController {
             this.vinyl.update(dt, playing, this.reducedMotion); this.butterflies.update(now, this.colors, this.reducedMotion);
             this.renderer.render(this.vinyl.scene, this.vinyl.camera);
             this.renderer.autoClear = false; this.renderer.clearDepth(); this.renderer.render(this.butterflies.scene, this.butterflies.camera);
+        } else if (this.mode === 'player') {
+            this.renderer.toneMapping = THREE.NoToneMapping;
+            this.atelier.update(dt, state, this.colors, this.reducedMotion); this.atelier.render(this.renderer, now);
+            this.sleeve.update(dt, state, this.colors, this.reducedMotion);
+            this.renderer.autoClear = false; this.renderer.clearDepth(); this.renderer.render(this.sleeve.scene, this.sleeve.camera);
         } else {
             this.renderer.toneMapping = THREE.NoToneMapping;
             this.surfaces.update(dt, this.reducedMotion); this.renderer.render(this.surfaces.scene, this.surfaces.camera);
@@ -141,7 +155,7 @@ export class ThreeRendererController {
 
     dispose() {
         this.setEnabled(false); this.abort.abort(); this.viewObserver.disconnect(); this.unregister();
-        for (const module of [this.surfaces, this.stage, this.vinyl, this.butterflies, this.textures]) module.dispose();
+        for (const module of [this.surfaces, this.stage, this.vinyl, this.butterflies, this.atelier, this.sleeve, this.textures]) module.dispose();
         this.renderer.dispose(); this.renderer.domElement.remove();
         this.stats.dispose();
     }

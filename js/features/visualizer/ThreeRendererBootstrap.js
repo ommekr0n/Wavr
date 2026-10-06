@@ -1,6 +1,8 @@
 import { ThreeRendererController } from './ThreeRendererController.js';
 import { setGraphicsAvailability } from './GraphicsAvailability.js';
+import { setupNormalPlayerExperience } from '../player/NormalPlayerExperience.js';
 
+const disposePlayerExperience = setupNormalPlayerExperience();
 let controller = null;
 try { controller = new ThreeRendererController(); }
 catch (error) {
@@ -14,5 +16,6 @@ import('../../main.js').catch(error => console.error('Wavr bootstrap failed:', e
 window.addEventListener('pagehide', event => {
     if (event.persisted) { controller?.scheduler.stop(); return; }
     controller?.dispose();
+    disposePlayerExperience();
 });
 window.addEventListener('pageshow', event => { if (event.persisted) controller?.syncLoop(); });

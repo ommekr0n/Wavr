@@ -31,6 +31,7 @@ import { PlayerController, setPlaybackEngine } from './features/player/PlayerCon
 import { LyricEngine } from './features/lyrics/LyricEngine.js';
 import { VisualizerController } from './features/visualizer/VisualizerController.js';
 import { observeGraphicsAvailability } from './features/visualizer/GraphicsAvailability.js';
+import { notifyVisualPalette } from './features/player/VisualPaletteEvent.js';
 import { LibraryModals } from './features/library/LibraryModals.js';
 import { setupEQController } from './features/eq/EQController.js';
 import { initCloudVaultUI } from './features/vault/CloudVaultUI.js';
@@ -259,6 +260,7 @@ function loadTrack(index) {
         document.documentElement.style.setProperty('--blob-2-size', `${Math.floor(Math.random() * 20 + 30)}vw`);
         document.documentElement.style.setProperty('--blob-3-size', `${Math.floor(Math.random() * 20 + 30)}vw`);
         document.documentElement.style.setProperty('--blob-4-size', `${Math.floor(Math.random() * 20 + 30)}vw`);
+        notifyVisualPalette();
     };
 
     if (track.cover) {
