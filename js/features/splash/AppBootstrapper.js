@@ -4,6 +4,7 @@
  */
 
 import { loadAndDecodeWaveform } from '../player/WaveformEngine.js';
+import { setupTutorialDismissal } from './TutorialDismissal.js';
 
 const sillyLoadingJokes = [
     "Spinning vinyl records real quick...",
@@ -20,13 +21,8 @@ const sillyLoadingJokes = [
 ];
 
 export async function runSplashBootstrapper(loadedPlaylist = []) {
-    const btnCloseTutorials = document.getElementById('btn-close-tutorials');
     const modalTutorials = document.getElementById('modal-tutorials');
-    if (btnCloseTutorials && modalTutorials) {
-        btnCloseTutorials.addEventListener('click', () => {
-            modalTutorials.classList.add('hidden');
-        });
-    }
+    setupTutorialDismissal(modalTutorials);
 
     const splashLoader = document.getElementById('app-splash-loader');
     const splashBar = document.getElementById('splash-progress-bar');
@@ -42,7 +38,7 @@ export async function runSplashBootstrapper(loadedPlaylist = []) {
         if (splashText) splashText.textContent = currentSplashJoke;
     }
 
-    const isFirstTime = !localStorage.getItem('wavr_has_visited') || loadedPlaylist.length === 0;
+    const isFirstTime = !localStorage.getItem('wavr_has_visited');
 
     if (isFirstTime) {
         updateSplashProgress(50);

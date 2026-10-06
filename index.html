@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Wavr</title>
     <link rel="icon" type="image/svg+xml" href="assets/images/favicon.svg">
     <meta name="description" content="Wavr — A premium dark music player with cinematic visualizer mode.">
@@ -841,10 +841,12 @@
 
     <!-- Welcome / Tutorials Modal for First-time Users -->
     <div id="modal-tutorials" class="modal hidden">
-        <div class="modal-content tutorial-modal-content">
+        <div class="modal-content tutorial-modal-content" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
+            <button type="button" id="btn-dismiss-tutorials" class="close-btn tutorial-close-btn" aria-label="Close tutorials">&times;</button>
+            <div class="tutorial-scroll-content" tabindex="0" role="region" aria-label="Wavr tutorials">
             <div class="tutorial-header">
                 <img src="assets/images/favicon.svg" alt="Wavr Logo" class="tutorial-logo">
-                <h2>Welcome to Wavr</h2>
+                <h2 id="tutorial-title">Welcome to Wavr</h2>
                 <p class="modal-subtitle">Your aesthetic, high-fidelity personal music player</p>
             </div>
             
@@ -871,7 +873,8 @@
                 </div>
             </div>
 
-            <div class="modal-actions" style="display: flex; justify-content: center; margin-top: 25px;">
+            </div>
+            <div class="modal-actions tutorial-actions">
                 <button type="button" id="btn-close-tutorials" class="glass-btn primary" style="padding: 12px 32px; font-weight: 600; font-size: 0.95rem;">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="20 6 9 17 4 12"></polyline>
