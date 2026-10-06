@@ -71,7 +71,7 @@
     .living-player .am-song-meta h2 { font-size: 1.25rem; }
     .living-player .am-volume-container { margin-top: 8px; }
 }
-@media (max-width: 760px) {
+@media (max-width: 760px) and (orientation: portrait) {
     .living-player .app-header { height: 64px; padding: 0 14px; }
     .living-player .header-brand { display: none; }
     .living-player .header-utilities-bar { padding: 3px; }
@@ -99,7 +99,7 @@
     .living-player .am-lyric-line { font-size: clamp(1.45rem, 5vw, 2rem); }
     .living-player .lyrics-spacer-top { height: 15vh; }
 }
-@media (max-width: 360px) {
+@media (max-width: 360px) and (orientation: portrait) {
     .living-player .header-left .icon-btn { width: 32px; height: 32px; }
     .living-player .header-utilities-bar { position: static; transform: none; gap: 1px; }
 }

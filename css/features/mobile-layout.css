@@ -22,6 +22,19 @@ body, #home-view, #edit-library-view, #player-view, #app-splash-loader, #fade-ov
     .close-btn { width: 44px; height: 44px; }
     .form-row { flex-wrap: wrap; }
     .form-group.half { flex-basis: 100%; min-width: 0; }
+    .living-player .app-header {
+        top: env(safe-area-inset-top);
+        left: env(safe-area-inset-left);
+        right: env(safe-area-inset-right);
+    }
+    .auto-hide-btn {
+        top: max(12px, env(safe-area-inset-top));
+        left: max(16px, env(safe-area-inset-left));
+    }
+    .crt-screen-container { height: 100dvh; }
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
     .home-header {
         position: relative;
         flex-shrink: 0;
@@ -67,23 +80,13 @@ body, #home-view, #edit-library-view, #player-view, #app-splash-loader, #fade-ov
     #btn-mini-play, #btn-mini-pause { width: 40px; height: 40px; }
     .song-options-btn, .remove-song-btn { opacity: 1; }
     .wavr-toast { max-width: calc(100% - 32px); bottom: calc(170px + env(safe-area-inset-bottom)); text-align: center; }
-    .living-player .app-header {
-        top: env(safe-area-inset-top);
-        left: env(safe-area-inset-left);
-        right: env(safe-area-inset-right);
-    }
     .living-player .am-layout {
         padding-top: calc(70px + env(safe-area-inset-top));
         padding-bottom: calc(12px + env(safe-area-inset-bottom));
     }
-    .auto-hide-btn {
-        top: max(12px, env(safe-area-inset-top));
-        left: max(16px, env(safe-area-inset-left));
-    }
-    .crt-screen-container { height: 100dvh; }
 }
 
-@media (max-width: 380px) {
+@media (max-width: 380px) and (orientation: portrait) {
     .mini-player { grid-template-columns: minmax(0, 1fr); }
     .mini-center { grid-column: 1; grid-row: 3; }
     .mini-right { grid-column: 1; justify-content: space-between; }
@@ -92,6 +95,7 @@ body, #home-view, #edit-library-view, #player-view, #app-splash-loader, #fade-ov
 
 /* Touch users must be able to leave the player without hovering a mouse. */
 @media (hover: none) and (pointer: coarse) {
+    .song-options-btn, .remove-song-btn { opacity: 1; }
     .living-player .app-header.header-hidden {
         opacity: 1 !important;
         transform: none !important;

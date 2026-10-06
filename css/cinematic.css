@@ -241,7 +241,7 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
     .am-lyrics-list { gap: 30px; }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 900px) and (orientation: portrait) {
     .am-layout { flex-direction: column; }
     .am-player-section { max-width: 100%; padding: 20px 40px; }
     .am-player-inner { display: flex; gap: 30px; align-items: center; max-width: 100%; }

@@ -1,74 +1,23 @@
-/* Phone landscape uses its width while respecting the short visible height. */
+/* Keep the desktop library, mini player and stacked player controls in landscape. */
 @media (orientation: landscape) and (max-width: 1024px) and (max-height: 500px) {
-    .home-header { padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: 8px; }
-    .home-header-content { flex-wrap: nowrap; }
-    .song-grid, .edit-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-    .song-grid { padding-top: 12px; padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
-    .edit-grid-container { padding: 12px max(16px, env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
-    .edit-help-banner { min-height: 32px; padding-top: 6px; padding-bottom: 6px; }
     .mini-player {
-        grid-template-columns: minmax(120px, 1fr) minmax(80px, 1fr) auto;
-        padding: 10px 12px;
-        bottom: max(8px, env(safe-area-inset-bottom));
+        width: calc(100% - 64px - env(safe-area-inset-left) - env(safe-area-inset-right));
+        bottom: max(28px, env(safe-area-inset-bottom));
     }
-    .mini-left { grid-column: 1; grid-row: 1; }
-    .mini-center { grid-column: 2; grid-row: 1; }
-    .mini-right { grid-column: 3; grid-row: 1; }
-    .wavr-toast { bottom: calc(86px + env(safe-area-inset-bottom)); }
-    .modal-content { padding: 24px; }
     .form-group.half { flex-basis: 0; }
-    .tutorial-scroll-content { padding: 20px 24px 10px; }
-    .tutorial-header { margin-bottom: 16px; }
-    .tutorial-logo { width: 40px; height: 40px; margin-bottom: 8px; }
-    .tutorial-header h2 { font-size: 1.4rem; }
-    .tutorial-cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .tutorial-actions { padding: 10px 24px; }
-    .living-player .app-header { height: 56px; padding: 0 16px; }
-    .living-player .header-brand { display: none; }
-    .living-player .header-utilities-bar { padding: 3px 6px; gap: 4px; }
-    .living-player .header-utilities-bar .icon-btn { width: 36px; height: 36px; }
-    .living-player .header-right { gap: 6px; }
-    .living-player .header-right .icon-btn { width: 36px; height: 36px; }
     .living-player .am-layout {
         flex-direction: row;
-        align-items: stretch;
-        padding: calc(60px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
-        gap: 16px;
+        padding-top: calc(72px + env(safe-area-inset-top));
+        padding-right: max(24px, env(safe-area-inset-right));
+        padding-bottom: calc(12px + env(safe-area-inset-bottom));
+        padding-left: max(24px, env(safe-area-inset-left));
     }
-    .living-player .am-player-left {
-        flex: 0 0 62%; max-width: none; min-height: 0;
-        height: 100%; padding: 0; justify-content: center;
-    }
+    .living-player .am-player-left { min-height: 0; }
     .living-player .am-controls-section {
-        max-width: none; max-height: 100%; min-height: 0;
-        display: grid; grid-template-columns: clamp(64px, 26dvh, 100px) minmax(0, 1fr);
-        column-gap: 12px; padding: 12px; overflow-y: auto; overscroll-behavior-y: contain;
+        max-height: 100%;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior-y: contain;
     }
-    .living-player .sleeve-caption { grid-column: 1 / -1; margin-bottom: 8px; font-size: 8px; }
-    .living-player .am-art-container { grid-column: 1; grid-row: 2 / 6; width: 100%; margin: 0; align-self: center; }
-    .living-player .am-song-meta { grid-column: 2; margin-bottom: 8px; padding-top: 0; border-top: 0; min-width: 0; }
-    .living-player .am-song-meta h2 { font-size: 1.05rem; }
-    .living-player .am-song-meta p { font-size: .75rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .living-player .am-timeline-container { grid-column: 2; margin-bottom: 10px; gap: 6px; min-width: 0; }
-    .living-player .time-label { flex-shrink: 0; width: 26px; }
-    .living-player .am-controls-container { grid-column: 2; margin-bottom: 0; }
-    .living-player .am-controls-primary { gap: 2px; }
-    .living-player .am-play-btn { width: 44px; height: 44px; }
-    .living-player .am-skip-btn { width: 36px; height: 44px; }
-    .living-player .am-aux-btn { width: 32px; height: 44px; }
-    .living-player .am-volume-container { grid-column: 2; width: 100%; margin-top: 6px; }
-    .living-player .am-drift-container { grid-column: 2; margin-top: 4px; min-width: 0; }
-    .living-player .am-lyrics-section { flex: 1; height: 100%; min-height: 0; padding: 0; }
-    .living-player .am-lyrics-container { padding: 8px; }
-    .living-player .am-lyric-line { font-size: clamp(1rem, 2.4vw, 1.4rem); }
-    .living-player .am-lyrics-list { gap: 16px; }
-    .living-player .lyrics-spacer-top { height: 20dvh; }
-    .living-player .lyrics-spacer-bottom { height: 30dvh; }
-}
-
-@media (orientation: landscape) and (max-width: 640px) and (max-height: 500px) {
-    .living-player .am-player-left { flex-basis: 70%; }
-    .living-player .am-layout { gap: 10px; }
-    .living-player .header-utilities-bar { gap: 2px; }
-    .living-player .header-utilities-bar .icon-btn { width: 32px; }
+    .living-player .am-lyrics-section { height: 100%; }
 }
