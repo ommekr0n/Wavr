@@ -8,6 +8,7 @@
 import { searchLRCLIB, autoSelectBestMatch, openLrcPickerModal } from '../../modules/lrc-fetcher.js';
 import { SupabaseService } from '../../services/SupabaseService.js';
 import { escapeHtml, safeImageUrl } from '../../modules/safe-html.js';
+import { removeLibraryTrackFromQueue } from './LibraryQueueMaintenance.js';
 
 // ── Modal State ──────────────────────────────────────────────────────────────
 // These mirror the exact variables scattered in main.js
@@ -106,24 +107,8 @@ export const LibraryModals = {
                     if (playlist[idx].url   && playlist[idx].url.startsWith('blob:'))   URL.revokeObjectURL(playlist[idx].url);
                     if (playlist[idx].cover && playlist[idx].cover.startsWith('blob:')) URL.revokeObjectURL(playlist[idx].cover);
 
-                    const currentTrackIndex = _getCurrentTrackIndex();
-
-                    if (currentTrackIndex === idx) {
-                        _pauseAudio();
-                        playlist.splice(idx, 1);
-                        if (playlist.length > 0) {
-                            await _renderSongGrid();
-                            // currentTrackIndex reset to 0 is handled by orchestrator after this
-                            _loadTrack(0);
-                            _updateMiniPlayerUI();
-                        } else {
-                            // No tracks left
-                            document.getElementById('audio-player').src = '';
-                            _updateMiniPlayerUI();
-                        }
-                    } else {
-                        playlist.splice(idx, 1);
-                    }
+                    playlist.splice(idx, 1);
+                    removeLibraryTrackFromQueue(song, { pauseAudio: _pauseAudio, loadTrack: _loadTrack, updateMiniPlayerUI: _updateMiniPlayerUI });
 
                     _renderSongGrid();
                     await _saveLibraryToDB();

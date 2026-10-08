@@ -7,6 +7,7 @@ import coverImgUrl from '../../../assets/images/cover.png';
 import { PlayerController } from '../player/PlayerController.js';
 import { SupabaseService } from '../../services/SupabaseService.js';
 import { escapeHtml, safeImageUrl } from '../../modules/safe-html.js';
+import { syncLibraryVisualState } from './LibraryVisualState.js';
 
 let cachedVinylBoxes = [];
 let cachedLibraryOrder = [];
@@ -125,7 +126,7 @@ export async function renderSongGrid({ homeSongGrid, setupBoxExpansionListeners 
     });
 
     if (setupBoxExpansionListeners) setupBoxExpansionListeners(vinylBoxes);
-    PlayerController.setActiveQueue(playlist.filter(s => !boxedSongIds.has(s.id)));
+    syncLibraryVisualState(homeSongGrid, 'library');
 }
 
 export function saveLibraryToDB() {

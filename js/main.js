@@ -23,6 +23,7 @@ import { AngelicRenderer } from './core/rendering/AngelicRenderer.js';
 import { scheduleAngelicLyricPreparation } from './features/angelic/AngelicLyricPreparation.js';
 import { createRenderLoop } from './core/RenderLoop.js';
 import { PlaybackEngine } from './core/PlaybackEngine.js';
+import { queueManager } from './core/QueueManager.js';
 import { SupabaseService } from './services/SupabaseService.js';
 import './floral-templates.js';
 
@@ -32,6 +33,7 @@ import { LyricEngine } from './features/lyrics/LyricEngine.js';
 import { VisualizerController } from './features/visualizer/VisualizerController.js';
 import { observeGraphicsAvailability } from './features/visualizer/GraphicsAvailability.js';
 import { notifyVisualPalette } from './features/player/VisualPaletteEvent.js';
+import { setupArtistIntro } from './features/player/ArtistIntroController.js';
 import { LibraryModals } from './features/library/LibraryModals.js';
 import { setupEQController } from './features/eq/EQController.js';
 import { initCloudVaultUI } from './features/vault/CloudVaultUI.js';
@@ -39,6 +41,9 @@ import { initVaultSessionBoundary, clearVaultBrowserState } from './features/vau
 import { initWaveform, loadAndDecodeWaveform, drawMiniWaveform } from './features/player/WaveformEngine.js';
 import { setupMediaSession, updateMediaSessionMetadata } from './features/player/MediaSessionManager.js';
 import { MiniPlayerController } from './features/player/MiniPlayerController.js';
+import { createPlayerViewNavigation } from './features/player/PlayerViewNavigation.js';
+import { resumePlayerLyrics } from './features/player/PlayerLyricViewResume.js';
+import { setupQueuePanel } from './features/player/QueuePanelController.js';
 import { setupRecordingController } from './features/player/RecordingModalController.js';
 import { initPlaybackCoordinator } from './features/player/PlaybackCoordinator.js';
 import { initGlobalKeyHandlers } from './features/navigation/GlobalKeyHandlers.js';
@@ -93,6 +98,7 @@ const audio       = document.getElementById('audio-player');
 audio.addEventListener('seeking', () => { LyricEngine.invalidateSeek(); updateProgress(); });
 
 const playbackEngine = new PlaybackEngine(audio);
+setupArtistIntro({ engine: playbackEngine });
 // Register engine with PlayerController so getIsPlaying() reads engine state.
 setPlaybackEngine(playbackEngine);
 
@@ -138,7 +144,6 @@ const btnExitCinematic       = document.getElementById('btn-exit-cinematic');
 let isDraggingSlider    = false;
 let lastVolume          = 0.8;
 let isMuted             = false;
-let isPlayerTransitioning = false;
 let toastTimeout        = null;
 let lastFormattedSec    = -1;
 const renderLoop = createRenderLoop({
@@ -149,6 +154,13 @@ const renderLoop = createRenderLoop({
     angelicParticleContainer,
     cinematicTextContainer
 });
+const playerNavigation = createPlayerViewNavigation({
+    homeView, playerView, miniPlayer: document.getElementById('mini-player'),
+    hasTrack: () => Boolean(getPlaybackSource()[PlayerController.getCurrentTrackIndex()] && playbackEngine.currentTrack),
+    prepareLyrics: () => resumePlayerLyrics({ engine: playbackEngine, LyricEngine, lyricsContainer, updateProgress }),
+    setPlayerOpen: open => window._idleSetPlayerOpen?.(open)
+});
+window.addEventListener('pagehide', () => playerNavigation.dispose());
 
 // ── 6. UI Helper Functions ───────────────────────────────────────────────────
 function showToast(message) {
@@ -450,32 +462,14 @@ function openPlayer(index) {
     PlayerController.setCurrentTrackIndex(index);
     loadTrack(index);
     syncPlayerControlsUI();
-    document.getElementById('mini-player').classList.remove('hidden');
+    playerNavigation.selectTrack();
     updateMiniPlayerUI();
     playAudio();
 }
 
 function closePlayer() {
-    if (isPlayerTransitioning) return;
-    isPlayerTransitioning = true;
-
-    if (window._idleSetPlayerOpen) window._idleSetPlayerOpen(false);
-
-    homeView.classList.remove('hidden');
-    void homeView.offsetHeight;
-
-    playerView.classList.remove('player-active');
-
-    setTimeout(() => {
-        playerView.classList.add('hidden');
-        isPlayerTransitioning = false;
-
-        const currentTrackIndex = PlayerController.getCurrentTrackIndex();
-        if (currentTrackIndex !== -1 && PlayerController.getPlaylist()[currentTrackIndex]) {
-            document.getElementById('mini-player').classList.remove('hidden');
-            updateMiniPlayerUI();
-        }
-    }, 280);
+    playerNavigation.minimize();
+    updateMiniPlayerUI();
 }
 window.closePlayer = closePlayer;
 
@@ -498,10 +492,9 @@ function setupEventListeners() {
             if (card.classList.contains('vinyl-box-card')) return;
             const songId   = card.getAttribute('data-id');
             const playlist = PlayerController.getPlaylist();
-            PlayerController.setActiveQueue([...playlist]);
             const pIdx = playlist.findIndex(s => s.id === songId);
             if (pIdx !== -1) {
-                PlayerController.setActivePlaylistContext('library');
+                PlayerController.startQueue(playlist, pIdx, 'library');
                 openPlayer(pIdx);
             }
         }
@@ -566,14 +559,7 @@ function setupEventListeners() {
     const btnRepeat = document.getElementById('btn-repeat');
     if (btnRepeat) {
         btnRepeat.addEventListener('click', () => {
-            const currentTrack = getPlaybackSource()[PlayerController.getCurrentTrackIndex()];
             PlayerController.setRepeatMode((PlayerController.getRepeatMode() + 1) % 3);
-            const newSource = getPlaybackSource();
-            if (currentTrack) {
-                const newIdx = newSource.findIndex(s => s.id === currentTrack.id);
-                if (newIdx !== -1) PlayerController.setCurrentTrackIndex(newIdx);
-            }
-            if (PlayerController.getIsShuffle()) PlayerController.generateShuffleQueue();
             const rm = PlayerController.getRepeatMode();
             if (rm === 0)      showToast('Repeat: Off');
             else if (rm === 1) showToast('Repeat: All');
@@ -585,17 +571,10 @@ function setupEventListeners() {
     const btnShuffle = document.getElementById('btn-shuffle');
     if (btnShuffle) {
         btnShuffle.addEventListener('click', () => {
-            const currentTrack  = getPlaybackSource()[PlayerController.getCurrentTrackIndex()];
             const isNowShuffle  = PlayerController.toggleShuffle();
             if (isNowShuffle) {
-                if (PlayerController.getRepeatMode() === 0) showToast('Shuffle: On (Playing Library)');
-                else                                         showToast('Shuffle: On (Playing Playlist)');
+                showToast('Shuffle: On');
             } else {
-                const newSource = getPlaybackSource();
-                if (currentTrack) {
-                    const newIdx = newSource.findIndex(s => s.id === currentTrack.id);
-                    if (newIdx !== -1) PlayerController.setCurrentTrackIndex(newIdx);
-                }
                 showToast('Shuffle: Off');
             }
             syncPlayerControlsUI();
@@ -713,17 +692,14 @@ function setupEventListeners() {
 
     // ── Phase 3: Reduced option bags ─────────────────────────────────────────
     MiniPlayerController.setupListeners({
+        expandPlayer: () => playerNavigation.expand(),
         engine: playbackEngine,
         PlayerController,
-        LyricEngine,
         togglePlay,
         nextTrack,
         prevTrack,
         updateProgress,
         prepareLyricNearTime,
-        homeView,
-        playerView,
-        lyricsContainer,
         updateMiniPlayerUI
     });
 
@@ -855,6 +831,7 @@ async function initHome() {
     });
 
     setupEventListeners();
+    setupQueuePanel({ manager: queueManager, engine: playbackEngine, playTrack: openPlayer, showToast });
     initSettings();
     BackgroundManager.init();
     setupEQController();

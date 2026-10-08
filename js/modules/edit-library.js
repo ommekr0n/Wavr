@@ -15,7 +15,7 @@ import {
 
 // ── Feature modules ───────────────────────────────────────────────────────────
 import { renderEditGrid }                   from '../features/library/EditGridRenderer.js';
-import { setupSelectionBox }                from '../features/library/SelectionManager.js';
+import { setupSelectionBox, updateSelectionBar } from '../features/library/SelectionManager.js';
 import { setupDragAndDrop }                 from '../features/library/DragDropEngine.js';
 import {
     setupPlaylistNamingModal,
@@ -111,6 +111,7 @@ export async function initEditLibrary(mainPlaylist, onDone) {
         homeView?.classList.add('hidden');
         editLibraryView?.classList.remove('hidden');
         state.selectedSongIds.clear();
+        updateSelectionBar();
 
         renderEditGrid();
         setupSelectionBox();
@@ -132,6 +133,8 @@ export async function initEditLibrary(mainPlaylist, onDone) {
 
         // 2. Persist state and update main cache
         persistAll();
+        state.selectedSongIds.clear();
+        updateSelectionBar();
         window.appMainContext?.updateBoxCache?.(
             [...state.vinylBoxes],
             [...state.libraryOrder]

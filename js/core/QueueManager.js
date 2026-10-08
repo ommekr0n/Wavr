@@ -1,8 +1,10 @@
+import { getQueueSnapshot, planQueueEdit } from './PlaybackQueueEdits.js';
+
 export class QueueManager extends EventTarget {
     #playlist = [];
     #activeQueue = [];
     #activePlaylistContext = 'library';
-    #currentTrackIndex = 0;
+    #currentTrackIndex = -1;
     #isShuffle = false;
     #repeatMode = 0;
     #shuffledQueue = [];
@@ -51,20 +53,31 @@ export class QueueManager extends EventTarget {
     }
 
     getPlaybackSource() {
-        if (this.#isShuffle && this.#repeatMode === 0) return this.#playlist;
         return this.#activeQueue;
     }
 
+    startQueue(tracks, index, context = 'library') {
+        if (!tracks[index]) return false;
+        this.#activeQueue = [...tracks];
+        this.#currentTrackIndex = index;
+        this.#activePlaylistContext = context;
+        if (this.#isShuffle) this.generateShuffleQueue();
+        this.#emitChange('selection');
+        return true;
+    }
+
+    editQueue(action) {
+        const result = planQueueEdit(getQueueSnapshot(this), action);
+        if (!result) return false;
+        this.#activeQueue = result.source;
+        this.#currentTrackIndex = result.index;
+        this.#shuffledQueue = result.order;
+        this.#emitChange(action.type);
+        return true;
+    }
+
     toggleShuffle() {
-        const currentTrack = this.getPlaybackSource()[this.#currentTrackIndex];
         this.#isShuffle = !this.#isShuffle;
-
-        const newSource = this.getPlaybackSource();
-        if (currentTrack) {
-            const newIndex = newSource.findIndex((track) => track.id === currentTrack.id);
-            if (newIndex !== -1) this.#currentTrackIndex = newIndex;
-        }
-
         if (this.#isShuffle) this.generateShuffleQueue(false);
         this.#emitChange('shuffle');
         return this.#isShuffle;

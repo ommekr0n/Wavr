@@ -25,6 +25,9 @@ build/
 assets/audio/
 assets/covers/
 
+# Local visual QA captures can contain personal library art and wallpapers
+docs/screenshots/
+
 # Personal & Studio local files
 RULES.md
 lrc_studio/

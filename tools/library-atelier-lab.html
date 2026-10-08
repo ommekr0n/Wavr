@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Wavr Library Atelier Lab</title><link rel="stylesheet" href="../css/main.css"></head>
+<body>
+    <div id="home-view" class="view-container">
+        <header class="home-header"><div class="home-header-content"><h1>Library Atelier Lab</h1><div><button data-count="24" class="glass-btn">24 tracks</button> <button data-count="120" class="glass-btn">120 tracks</button> <button data-count="500" class="glass-btn">500 tracks</button> <button id="lab-edit" class="glass-btn">Edit Library</button></div></div></header>
+        <div id="home-song-grid" class="song-grid"></div>
+    </div>
+    <div id="edit-library-view" class="view-container hidden">
+        <header class="home-header"><div class="home-header-content"><h1>Organize sample records</h1><div><button id="lab-inspect" class="glass-btn">Inspect state</button> <button id="lab-done" class="glass-btn">Save &amp; Done</button></div></div></header>
+        <div class="edit-help-banner"><span>Sample data only. Drag handles to reorder, select jackets to move a group, or drag a jacket into a crate.</span></div>
+        <div class="edit-grid-container"><div id="edit-song-grid" class="edit-grid"></div></div>
+    </div>
+    <output id="lab-state" style="position:fixed;bottom:8px;left:16px;right:16px;z-index:10000;pointer-events:none;font:11px monospace;white-space:pre-wrap;color:#ddd"></output>
+    <script type="module" src="./library-atelier-lab.mjs"></script>
+</body></html>

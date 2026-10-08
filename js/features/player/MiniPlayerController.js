@@ -16,7 +16,6 @@ import { PLAYBACK_STATES } from '../../core/PlaybackEngine.js';
 
 export const MiniPlayerController = {
     _isDraggingSlider: false,
-    _isTransitioning:  false,
 
     isDragging() {
         return this._isDraggingSlider;
@@ -100,29 +99,23 @@ export const MiniPlayerController = {
      * @param {object} opts
      * @param {import('../../core/PlaybackEngine.js').PlaybackEngine} opts.engine
      * @param {object} opts.PlayerController
-     * @param {object} opts.LyricEngine
+     * @param {() => void} opts.expandPlayer
      * @param {() => void} opts.togglePlay
      * @param {(isAutoNext?: boolean) => void} opts.nextTrack
      * @param {() => void} opts.prevTrack
      * @param {() => void} opts.updateProgress
      * @param {(time: number) => void} opts.prepareLyricNearTime
-     * @param {HTMLElement} opts.homeView
-     * @param {HTMLElement} opts.playerView
-     * @param {HTMLElement} opts.lyricsContainer
      * @param {() => void} opts.updateMiniPlayerUI
      */
     setupListeners({
+        expandPlayer,
         engine,
         PlayerController,
-        LyricEngine,
         togglePlay,
         nextTrack,
         prevTrack,
         updateProgress,
         prepareLyricNearTime,
-        homeView,
-        playerView,
-        lyricsContainer,
         updateMiniPlayerUI
     }) {
         const miniPlayer     = document.getElementById('mini-player');
@@ -140,37 +133,7 @@ export const MiniPlayerController = {
         if (miniPlayer) {
             miniPlayer.addEventListener('click', (e) => {
                 if (e.target.closest('.mini-btn')) return;
-                const cti = PlayerController.getCurrentTrackIndex();
-                if (cti !== -1 && !this._isTransitioning) {
-                    miniPlayer.classList.add('hidden');
-                    this._isTransitioning = true;
-
-                    playerView.classList.remove('hidden');
-                    void playerView.offsetHeight;
-
-                    const currentLyrics = LyricEngine.getCurrentLyrics();
-                    const drift = LyricEngine.getDriftRatio();
-                    const currentTime = engine.currentTime || 0;
-
-                    LyricEngine.setActiveLyricIndex(-1);
-
-                    if (!currentLyrics || currentLyrics.length === 0 || !currentLyrics[0] || currentTime < currentLyrics[0].time * drift) {
-                        if (lyricsContainer) lyricsContainer.scrollTop = 0;
-                    } else {
-                        updateProgress();
-                    }
-
-                    playerView.classList.add('player-active');
-                    if (window._idleSetPlayerOpen) window._idleSetPlayerOpen(true);
-
-                    setTimeout(() => {
-                        homeView.classList.add('hidden');
-                        if (!currentLyrics || currentLyrics.length === 0 || !currentLyrics[0] || engine.currentTime < currentLyrics[0].time * LyricEngine.getDriftRatio()) {
-                            if (lyricsContainer) lyricsContainer.scrollTop = 0;
-                        }
-                        this._isTransitioning = false;
-                    }, 280);
-                }
+                if (PlayerController.getCurrentTrackIndex() !== -1) expandPlayer();
             });
         }
 

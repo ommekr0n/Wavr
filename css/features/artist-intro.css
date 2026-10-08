@@ -1,0 +1,24 @@
+/* The live scene owns the cut. This layer contains only the original logo and Skip. */
+.artist-intro { position: fixed; inset: 0; z-index: 9000; pointer-events: none; overflow: hidden; isolation: isolate; }
+.artist-intro[hidden] { display: none; }
+.reality-tear { position: absolute; inset: 0; pointer-events: none; contain: layout paint style; }
+.reality-tear-mark {
+    position: absolute; aspect-ratio: 1; transform: translate(-50%, -50%) scale(.72); opacity: 0;
+}
+.reality-tear-mark img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.reality-tear-mark > img { position: relative; z-index: 2; }
+.reality-tear-logo-halo, .reality-tear-logo-echo { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+.reality-tear-logo-halo {
+    inset: -30%; border-radius: 50%;
+    background: radial-gradient(ellipse, #edf1ed36, #b7c8c312 43%, transparent 70%);
+}
+/* Filters stay static; only cached-layer transforms and opacity animate. */
+.reality-tear-logo-echo.near { filter: blur(2.5px); }
+.reality-tear-logo-echo.far { filter: blur(8px); }
+.artist-intro-skip {
+    position: absolute; right: 20px; bottom: 20px; z-index: 1; pointer-events: auto;
+    padding: 8px 12px; border: 1px solid #ffffff28; border-radius: 6px;
+    color: #e9e5db; background: #151518c9; font: inherit; font-size: 11px; cursor: pointer;
+}
+.artist-intro-skip:focus-visible { outline: 2px solid #e9e5db; outline-offset: 3px; }
+@media (max-width: 600px) { .artist-intro-skip { right: 14px; bottom: 14px; } }

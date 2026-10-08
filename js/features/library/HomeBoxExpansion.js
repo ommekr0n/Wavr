@@ -5,6 +5,8 @@
 import coverImgUrl from '../../../assets/images/cover.png';
 import { PlayerController } from '../player/PlayerController.js';
 import { escapeHtml, safeImageUrl } from '../../modules/safe-html.js';
+import { captureLibraryBoxMarkup } from './LibraryBoxMarkup.js';
+import { syncLibraryVisualState } from './LibraryVisualState.js';
 
 let activeExpandedCard = null;
 
@@ -26,7 +28,7 @@ export function toggleBoxExpansion(card, boxId, vinylBoxes, openPlayer, syncPlay
     const box = vinylBoxes.find(b => b.id === boxId);
     if (!box) return;
 
-    card.setAttribute('data-original-html', card.innerHTML);
+    card.setAttribute('data-original-html', captureLibraryBoxMarkup(card));
     card.classList.add('expanded-active');
     activeExpandedCard = card;
 
@@ -37,7 +39,7 @@ export function toggleBoxExpansion(card, boxId, vinylBoxes, openPlayer, syncPlay
     } else {
         boxSongs.forEach((song, idx) => {
             songsHTML += `
-                <div class="song-card box-slider-song-card" data-idx="${idx}">
+                <div class="song-card box-slider-song-card" data-idx="${idx}" data-id="${escapeHtml(song.id)}">
                     <div class="song-cover-wrapper">
                         <img src="${escapeHtml(safeImageUrl(song.cover, coverImgUrl))}" alt="${escapeHtml(song.title)}">
                         <div class="box-song-play-overlay">
@@ -83,11 +85,9 @@ export function toggleBoxExpansion(card, boxId, vinylBoxes, openPlayer, syncPlay
     if (playBtnBox) playBtnBox.addEventListener('click', (e) => {
         e.stopPropagation();
         if (boxSongs.length > 0) {
-            PlayerController.setActiveQueue([...boxSongs]);
-            PlayerController.setActivePlaylistContext(box.id);
             PlayerController.setIsShuffle(true);
             PlayerController.setRepeatMode(1);
-            PlayerController.generateShuffleQueue(false);
+            PlayerController.startQueue(boxSongs, 0, box.id);
             if (syncPlayerControlsUI) syncPlayerControlsUI();
             if (openPlayer) openPlayer(0);
         }
@@ -98,11 +98,11 @@ export function toggleBoxExpansion(card, boxId, vinylBoxes, openPlayer, syncPlay
         songCard.addEventListener('click', (e) => {
             e.stopPropagation();
             const idx = parseInt(songCard.getAttribute('data-idx'));
-            PlayerController.setActiveQueue([...boxSongs]);
-            PlayerController.setActivePlaylistContext(box.id);
+            PlayerController.startQueue(boxSongs, idx, box.id);
             if (openPlayer) openPlayer(idx);
         });
     });
+    syncLibraryVisualState(card.closest('#home-song-grid'), 'library');
 }
 
 export function closeBoxExpansion() {
@@ -110,6 +110,7 @@ export function closeBoxExpansion() {
         activeExpandedCard.classList.remove('expanded-active');
         const originalHTML = activeExpandedCard.getAttribute('data-original-html');
         if (originalHTML) activeExpandedCard.innerHTML = originalHTML;
+        syncLibraryVisualState(activeExpandedCard.closest('#home-song-grid'), 'library');
         activeExpandedCard = null;
     }
 }

@@ -146,4 +146,5 @@ export function renderEditGrid() {
 
         editGrid.appendChild(card);
     });
+    updateSelectionBar();
 }

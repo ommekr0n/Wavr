@@ -1,0 +1,71 @@
+/* Queue uses the player's quiet glass surfaces, with a native modal focus boundary. */
+.queue-dialog {
+    position: fixed;
+    inset: 16px 16px 16px auto;
+    margin: 0;
+    width: min(440px, calc(100vw - 32px));
+    height: calc(100dvh - 32px);
+    max-height: none;
+    max-width: none;
+    padding: 0;
+    color: #f3f3f5;
+    color-scheme: dark;
+    background: #17191f;
+    border: 1px solid rgba(255,255,255,.13);
+    border-radius: 22px;
+    box-shadow: 0 24px 80px rgba(0,0,0,.5);
+    overflow: hidden;
+}
+.queue-dialog[open] { display: flex; flex-direction: column; }
+.queue-dialog::backdrop { background: rgba(4,6,10,.48); }
+.queue-header { display: flex; justify-content: space-between; align-items: center; padding: 24px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.queue-header p { font-size: 9px; letter-spacing: .15em; color: #9b9da9; margin: 0 0 6px; }
+.queue-header h2 { font-size: 25px; font-weight: 600; letter-spacing: -.04em; margin: 0; }
+.queue-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 20px 16px; scrollbar-width: thin; }
+.queue-dialog section + section { margin-top: 28px; }
+.queue-dialog h3 { font-size: 12px; font-weight: 500; color: #b7b8c2; margin: 0; }
+.queue-current-section h3 { margin: 0 8px 12px; }
+.queue-section-heading { display: flex; justify-content: space-between; align-items: center; padding: 0 8px 12px; }
+#queue-count { font-size: 10px; margin-left: 6px; padding: 2px 6px; border-radius: 5px; background: rgba(255,255,255,.08); color: #c8c9d2; }
+.queue-text-button { border: 0; padding: 5px 0; font: inherit; font-size: 11px; color: #c0c2cd; background: transparent; cursor: pointer; }
+.queue-text-button:hover { color: #fff; }
+.queue-track-list { list-style: none; padding: 0; margin: 0; }
+.queue-current-track, .queue-track, .queue-library-track { display: flex; gap: 10px; align-items: center; min-width: 0; padding: 8px; border-radius: 12px; }
+.queue-current-track { background: rgba(255,255,255,.055); border: 1px solid rgba(255,255,255,.07); padding: 12px; }
+.queue-track:hover, .queue-track:focus-within, .queue-library-track:hover { background: rgba(255,255,255,.045); }
+.queue-dialog img { width: 40px; height: 40px; flex-shrink: 0; object-fit: cover; border-radius: 6px; }
+.queue-current-track img { width: 48px; height: 48px; }
+.queue-track-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; text-align: left; }
+.queue-track-meta strong, .queue-track-meta > span { white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+.queue-track-meta strong { font-size: 12px; font-weight: 500; }
+.queue-track-meta > span { font-size: 10px; color: #9b9daa; }
+.queue-playing-badge { font-size: 9px; border-radius: 5px; background: rgba(255,255,255,.08); padding: 5px 7px; }
+.queue-play-track { display: flex; flex: 1; min-width: 0; gap: 10px; align-items: center; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.queue-position { color: #91939f; font-size: 10px; width: 14px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.queue-row-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.queue-row-action { display: inline-flex; justify-content: center; align-items: center; width: 30px; height: 32px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: #a4a6b2; cursor: pointer; }
+.queue-row-action:hover { color: #fff; background: rgba(255,255,255,.1); }
+.queue-dialog button:disabled { opacity: .28; cursor: default; }
+.queue-dialog button:focus-visible, .queue-dialog input:focus-visible, .queue-dialog summary:focus-visible { outline: 2px solid #cbd8f3; outline-offset: 3px; }
+.queue-empty { color: #8b8e9d; font-size: 12px; line-height: 1.7; padding: 14px 8px; }
+.queue-library { border-top: 1px solid rgba(255,255,255,.08); margin-top: 24px; padding-top: 16px; }
+.queue-library summary { cursor: pointer; font-size: 12px; padding: 6px 8px; color: #d5d6dd; }
+#queue-search { width: calc(100% - 16px); margin: 12px 8px; padding: 10px 12px; border: 1px solid rgba(255,255,255,.13); background: rgba(0,0,0,.15); border-radius: 9px; color: #fff; font: inherit; font-size: 12px; }
+.queue-footer { min-height: 64px; padding: 15px 24px; border-top: 1px solid rgba(255,255,255,.08); }
+.queue-footer p { font-size: 10px; color: #9497a5; margin: 0; }
+#queue-announcement { display: block; font-size: 10px; color: #c8ccd9; margin-top: 6px; }
+[aria-controls="queue-dialog"][aria-expanded="true"] { color: #fff; background: rgba(255,255,255,.14); }
+@media (max-width: 760px) and (orientation: portrait) {
+    .queue-dialog { inset: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom)) 8px; width: calc(100vw - 16px); height: auto; border-radius: 18px; }
+    .queue-header { padding: 20px; }
+    .queue-scroll { padding: 18px 10px; }
+    .queue-row-action { width: 32px; height: 40px; }
+    .queue-track-meta strong { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .living-player .app-header { padding: 0 8px; gap: 4px; }
+    .living-player .header-left { gap: 0; }
+    .living-player .header-left .icon-btn { width: 28px; }
+    .living-player .header-utilities-bar { position: static; transform: none; gap: 1px; padding: 3px; }
+    .living-player .header-utilities-bar .icon-btn { width: 27px; }
+    .living-player .header-right { gap: 1px; }
+    .living-player .header-right .icon-btn { width: 28px; }
+}

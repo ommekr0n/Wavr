@@ -6,6 +6,10 @@
 import { state, persistBoxes, persistOrder } from '../../shared/EditLibraryState.js';
 import { renderEditGrid } from './EditGridRenderer.js';
 import { closeEditBoxExpansion } from './BoxExpansion.js';
+import { prepareLibraryDragGhost, releaseLibraryDragGhost } from './LibraryDragBridge.js';
+import { animateLibraryInsertion } from './LibraryInsertionMotion.js';
+import { getLibraryDraggedSongIds, settleLibraryDraggedGroup } from './LibraryDragSelection.js';
+import { armLibraryDragCancellation } from './LibraryDragCancellation.js';
 
 // ── FLIP reorder animation ────────────────────────────────────────────────────
 export function reorderFLIP(editGrid, draggingElement, nextSibling) {
@@ -40,36 +44,7 @@ export function reorderFLIP(editGrid, draggingElement, nextSibling) {
 
 // ── Suck-in animation ─────────────────────────────────────────────────────────
 export function triggerSuckingAnimation(songIds, targetSlot) {
-    const targetVisual = targetSlot.querySelector('.vinyl-box-visual');
-    if (!targetVisual) return;
-
-    const targetRect = targetVisual.getBoundingClientRect();
-    const targetX    = targetRect.left + targetRect.width  / 2;
-    const targetY    = targetRect.top  + targetRect.height / 2;
-
-    songIds.forEach(id => {
-        const card  = document.querySelector(`.edit-grid .song-card[data-id="${id}"]`);
-        if (!card) return;
-        const cover = card.querySelector('img');
-        if (!cover) return;
-
-        const coverRect = cover.getBoundingClientRect();
-        const clone     = document.createElement('div');
-        clone.className = 'flying-card-clone';
-        clone.style.width           = `${coverRect.width}px`;
-        clone.style.height          = `${coverRect.height}px`;
-        clone.style.left            = `${coverRect.left}px`;
-        clone.style.top             = `${coverRect.top}px`;
-        clone.style.backgroundImage = `url("${cover.src}")`;
-        clone.style.backgroundSize  = 'cover';
-        clone.style.backgroundPosition = 'center';
-        document.body.appendChild(clone);
-
-        clone.offsetWidth; // force reflow
-        clone.style.transform = `translate(${targetX - coverRect.left - coverRect.width/2}px,${targetY - coverRect.top - coverRect.height/2}px) scale(0.05) rotate(720deg)`;
-        clone.style.opacity   = '0';
-        clone.addEventListener('transitionend', () => clone.remove());
-    });
+    animateLibraryInsertion(songIds, targetSlot);
 }
 
 // ── Main drag & drop setup (runs once) ───────────────────────────────────────
@@ -91,6 +66,8 @@ export function setupDragAndDrop() {
         e.preventDefault();
 
         const rect    = card.getBoundingClientRect();
+        const originalOrder = [...editGrid.children];
+        const draggedSongIds = getLibraryDraggedSongIds(card);
         const offsetX = e.clientX - rect.left;
         const offsetY = e.clientY - rect.top;
         const originX = e.clientX - offsetX;
@@ -119,6 +96,7 @@ export function setupDragAndDrop() {
                 `box-shadow:0 16px 40px rgba(0,229,255,0.4)`, `opacity:0.9`
             ].join(';');
             document.body.appendChild(ghost);
+            prepareLibraryDragGhost(card, ghost);
         };
 
         const onMove = (mv) => {
@@ -173,6 +151,7 @@ export function setupDragAndDrop() {
         };
 
         const onUp = async (up) => {
+            cancelEvents();
             window.removeEventListener('pointermove', onMove);
             window.removeEventListener('pointerup',   onUp);
             window.removeEventListener('pointercancel', onUp);
@@ -187,7 +166,8 @@ export function setupDragAndDrop() {
             card.style.visibility = '';
             if (ghost) ghost.style.display = '';
 
-            const targetBox      = el?.closest('.vinyl-box-card');
+            const canceled = up.type === 'pointercancel';
+            const targetBox      = canceled ? null : el?.closest('.vinyl-box-card');
             const isDraggingSong = !card.classList.contains('vinyl-box-card');
 
             if (isDraggingSong && targetBox && targetBox !== card) {
@@ -195,19 +175,21 @@ export function setupDragAndDrop() {
                 const boxId  = targetBox.getAttribute('data-id');
                 const box    = state.vinylBoxes.find(b => b.id === boxId);
                 if (box && songId) {
+                    animateLibraryInsertion(draggedSongIds, targetBox);
                     const set = new Set(box.songIds || []);
-                    set.add(songId);
+                    draggedSongIds.forEach(id => { set.add(id); state.selectedSongIds.delete(id); });
                     box.songIds = Array.from(set);
                     await persistBoxes();
                     droppedIntoBox = true;
                 }
             }
 
-            if (ghost) { ghost.remove(); ghost = null; }
+            if (ghost) { releaseLibraryDragGhost(ghost); ghost.remove(); ghost = null; }
             card.classList.remove('dragging');
             document.body.classList.remove('is-dragging-active');
             editGrid.querySelectorAll('.vinyl-box-visual.drag-over').forEach(v => v.classList.remove('drag-over'));
             setTimeout(() => { card.setAttribute('data-was-dragged', 'false'); }, 200);
+            if (canceled) { originalOrder.forEach(node => editGrid.appendChild(node)); return; }
 
             if (droppedIntoBox) {
                 renderEditGrid();
@@ -216,12 +198,14 @@ export function setupDragAndDrop() {
                 }
                 if (window.appMainContext?.renderSongGrid) window.appMainContext.renderSongGrid();
             } else {
+                settleLibraryDraggedGroup(editGrid, card, draggedSongIds, originalOrder);
                 const currentCards = [...editGrid.querySelectorAll('.song-card')];
                 state.libraryOrder = currentCards.map(c => c.getAttribute('data-id'));
                 await persistOrder();
             }
         };
 
+        const cancelEvents = armLibraryDragCancellation(onUp, { x: e.clientX, y: e.clientY });
         window.addEventListener('pointermove', onMove);
         window.addEventListener('pointerup',   onUp);
         window.addEventListener('pointercancel', onUp);

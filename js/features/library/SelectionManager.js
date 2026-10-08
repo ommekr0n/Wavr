@@ -4,6 +4,7 @@
  */
 import { state, clearSelection } from '../../shared/EditLibraryState.js';
 import { openPlaylistNamingModal } from './BoxModals.js';
+import { syncLibraryVisualState } from './LibraryVisualState.js';
 
 let _selectionAbortController = null;
 let _floatingBar = null;
@@ -66,6 +67,7 @@ export function setupSelectionBox() {
 
 // ── Floating Selection Bar ────────────────────────────────────────────────────
 export function updateSelectionBar() {
+    syncLibraryVisualState(document.getElementById('edit-song-grid'), 'edit');
     const count = state.selectedSongIds.size;
 
     if (count === 0) {

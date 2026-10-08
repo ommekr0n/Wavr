@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { registerVisualRenderer } from '../../core/rendering/VisualRenderBridge.js';
 import { ThreeTextureCache } from '../../core/rendering/three/ThreeTextureCache.js';
-import { ThreeArtworkSurfaces } from '../../core/rendering/three/ThreeArtworkSurfaces.js';
+import { ThreeLibraryScene } from '../../core/rendering/three/ThreeLibraryScene.js';
 import { ThreeConcertStage } from '../../core/rendering/three/ThreeConcertStage.js';
 import { ThreeAngelicVinyl } from '../../core/rendering/three/ThreeAngelicVinyl.js';
 import { ThreeAngelicButterflies } from '../../core/rendering/three/ThreeAngelicButterflies.js';
@@ -10,6 +10,7 @@ import { RenderScheduler } from '../../core/rendering/three/RenderScheduler.js';
 import { attachThreeContextRecovery } from './ThreeContextRecovery.js';
 import { ThreeChromaticAtelier } from '../../core/rendering/three/ThreeChromaticAtelier.js';
 import { ThreeLivingSleeve } from '../../core/rendering/three/ThreeLivingSleeve.js';
+import { RealityTearRenderEffect } from '../../core/rendering/three/RealityTearRenderEffect.js';
 
 /** Owns one GPU context and the lifecycle of Wavr's separate render modules. */
 export class ThreeRendererController {
@@ -26,7 +27,7 @@ export class ThreeRendererController {
         this.scheduler = new RenderScheduler(now => this.render(now), this.renderer.domElement);
         this.invalidate = () => this.scheduler.requestFrame();
         this.textures = new ThreeTextureCache(() => { this.surfaces?.markDirty(); this.invalidate(); });
-        this.surfaces = new ThreeArtworkSurfaces(this.textures, this.invalidate);
+        this.surfaces = new ThreeLibraryScene(this.textures, this.invalidate);
         this.atelier = new ThreeChromaticAtelier();
         this.sleeve = new ThreeLivingSleeve(this.textures, this.invalidate, this.surfaces.pointer);
         this.stage = new ThreeConcertStage();
@@ -40,9 +41,10 @@ export class ThreeRendererController {
         this.enabled = false; this.mode = null;
         this.unregister = registerVisualRenderer(this);
         this.abort = new AbortController(); const signal = this.abort.signal;
+        this.tear = new RealityTearRenderEffect(this, signal);
         window.addEventListener('resize', () => this.resize(), { signal });
         document.addEventListener('scroll', () => this.surfaces.markDirty(), { capture: true, passive: true, signal });
-        document.addEventListener('pointermove', event => { this.surfaces.pointer.x = event.clientX; this.surfaces.pointer.y = event.clientY; if (this.mode === 'library' || this.mode === 'player') this.invalidate(); }, { passive: true, signal });
+        document.addEventListener('pointermove', event => { this.surfaces.pointer.x = event.clientX; this.surfaces.pointer.y = event.clientY; if (this.mode === 'player' || (['library', 'edit'].includes(this.mode) && this.surfaces.pointerChanged())) this.invalidate(); }, { passive: true, signal });
         document.addEventListener('transitionrun', event => this.surfaces.followLayout(event.target), { signal });
         document.addEventListener('transitionend', () => this.surfaces.markDirty(), { signal });
         for (const event of ['play', 'pause', 'ended']) this.audio.addEventListener(event, () => this.syncLoop(), { signal });
@@ -64,6 +66,7 @@ export class ThreeRendererController {
         document.getElementById('player-view').classList.toggle('atelier-ready', enabled);
         this.renderer.domElement.hidden = !enabled;
         if (!enabled) {
+            this.tear.cancel();
             this.stage.fire.reset();
             this.butterflies.active = false;
             this.surfaces.clear(); this.butterflies.clear();
@@ -82,20 +85,21 @@ export class ThreeRendererController {
         if (this.mode === 'cinematic') this.stage.fire.reset();
         this.surfaces.clear(); this.surfaces.mode = null;
         if (this.mode === 'angelic') this.butterflies.clear();
+        if (mode !== 'player') this.tear.cancel();
         this.mode = mode;
         this.sleeve.setActive(mode === 'player');
         this.butterflies.active = mode === 'angelic';
-        const parent = mode === 'cinematic' ? document.querySelector('.crt-screen-container') : document.getElementById(mode === 'angelic' ? 'angelic-view' : mode === 'player' ? 'player-view' : 'home-view');
+        const parent = mode === 'cinematic' ? document.querySelector('.crt-screen-container') : document.getElementById(mode === 'angelic' ? 'angelic-view' : mode === 'player' ? 'player-view' : mode === 'edit' ? 'edit-library-view' : 'home-view');
         parent.appendChild(this.renderer.domElement);
-        this.renderer.domElement.hidden = mode === 'edit';
-        if (mode === 'library') this.surfaces.setMode(mode);
+        this.renderer.domElement.hidden = false;
+        if (mode === 'library' || mode === 'edit') this.surfaces.setMode(mode);
         this.resize(); this.syncLoop();
     }
 
     syncLoop() {
         this.scheduler.stop();
         this.stats.resetSampling();
-        if (this.enabled && !document.hidden && this.mode !== 'edit') {
+        if (this.enabled && !document.hidden) {
             this.lastRender = performance.now();
             this.scheduler.resume(this.needsAnimation());
         }
@@ -104,7 +108,7 @@ export class ThreeRendererController {
     needsAnimation() {
         if (this.mode === 'cinematic') return !this.audio.paused;
         if (this.mode === 'angelic') return (!this.audio.paused && !this.reducedMotion) || this.butterflies.records.length > 0;
-        if (this.mode === 'player') return (!this.audio.paused && !this.reducedMotion) || this.sleeve.animating || this.atelier.settling || this.atelier.dirty;
+        if (this.mode === 'player') return this.tear.active || (!this.audio.paused && !this.reducedMotion) || this.sleeve.animating || this.atelier.settling || this.atelier.dirty;
         return this.surfaces.animating;
     }
 
@@ -115,6 +119,7 @@ export class ThreeRendererController {
         this.renderer.setPixelRatio(Math.min(devicePixelRatio, cap, Math.sqrt(2000000 / (this.width * this.height))));
         this.renderer.setSize(this.width, this.height);
         for (const module of [this.surfaces, this.stage, this.vinyl, this.butterflies, this.atelier, this.sleeve]) module.resize(this.width, this.height);
+        this.tear.resize(this.width, this.height);
         this.invalidate();
     }
 
@@ -123,7 +128,7 @@ export class ThreeRendererController {
         const cpuStart = performance.now(); this.renderer.info.reset();
         const playing = !this.audio.paused;
         const state = { playing, data: playing ? this.audioFrame.data : null, intensity: playing ? this.audioFrame.intensity : 0, energy: playing ? this.audioFrame.energy : 0, analysis: this.audioFrame.analysis };
-        if (this.mode !== 'library' && now > this.nextPaletteRead) {
+        if (this.mode !== 'library' && this.mode !== 'edit' && now > this.nextPaletteRead) {
             this.nextPaletteRead = now + 1000;
             const style = getComputedStyle(document.documentElement);
             this.colors.forEach((color, index) => { const value = style.getPropertyValue(`--blob-${index + 1}-color`).trim(); if (value) color.set(value); });
@@ -140,12 +145,14 @@ export class ThreeRendererController {
             this.renderer.autoClear = false; this.renderer.clearDepth(); this.renderer.render(this.butterflies.scene, this.butterflies.camera);
         } else if (this.mode === 'player') {
             this.renderer.toneMapping = THREE.NoToneMapping;
+            this.tear.beginFrame(this.renderer, now);
             this.atelier.update(dt, state, this.colors, this.reducedMotion); this.atelier.render(this.renderer, now);
             this.sleeve.update(dt, state, this.colors, this.reducedMotion);
             this.renderer.autoClear = false; this.renderer.clearDepth(); this.renderer.render(this.sleeve.scene, this.sleeve.camera);
+            this.tear.endFrame(this.renderer);
         } else {
             this.renderer.toneMapping = THREE.NoToneMapping;
-            this.surfaces.update(dt, this.reducedMotion); this.renderer.render(this.surfaces.scene, this.surfaces.camera);
+            this.surfaces.update(dt, this.reducedMotion); this.surfaces.render(this.renderer);
         }
         const continuous = this.needsAnimation();
         if (continuous) this.stats.record(now, performance.now() - cpuStart, this.renderer.info, this.mode, this.mode === 'cinematic' ? this.stage.fire.envelope.output : null);
@@ -155,7 +162,7 @@ export class ThreeRendererController {
 
     dispose() {
         this.setEnabled(false); this.abort.abort(); this.viewObserver.disconnect(); this.unregister();
-        for (const module of [this.surfaces, this.stage, this.vinyl, this.butterflies, this.atelier, this.sleeve, this.textures]) module.dispose();
+        for (const module of [this.surfaces, this.stage, this.vinyl, this.butterflies, this.atelier, this.sleeve, this.tear, this.textures]) module.dispose();
         this.renderer.dispose(); this.renderer.domElement.remove();
         this.stats.dispose();
     }

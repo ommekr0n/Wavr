@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { createLivingSleeveDisc } from './LivingSleeveDisc.js';
 import { createLivingSleeveBody } from './LivingSleeveBody.js';
 import { LivingSleeveMotion } from './LivingSleeveMotion.js';
+import { readSleeveLayout } from './RealityTearSleeveAnchor.js';
 
 /** Physical sleeve, paper insert and record aligned to the accessible DOM artwork. */
 export class ThreeLivingSleeve {
@@ -34,8 +35,7 @@ export class ThreeLivingSleeve {
     sync() {
         if (!this.dirty) return;
         this.dirty = false;
-        const rect = this.node.getBoundingClientRect(), view = this.view.getBoundingClientRect();
-        this.rect = { x: rect.x - view.x, y: rect.y - view.y, width: rect.width, height: rect.height, left: rect.x - view.x, top: rect.y - view.y };
+        this.rect = readSleeveLayout(this.node, this.view, this.introRect);
         const url = this.node.src;
         if (url !== (this.pending?.url || this.entry?.url)) {
             if (this.pending) this.textures.release(this.pending.url);

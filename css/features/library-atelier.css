@@ -1,0 +1,178 @@
+/* A quiet record collection; DOM retains labels, controls and hit targets. */
+#home-view, #edit-library-view {
+    --library-base-surface: linear-gradient(145deg, #16171b, #0d0e12 65%);
+    background-image:
+        conic-gradient(#ffffff09 90deg, #ffffff01 90deg 180deg, #ffffff09 180deg 270deg, #ffffff01 270deg),
+        radial-gradient(ellipse at 12% 6%, color-mix(in srgb, var(--blob-1-color, #987664) 9%, transparent), transparent 58%),
+        radial-gradient(ellipse at 85% 75%, color-mix(in srgb, var(--blob-2-color, #6d728d) 7%, transparent), transparent 62%),
+        var(--library-base-surface);
+    background-size: 240px 240px, 100% 100%, 100% 100%, 100% 100%;
+}
+/* The saved wallpaper sits behind these views; its blur/tint must stay visible. */
+body:has(#app-custom-bg-layer.active) :is(#home-view, #edit-library-view) {
+    --library-base-surface: linear-gradient(transparent, transparent);
+}
+#home-view::before, #edit-library-view::before { opacity: .035; }
+#home-view .home-header, #edit-library-view .home-header {
+    background: #121317;
+    box-shadow: 0 12px 28px #00000025;
+    border-color: #ffffff0c;
+}
+#home-view .wavr-three-canvas, #edit-library-view .wavr-three-canvas { z-index: 1; }
+.edit-grid-container { z-index: 2; }
+.song-grid { z-index: 2; }
+:is(#home-song-grid, #edit-song-grid) .song-card,
+.drag-floating-ghost {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    padding: 8px;
+    box-shadow: none;
+    transition: border-color .18s ease, background .18s ease;
+}
+:is(#home-song-grid, #edit-song-grid) .song-card:hover {
+    transform: none;
+    background: #ffffff03;
+    border-color: #ffffff0c;
+    box-shadow: none;
+}
+:is(#home-song-grid, #edit-song-grid) .song-card:focus-visible {
+    outline: 2px solid #e1d8c7;
+    outline-offset: 3px;
+}
+:is(#home-song-grid, #edit-song-grid) .song-card-inner:not(.box-card-inner),
+:is(#home-song-grid, #edit-song-grid) .song-cover-wrapper {
+    width: 100%; aspect-ratio: 1;
+    position: relative;
+    border-radius: 3px !important;
+    overflow: visible !important;
+    margin-bottom: 13px !important;
+    background: transparent;
+    box-shadow: none;
+}
+:is(#home-song-grid, #edit-song-grid) .song-card img {
+    display: block;
+    width: 92% !important; height: 92% !important;
+    margin: 4% !important;
+    border-radius: 2px;
+    aspect-ratio: 1;
+    box-shadow: 2px 3px 0 #c8bfac, 6px 10px 18px #0006;
+    transform: none;
+}
+.library-object-ready > img,
+.library-object-ready > .vinyl-sleeves-container,
+.library-ghost-ready :is(.song-cover-wrapper, .song-card-inner) > img,
+.library-ghost-ready .vinyl-sleeves-container { opacity: 0 !important; }
+:is(#home-song-grid, #edit-song-grid) .vinyl-box-visual,
+:is(#home-song-grid, #edit-song-grid) .vinyl-box-visual.drag-over {
+    transform: none;
+    box-shadow: none;
+    transition: none;
+}
+:is(#home-song-grid, #edit-song-grid) .box-card-inner {
+    aspect-ratio: 1;
+    margin-bottom: 13px !important;
+}
+:is(#home-song-grid, #edit-song-grid) .song-card-title {
+    font-weight: 600;
+    letter-spacing: -.015em;
+    padding: 0 4px;
+    margin-bottom: 4px;
+}
+:is(#home-song-grid, #edit-song-grid) .song-card-artist {
+    color: #aaa8a6;
+    padding: 0 4px;
+}
+.library-now-playing .song-card-title::before {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 6px;
+    margin: 0 7px 2px 0;
+    border-radius: 50%;
+    background: var(--accent-color);
+}
+#edit-song-grid .song-card.selected {
+    border-color: #e0d6c3;
+    box-shadow: inset 0 0 0 1px #e0d6c340;
+    background: #ffffff04;
+}
+#edit-song-grid .song-card.selected::before { top: auto; bottom: 12px; right: 12px; background: #e0d6c3; }
+#edit-song-grid .song-card.selected::after { top: auto; bottom: 13px; right: 17px; color: #191a1e; }
+#edit-song-grid .song-card.selected .song-card-artist { padding-right: 27px; }
+#edit-song-grid :is(.song-card.dragging, .inner-editable-song.inner-dragging) { opacity: .4 !important; transform: none !important; }
+#edit-song-grid .song-card:has(.vinyl-box-visual.drag-over) {
+    outline: 2px solid var(--box-color, #d8c3a7);
+    outline-offset: 2px;
+    background: transparent !important;
+}
+:is(#home-song-grid, #edit-song-grid) .vinyl-box-card.expanded-active {
+    background: #ffffff03;
+    border: 1px solid color-mix(in srgb, var(--box-color) 40%, #ffffff15);
+    padding: 22px;
+    border-radius: 14px;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    animation: none;
+}
+:is(#home-song-grid, #edit-song-grid) .vinyl-box-card.expanded-active:hover { box-shadow: none !important; }
+.box-expansion-slider-wrapper { padding: 10px 4px 16px; }
+.box-expansion-slider { gap: 16px; }
+:is(#home-song-grid, #edit-song-grid) .box-slider-song-card { flex-basis: 150px; width: 150px; }
+.box-expansion-title { font-size: 1.2rem; }
+.box-expansion-controls .btn-delete-box {
+    position: static;
+    width: auto; height: auto;
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+    border-radius: 8px;
+}
+#edit-song-grid .vinyl-box-visual:not(:has(.peeking-sleeve))::after {
+    content: 'Add songs';
+    position: absolute;
+    top: 49%; left: 0; right: 0;
+    text-align: center;
+    color: #c7c0b6;
+    font-size: .72rem;
+}
+.box-song-play-overlay { border-radius: 3px; margin: 4%; backdrop-filter: none; }
+.drag-floating-ghost { background: transparent !important; box-shadow: none !important; }
+.drag-floating-ghost img { border-radius: 2px; }
+.library-drag-count {
+    position: absolute; top: -14px; right: -12px;
+    color: #191a1e; background: #e0d6c3;
+    border-radius: 20px; padding: 5px 10px;
+    font-size: .75rem; font-weight: 700;
+}
+.library-insertion-jacket {
+    position: fixed;
+    object-fit: cover;
+    z-index: 9999;
+    pointer-events: none;
+    border-radius: 2px;
+    box-shadow: 2px 3px 0 #c8bfac, 0 8px 18px #0006;
+}
+:is(#home-song-grid, #edit-song-grid) .song-options-btn { opacity: .8; }
+:is(#home-song-grid, #edit-song-grid) .song-options-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.card-drag-handle { touch-action: none; }
+@media (hover: none) {
+    #edit-song-grid .vinyl-box-card:not(.expanded-active) .btn-delete-box { opacity: 1; transform: none; pointer-events: auto; }
+}
+@media (max-width: 760px) {
+    :is(#home-song-grid, #edit-song-grid) .song-card { padding: 5px; }
+    :is(#home-song-grid, #edit-song-grid) .vinyl-box-card.expanded-active { padding: 14px; }
+    .box-expansion-header { flex-wrap: wrap; gap: 14px; }
+    .box-expansion-header > div:first-child { flex-wrap: wrap; gap: 8px !important; }
+    .box-expansion-controls { flex-wrap: wrap; gap: 8px; }
+    .box-expansion-controls button { min-height: 40px; }
+    .edit-grid-container { padding-bottom: 110px; }
+    .edit-selection-bar { bottom: max(16px, env(safe-area-inset-bottom)); gap: 7px; padding: 9px 12px; max-width: calc(100% - 24px); }
+    .edit-selection-bar .selection-count { padding-right: 7px; font-size: .75rem; }
+    .btn-create-box-from-sel { padding: 8px 10px; }
+    .btn-clear-selection { padding: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    :is(#home-song-grid, #edit-song-grid) .song-card { transition: none; }
+    .vinyl-sleeves-container, .peeking-sleeve { transition: none; }
+}

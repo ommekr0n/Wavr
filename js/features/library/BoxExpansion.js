@@ -9,22 +9,26 @@ import { renderEditGrid } from './EditGridRenderer.js';
 import { showSongContextMenu } from './SongContextMenu.js';
 import { showDeleteBoxModal } from './BoxModals.js';
 import { escapeHtml, safeImageUrl } from '../../modules/safe-html.js';
+import { prepareLibraryDragGhost, releaseLibraryDragGhost } from './LibraryDragBridge.js';
+import { bindLibraryBoxPointer, clearLibraryBoxPointer, restoreLibraryBoxDelete } from './LibraryBoxListenerScope.js';
+import { captureLibraryBoxMarkup } from './LibraryBoxMarkup.js';
+import { syncLibraryVisualState } from './LibraryVisualState.js';
+import { armLibraryDragCancellation } from './LibraryDragCancellation.js';
 
 let activeEditExpandedCard = null;
 
 // ── Close expansion ───────────────────────────────────────────────────────────
 export function closeEditBoxExpansion() {
     if (!activeEditExpandedCard) return;
+    clearLibraryBoxPointer(activeEditExpandedCard);
     activeEditExpandedCard.classList.remove('expanded-active');
     const origHTML = activeEditExpandedCard.getAttribute('data-original-html');
     if (origHTML) {
         activeEditExpandedCard.innerHTML = origHTML;
         const boxId = activeEditExpandedCard.getAttribute('data-id');
-        activeEditExpandedCard.addEventListener('click', (e) => {
-            if (activeEditExpandedCard.classList.contains('expanded-active')) return;
-            toggleEditBoxExpansion(activeEditExpandedCard, boxId);
-        }, { once: true });
+        restoreLibraryBoxDelete(activeEditExpandedCard, boxId, showDeleteBoxModal);
     }
+    syncLibraryVisualState(activeEditExpandedCard.closest('#edit-song-grid'), 'edit');
     activeEditExpandedCard = null;
 }
 
@@ -36,7 +40,7 @@ export function toggleEditBoxExpansion(card, boxId) {
     const box = state.vinylBoxes.find(b => b.id === boxId);
     if (!box) return;
 
-    card.setAttribute('data-original-html', card.innerHTML);
+    card.setAttribute('data-original-html', captureLibraryBoxMarkup(card));
     card.classList.add('expanded-active');
     activeEditExpandedCard = card;
 
@@ -133,7 +137,7 @@ export function toggleEditBoxExpansion(card, boxId) {
     });
 
     // ── Inner drag & drop engine (RAF + GPU translate3d) ──────────────────────
-    card.addEventListener('pointerdown', (e) => {
+    bindLibraryBoxPointer(card, (e) => {
         if (e.button !== 0) return;
         if (e.target.closest('.song-options-btn') ||
             e.target.closest('.btn-delete-box')   ||
@@ -151,6 +155,7 @@ export function toggleEditBoxExpansion(card, boxId) {
         e.stopPropagation();
 
         const rect     = innerCard.getBoundingClientRect();
+        const originalOrder = [...card.querySelector('.box-expansion-slider').children];
         const offsetX  = e.clientX - rect.left;
         const offsetY  = e.clientY - rect.top;
         const originX  = e.clientX - offsetX;
@@ -177,6 +182,7 @@ export function toggleEditBoxExpansion(card, boxId) {
                 `box-shadow:0 16px 40px rgba(0,229,255,0.4)`, `opacity:0.9`
             ].join(';');
             document.body.appendChild(ghost);
+            prepareLibraryDragGhost(innerCard, ghost);
         };
 
         const onMove = (mv) => {
@@ -216,15 +222,20 @@ export function toggleEditBoxExpansion(card, boxId) {
         };
 
         const onUp = async (up) => {
+            cancelEvents();
             window.removeEventListener('pointermove', onMove);
             window.removeEventListener('pointerup',   onUp);
             window.removeEventListener('pointercancel', onUp);
             if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
 
             if (!isDraggingStarted) return;
-            if (ghost) { ghost.remove(); ghost = null; }
+            if (ghost) { releaseLibraryDragGhost(ghost); ghost.remove(); ghost = null; }
             innerCard.classList.remove('inner-dragging');
             document.body.classList.remove('is-dragging-active');
+            if (up.type === 'pointercancel') {
+                const slider = card.querySelector('.box-expansion-slider');
+                originalOrder.forEach(node => slider?.appendChild(node)); return;
+            }
 
             innerCard.style.visibility = 'hidden';
             const el = document.elementFromPoint(up.clientX, up.clientY);
@@ -253,6 +264,7 @@ export function toggleEditBoxExpansion(card, boxId) {
             }
         };
 
+        const cancelEvents = armLibraryDragCancellation(onUp, { x: e.clientX, y: e.clientY });
         window.addEventListener('pointermove', onMove);
         window.addEventListener('pointerup',   onUp);
         window.addEventListener('pointercancel', onUp);
@@ -264,4 +276,5 @@ export function toggleEditBoxExpansion(card, boxId) {
         expansionContent.addEventListener('drop',     (e) => { e.stopPropagation(); });
         expansionContent.addEventListener('dragover', (e) => { e.preventDefault(); });
     }
+    syncLibraryVisualState(card.closest('#edit-song-grid'), 'edit');
 }
