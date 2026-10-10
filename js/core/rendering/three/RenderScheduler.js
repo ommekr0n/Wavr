@@ -1,7 +1,12 @@
 /** One cancellable rAF, with steady pacing and no idle redraws. */
 export class RenderScheduler {
-    constructor(render, canvas, raf = callback => requestAnimationFrame(callback), cancel = id => cancelAnimationFrame(id)) {
-        this.render = render; this.canvas = canvas; this.raf = raf; this.cancel = cancel;
+    constructor(render, {
+        raf = callback => requestAnimationFrame(callback),
+        cancel = id => cancelAnimationFrame(id),
+        onStateChange = () => {}
+    } = {}) {
+        this.render = render; this.raf = raf; this.cancel = cancel;
+        this.onStateChange = onStateChange; this.state = null;
         this.running = false; this.continuous = false; this.pending = false;
         this.frame = null; this.nextFrame = 0;
         this.tick = now => {
@@ -17,7 +22,10 @@ export class RenderScheduler {
         };
     }
 
-    status(value) { if (this.canvas.dataset.renderState !== value) this.canvas.dataset.renderState = value; }
+    status(value) {
+        if (this.state === value) return;
+        this.state = value; this.onStateChange(value);
+    }
     queue() { if (this.running && this.frame === null) { this.status('active'); this.frame = this.raf(this.tick); } }
     requestFrame() { this.pending = true; this.queue(); }
     setContinuous(value) { this.continuous = value; if (value) this.queue(); }

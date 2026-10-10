@@ -18,6 +18,8 @@ Wavr is a personal music player with a visual library, lyric display, equalizer,
 3. Press a song cover to start playing in the full player. Back to Library minimizes it; selecting another song keeps the mini player. Click its artwork to expand it again.
 4. Use **Edit Library** to group songs into Vinyl Boxes.
 
+Selecting a track inside a Vinyl Box starts that box's queue at the selected song. Repeat All keeps transport inside the box; with Repeat Off, the next transport action continues through the full library. Queue changes retain the current song by ID, and clicking a box track always starts the clicked song regardless of shuffle or repeat settings.
+
 ### Keyboard shortcuts
 
 | Key | Action |
@@ -56,7 +58,7 @@ Open `http://localhost:3000/`. Three.js is the default graphics renderer in the 
 
 The English UI, existing layout, playback engine, library, equalizer and controls are retained. WebGL gives the existing cover cards and Vinyl Boxes depth, renders the Cinematic LED stage, concert lights, lasers and smoke, and renders Angelic vinyl and giant butterflies. Cinematic fire uses procedural 3D volumes and a fixed GPU ember pool, bursting on strong bass/climax events. Lyrics, staff, florals and CRT overlays remain in DOM/SVG/CSS to preserve their appearance and readability.
 
-Library rendering is demand-driven. Main-page and editor cards share paper jackets with bevelled edges, a grooved record and contact shadows. Vinyl Boxes have a complete matte body, smoked front and up to four physical jackets. Visible rows plus overscan own the active models; 256/512-pixel artwork and its face materials share a bounded inactive cache. The same renderer draws editor drag previews and clips the expanded tray. Labels, selection, menus and organizing controls remain in DOM. See [Library Atelier](docs/library-atelier.md) for implementation and verification.
+Library rendering is demand-driven. Main-page and editor cards share paper jackets with bevelled edges, a grooved record and contact shadows. Vinyl Boxes have a complete matte body, smoked front and up to four physical jackets. Visible rows plus overscan own the active models; 256/512-pixel artwork and its face materials share a bounded inactive cache. Entering the player suspends the collection and retains those models for returning to the library. View changes reuse the canvas buffer, resize only the entering scenes when needed, and use shader groups prepared during idle time. The same renderer draws editor drag previews and clips the expanded tray. Labels, selection, menus and organizing controls remain in DOM. See [Library Atelier](docs/library-atelier.md) for implementation and verification.
 
 The normal player combines a physical Living Sleeve with a Chromatic Atelier color field: an album jacket, paper edge and partially exposed grooved record, backed by slow folds of light from the cover palette. The background paints at 30 Hz into a buffer capped near 360,000 pixels and shares the existing GPU context; playback uses the existing audio analysis. Pausing freezes the flow and record after their transitions settle. The glass controls retain all playback actions, lyric focus dims surrounding lines, and hovering the seek bar previews the corresponding lyric without seeking.
 

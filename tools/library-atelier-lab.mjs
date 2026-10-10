@@ -20,7 +20,7 @@ const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const scheduler = new RenderScheduler(now => {
     renderer.info.reset(); const dt = Math.min((now - last) / 1000, .05); last = now;
     collection.update(dt, reducedMotion); collection.render(renderer); scheduler.setContinuous(collection.animating);
-}, renderer.domElement);
+}, { onStateChange: state => { renderer.domElement.dataset.renderState = state; } });
 const collection = new ThreeLibraryScene(null, () => scheduler.requestFrame());
 function resize() { renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5, Math.sqrt(2000000 / (innerWidth * innerHeight)))); renderer.setSize(innerWidth, innerHeight); collection.resize(innerWidth, innerHeight); }
 function show(next) {

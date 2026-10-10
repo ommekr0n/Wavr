@@ -34,7 +34,7 @@ export class ThreeLibraryScene {
     }
 
     setMode(mode) {
-        if (this.mode === mode && this.bindings) return;
+        if (this.mode === mode && this.bindings) { this.bindings.resume(); return; }
         this.clear(); this.mode = mode;
         const root = document.getElementById(mode === 'edit' ? 'edit-song-grid' : 'home-song-grid');
         if (root) {
@@ -131,6 +131,12 @@ export class ThreeLibraryScene {
     remove(entry) {
         entry.record.anchor.classList.remove('library-object-ready');
         this.scene.remove(entry.model.group); entry.model.dispose(); entry.leases.forEach(lease => this.budget.release(lease));
+    }
+
+    suspend() {
+        // Keep only the current visible models for a fast return; DOM art covers the exit.
+        this.bindings?.suspend(); this.drag.clear(); this.animating = false;
+        this.entries.forEach(entry => entry.record.anchor.classList.remove('library-object-ready'));
     }
 
     clear() {

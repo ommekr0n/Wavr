@@ -56,6 +56,7 @@ export const PlayerController = {
 
     getPlaybackSource:    () => queueManager.getPlaybackSource(),
     startQueue:           (tracks, index, context) => queueManager.startQueue(tracks, index, context),
+    continueInLibrary:    () => queueManager.continueInLibrary(),
     toggleShuffle:        () => queueManager.toggleShuffle(),
     generateShuffleQueue: (excludeCurrent = false) =>
         queueManager.generateShuffleQueue(excludeCurrent),

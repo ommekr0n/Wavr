@@ -3,12 +3,20 @@ export class LibraryVisibleItems {
     constructor(root, invalidate) {
         this.visible = new Set(); this.nodes = new Set();
         this.observer = new IntersectionObserver(entries => {
+            if (this.suspended) return;
             for (const entry of entries) {
                 if (entry.isIntersecting) this.visible.add(entry.target);
                 else this.visible.delete(entry.target);
             }
             invalidate();
         }, { root, rootMargin: '220px 0px', threshold: 0 });
+    }
+
+    suspend() { this.suspended = true; this.observer.disconnect(); }
+    resume() {
+        if (!this.suspended) return;
+        this.suspended = false;
+        for (const node of this.nodes) this.observer.observe(node);
     }
 
     sync(nodes) {

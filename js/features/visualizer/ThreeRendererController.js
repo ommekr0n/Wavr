@@ -11,12 +11,14 @@ import { attachThreeContextRecovery } from './ThreeContextRecovery.js';
 import { ThreeChromaticAtelier } from '../../core/rendering/three/ThreeChromaticAtelier.js';
 import { ThreeLivingSleeve } from '../../core/rendering/three/ThreeLivingSleeve.js';
 import { RealityTearRenderEffect } from '../../core/rendering/three/RealityTearRenderEffect.js';
+import { RendererViewport } from '../../core/rendering/three/RendererViewport.js';
+import { GraphicsWarmup } from '../../core/rendering/three/GraphicsWarmup.js';
 
 /** Owns one GPU context and the lifecycle of Wavr's separate render modules. */
 export class ThreeRendererController {
     constructor() {
         this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: 'high-performance' });
-        this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+        this.viewport = new RendererViewport();
         this.renderer.setClearColor(0x000000, 0);
         this.renderer.domElement.className = 'wavr-three-canvas';
         this.renderer.domElement.setAttribute('aria-hidden', 'true');
@@ -24,7 +26,9 @@ export class ThreeRendererController {
         this.renderer.info.autoReset = false;
         this.stats = new RenderFrameStats(this.renderer.domElement);
         this.stats.inspectContext(this.renderer);
-        this.scheduler = new RenderScheduler(now => this.render(now), this.renderer.domElement);
+        this.scheduler = new RenderScheduler(now => this.render(now), {
+            onStateChange: state => { this.renderer.domElement.dataset.renderState = state; }
+        });
         this.invalidate = () => this.scheduler.requestFrame();
         this.textures = new ThreeTextureCache(() => { this.surfaces?.markDirty(); this.invalidate(); });
         this.surfaces = new ThreeLibraryScene(this.textures, this.invalidate);
@@ -54,6 +58,36 @@ export class ThreeRendererController {
         for (const id of ['home-view', 'edit-library-view', 'player-view', 'cinematic-view', 'angelic-view']) this.viewObserver.observe(document.getElementById(id), { attributes: true, attributeFilter: ['class'] });
         attachThreeContextRecovery(this, signal);
         this.resize(); this.setEnabled(true);
+        this.warmup = new GraphicsWarmup([
+            () => this.warmScene(this.atelier),
+            () => this.warmSleeve(),
+            () => this.warmScene(this.atelier, this.atelier.displayScene),
+            () => this.warmScene(this.vinyl),
+            () => this.warmScene(this.stage, this.stage.scene, THREE.ACESFilmicToneMapping)
+        ], { canRun: () => this.enabled && !document.hidden });
+    }
+
+    warmScene(module, scene = module.scene, toneMapping = THREE.NoToneMapping) {
+        const previous = this.renderer.toneMapping;
+        try {
+            this.renderer.toneMapping = toneMapping;
+            return this.renderer.compileAsync(scene, module.camera);
+        } finally { this.renderer.toneMapping = previous; }
+    }
+
+    warmSleeve() {
+        if (this.sleeve.active) return this.warmScene(this.sleeve);
+        // Prepare the textured shader variant used on entry, even before the image loads.
+        const url = this.sleeve.node.src, resource = this.textures.acquire(url);
+        const materials = [this.sleeve.face, this.sleeve.disc.labelMaterial];
+        const maps = materials.map(material => material.map);
+        try {
+            materials.forEach(material => { material.map = resource?.texture || null; });
+            return this.warmScene(this.sleeve);
+        } finally {
+            materials.forEach((material, index) => { material.map = maps[index]; });
+            this.textures.release(url);
+        }
     }
 
     setAudioFrame(frame) {
@@ -83,7 +117,7 @@ export class ThreeRendererController {
         const mode = shown('cinematic-view') ? 'cinematic' : shown('angelic-view') ? 'angelic' : shown('edit-library-view') ? 'edit' : shown('player-view') && document.getElementById('player-view').classList.contains('player-active') ? 'player' : 'library';
         if (mode === this.mode) return;
         if (this.mode === 'cinematic') this.stage.fire.reset();
-        this.surfaces.clear(); this.surfaces.mode = null;
+        if (this.mode === 'library' || this.mode === 'edit') this.surfaces.suspend();
         if (this.mode === 'angelic') this.butterflies.clear();
         if (mode !== 'player') this.tear.cancel();
         this.mode = mode;
@@ -100,9 +134,10 @@ export class ThreeRendererController {
         this.scheduler.stop();
         this.stats.resetSampling();
         if (this.enabled && !document.hidden) {
+            this.warmup?.resume();
             this.lastRender = performance.now();
             this.scheduler.resume(this.needsAnimation());
-        }
+        } else this.warmup?.pause();
     }
 
     needsAnimation() {
@@ -116,10 +151,13 @@ export class ThreeRendererController {
         this.stats.resetSampling();
         this.width = innerWidth; this.height = innerHeight;
         const cap = this.mode === 'cinematic' || this.mode === 'angelic' ? 1 : 1.5;
-        this.renderer.setPixelRatio(Math.min(devicePixelRatio, cap, Math.sqrt(2000000 / (this.width * this.height))));
-        this.renderer.setSize(this.width, this.height);
-        for (const module of [this.surfaces, this.stage, this.vinyl, this.butterflies, this.atelier, this.sleeve]) module.resize(this.width, this.height);
-        this.tear.resize(this.width, this.height);
+        const ratio = Math.min(devicePixelRatio, cap, Math.sqrt(2000000 / (this.width * this.height)));
+        const modules = this.mode === 'cinematic' ? [this.stage]
+            : this.mode === 'angelic' ? [this.vinyl, this.butterflies]
+            : this.mode === 'player' ? [this.atelier, this.sleeve, this.tear] : [this.surfaces];
+        this.viewport.sync(this.renderer, this.width, this.height, ratio, modules);
+        // A returning sleeve needs fresh DOM coordinates even when its camera is unchanged.
+        if (this.mode === 'player') this.sleeve.dirty = true;
         this.invalidate();
     }
 
@@ -161,6 +199,7 @@ export class ThreeRendererController {
     }
 
     dispose() {
+        this.warmup?.dispose();
         this.setEnabled(false); this.abort.abort(); this.viewObserver.disconnect(); this.unregister();
         for (const module of [this.surfaces, this.stage, this.vinyl, this.butterflies, this.atelier, this.sleeve, this.tear, this.textures]) module.dispose();
         this.renderer.dispose(); this.renderer.domElement.remove();

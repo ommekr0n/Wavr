@@ -15,6 +15,7 @@ import { AngelicRenderer } from './rendering/AngelicRenderer.js';
 import { PLAYBACK_STATES } from './PlaybackEngine.js';
 import { publishVisualFrame } from './rendering/VisualRenderBridge.js';
 import { VisualizerController } from '../features/visualizer/VisualizerController.js';
+import { RenderScheduler } from './rendering/three/RenderScheduler.js';
 import {
     getReactiveParticleTimer,
     updateCinematicLyricBeat,
@@ -31,10 +32,9 @@ export function createRenderLoop({
     angelicParticleContainer,
     cinematicTextContainer
 }) {
-    let animationFrameId = null;
     let angelicParticleTimer = 0;
     let angelicIdleParticleTimer = 0;
-    let lastBeatIntensity = -1;
+    const scheduler = new RenderScheduler(renderFrame);
 
     function renderFrame() {
         let intensity = 0;
@@ -53,11 +53,6 @@ export function createRenderLoop({
                 currentAnalysis = FFTAnalyzer.analyze(dataArray);
                 intensity = currentAnalysis.intensity;
                 energy = currentAnalysis.energy;
-
-                if (Math.abs(intensity - lastBeatIntensity) > 0.015) {
-                    lastBeatIntensity = intensity;
-                    document.documentElement.style.setProperty('--beat-intensity', intensity.toFixed(3));
-                }
 
                 if (isAngelic) {
                     updateLyricBreath(intensity, angelicTextContainer);
@@ -105,18 +100,25 @@ export function createRenderLoop({
 
         publishVisualFrame({ intensity, energy, analysis: currentAnalysis, data: dataArray });
 
-        animationFrameId = requestAnimationFrame(renderFrame);
     }
+
+    let started = false;
+    const syncVisibility = () => {
+        scheduler.stop();
+        if (started && !document.hidden) scheduler.resume(true);
+    };
+    document.addEventListener('visibilitychange', syncVisibility);
 
     return {
         start() {
-            if (animationFrameId !== null) return;
-            animationFrameId = requestAnimationFrame(renderFrame);
+            if (started) return;
+            started = true; syncVisibility();
         },
         stop() {
-            if (animationFrameId === null) return;
-            cancelAnimationFrame(animationFrameId);
-            animationFrameId = null;
+            started = false; scheduler.stop();
+        },
+        dispose() {
+            this.stop(); document.removeEventListener('visibilitychange', syncVisibility);
         }
     };
 }

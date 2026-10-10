@@ -66,6 +66,17 @@ export class QueueManager extends EventTarget {
         return true;
     }
 
+    /** Leave a box on the next transport action with repeat off, retaining the current song by identity. */
+    continueInLibrary() {
+        if (this.#activePlaylistContext === 'library' || this.#repeatMode !== 0) return false;
+        const currentTrack = this.#activeQueue[this.#currentTrackIndex];
+        if (!currentTrack) return false;
+        const index = this.#playlist.findIndex(track => track === currentTrack ||
+            (currentTrack.id != null && track.id === currentTrack.id));
+        if (index === -1) return false;
+        return this.startQueue(this.#playlist, index, 'library');
+    }
+
     editQueue(action) {
         const result = planQueueEdit(getQueueSnapshot(this), action);
         if (!result) return false;

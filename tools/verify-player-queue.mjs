@@ -3,9 +3,83 @@ import assert from 'node:assert/strict';
 import { QueueManager } from '../js/core/QueueManager.js';
 import { getQueueSnapshot, getUpcomingEntries } from '../js/core/PlaybackQueueEdits.js';
 import { createPlayerViewNavigation } from '../js/features/player/PlayerViewNavigation.js';
+import { playLibraryTrack } from '../js/features/library/LibraryTrackSelection.js';
 
 const tracks = ['a', 'b', 'c', 'd'].map(id => ({ id, title: id, url: `https://media.test/${id}.wav` }));
 const upcoming = queue => getUpcomingEntries(getQueueSnapshot(queue)).map(entry => entry.track.id);
+
+function boxPlaybackFixture() {
+    const library = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map(id => ({ id, title: id, url: `https://media.test/${id}.wav` }));
+    const box = { id: 'vinyl-box', songIds: ['f', 'b', 'h'] }, queue = new QueueManager(), loaded = [];
+    queue.setPlaylist(library);
+    const controller = { getPlaylist: () => queue.playlist, startQueue: (...args) => queue.startQueue(...args) };
+    const choose = (trackId, selectedBox = box) => playLibraryTrack({
+        controller, trackId, box: selectedBox,
+        openPlayer: index => loaded.push(queue.getPlaybackSource()[index])
+    });
+    return { queue, library, box, loaded, choose, current: () => queue.getPlaybackSource()[queue.currentTrackIndex] };
+}
+
+test('leaving a shuffled box with repeat off remaps the current song into the library before advancing', () => {
+    const f = boxPlaybackFixture(); f.queue.setShuffle(true); f.queue.setRepeatMode(1); f.choose('f');
+    const boxQueue = f.queue.getPlaybackSource(); f.queue.setRepeatMode(0);
+    assert.equal(f.current().id, 'f'); assert.equal(f.queue.getPlaybackSource(), boxQueue);
+    const snapshots = [];
+    f.queue.addEventListener('queuechange', event => {
+        snapshots.push(event.detail);
+        assert.equal(event.detail.source[event.detail.index].id, 'f');
+        assert.equal(event.detail.context, 'library');
+        assert.equal(new Set(f.queue.shuffledQueue).size, f.library.length);
+        assert.ok(f.queue.shuffledQueue.every(index => index >= 0 && index < f.library.length));
+    });
+    assert.equal(f.queue.continueInLibrary(), true);
+    assert.equal(f.queue.currentTrackIndex, 5); assert.equal(f.current().id, 'f');
+    assert.deepEqual(f.queue.getPlaybackSource(), f.library);
+    assert.equal(f.queue.shuffledQueue[0], 5); assert.equal(upcoming(f.queue).length, 7);
+    assert.equal(f.queue.continueInLibrary(), false); assert.ok(snapshots.length > 0);
+});
+
+test('returning to any box song after repeated library skips and shuffle/repeat changes plays the clicked ID', () => {
+    for (const shuffle of [false, true]) {
+        const f = boxPlaybackFixture(); f.queue.setShuffle(shuffle); f.queue.setRepeatMode(1); f.choose('f');
+        f.queue.setRepeatMode(0); f.queue.continueInLibrary();
+        // Simulate rapid transport selections over every library index, with intervening control changes.
+        for (let skip = 0; skip < 32; skip++) {
+            f.queue.setCurrentTrackIndex(skip % f.library.length);
+            if (skip % 3 === 0) f.queue.toggleShuffle();
+            f.queue.setRepeatMode(skip % 3);
+        }
+        for (const repeat of [0, 1, 2]) for (const trackId of f.box.songIds) {
+            f.queue.setRepeatMode(repeat); f.choose(trackId);
+            assert.equal(f.current().id, trackId); assert.equal(f.loaded.at(-1).id, trackId);
+            assert.equal(f.queue.activePlaylistContext, f.box.id);
+            assert.deepEqual(f.queue.getPlaybackSource().map(track => track.id), f.box.songIds);
+            if (f.queue.isShuffle) assert.equal(f.queue.shuffledQueue[0], f.queue.currentTrackIndex);
+            assert.equal(f.queue.continueInLibrary(), repeat === 0);
+            assert.equal(f.current().id, trackId);
+        }
+        f.choose('c', null); assert.equal(f.current().id, 'c'); assert.equal(f.queue.activePlaylistContext, 'library');
+    }
+});
+
+test('box clicks resolve current membership by ID after library and box order changes', () => {
+    const f = boxPlaybackFixture(); f.choose('f');
+    f.queue.setPlaylist([...f.library].reverse()); f.box.songIds = ['h', 'f', 'b'];
+    f.choose('b');
+    assert.equal(f.current().id, 'b'); assert.equal(f.queue.currentTrackIndex, 2);
+    f.queue.continueInLibrary();
+    assert.equal(f.current().id, 'b'); assert.equal(f.queue.currentTrackIndex, 6);
+    assert.equal(f.loaded.at(-1).id, 'b');
+});
+
+test('missing box songs and empty boxes leave the current playback untouched', () => {
+    const f = boxPlaybackFixture(); f.choose('f');
+    f.queue.setPlaylist(f.library.filter(track => track.id !== 'f'));
+    assert.equal(f.queue.continueInLibrary(), false);
+    assert.equal(f.choose('f'), false); assert.equal(f.choose('not-in-box'), false);
+    assert.equal(f.choose(undefined, { id: 'empty-box', songIds: [] }), false);
+    assert.equal(f.current().id, 'f'); assert.equal(f.loaded.length, 1);
+});
 
 test('an untouched session has no selected track; queue edits never mutate the library', () => {
     const queue = new QueueManager();
@@ -40,7 +114,7 @@ test('reorder, remove and clear preserve the current occurrence and publish one 
     assert.equal(edits, 3);
 });
 
-test('shuffle shows the transport order and stays inside the selected box across repeat changes', () => {
+test('shuffle shows the transport order; repeat changes leave the queue intact until transport advances', () => {
     const queue = new QueueManager();
     queue.setPlaylist(tracks);
     queue.setShuffle(true);

@@ -11,9 +11,17 @@ let currentWaveformUrl  = null;
 
 // Keep a reference to the audio element (set by init)
 let _audio = null;
+let visibilityObserver = null;
 
 export function initWaveform(audioEl) {
     _audio = audioEl;
+    visibilityObserver?.disconnect();
+    visibilityObserver = new MutationObserver(() => {
+        const percent = Number.isFinite(_audio.duration) && _audio.duration > 0 ? _audio.currentTime / _audio.duration * 100 : 0;
+        drawMiniWaveform(percent);
+    });
+    const miniPlayer = document.getElementById('mini-player');
+    if (miniPlayer) visibilityObserver.observe(miniPlayer, { attributes: true, attributeFilter: ['class'] });
 }
 
 export function clearWaveformCache() {
@@ -121,7 +129,7 @@ let lastAccentCheckTime = 0;
 
 export function drawMiniWaveform(percent) {
     const canvas = document.getElementById('mini-waveform-canvas');
-    if (!canvas) return;
+    if (!canvas || document.hidden || document.getElementById('mini-player')?.classList.contains('hidden')) return;
     const ctx = canvas.getContext('2d');
 
     if (!cachedCanvasWidth || canvas.width !== cachedCanvasWidth) {

@@ -40,7 +40,15 @@ export class LibrarySceneBindings {
         for (const event of ['focusin', 'focusout']) root.addEventListener(event, () => this.markDirty(), { signal: this.abort.signal });
     }
 
-    markDirty() { this.layoutDirty = true; this.invalidate(); }
+    markDirty() { this.layoutDirty = true; if (!this.suspended) this.invalidate(); }
+
+    suspend() {
+        this.suspended = true; this.visibility.suspend(); this.resizeObserver.disconnect();
+    }
+
+    resume() {
+        this.suspended = false; this.visibility.resume(); this.resizeObserver.observe(this.root); this.markDirty();
+    }
 
     sync() {
         if (this.structureDirty) {

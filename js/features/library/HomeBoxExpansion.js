@@ -7,6 +7,7 @@ import { PlayerController } from '../player/PlayerController.js';
 import { escapeHtml, safeImageUrl } from '../../modules/safe-html.js';
 import { captureLibraryBoxMarkup } from './LibraryBoxMarkup.js';
 import { syncLibraryVisualState } from './LibraryVisualState.js';
+import { playLibraryTrack } from './LibraryTrackSelection.js';
 
 let activeExpandedCard = null;
 
@@ -87,9 +88,8 @@ export function toggleBoxExpansion(card, boxId, vinylBoxes, openPlayer, syncPlay
         if (boxSongs.length > 0) {
             PlayerController.setIsShuffle(true);
             PlayerController.setRepeatMode(1);
-            PlayerController.startQueue(boxSongs, 0, box.id);
+            playLibraryTrack({ controller: PlayerController, box, openPlayer });
             if (syncPlayerControlsUI) syncPlayerControlsUI();
-            if (openPlayer) openPlayer(0);
         }
     });
 
@@ -97,9 +97,7 @@ export function toggleBoxExpansion(card, boxId, vinylBoxes, openPlayer, syncPlay
     sliderSongs.forEach(songCard => {
         songCard.addEventListener('click', (e) => {
             e.stopPropagation();
-            const idx = parseInt(songCard.getAttribute('data-idx'));
-            PlayerController.startQueue(boxSongs, idx, box.id);
-            if (openPlayer) openPlayer(idx);
+            playLibraryTrack({ controller: PlayerController, box, trackId: songCard.getAttribute('data-id'), openPlayer });
         });
     });
     syncLibraryVisualState(card.closest('#home-song-grid'), 'library');

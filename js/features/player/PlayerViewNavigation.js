@@ -1,7 +1,7 @@
 /** Session-local player presentation, shared by track selection and the mini player. */
 export function createPlayerViewNavigation({
     homeView, playerView, miniPlayer, hasTrack, prepareLyrics = () => {},
-    setPlayerOpen = () => {}, schedule = setTimeout, cancel = clearTimeout
+    refreshProgress = () => {}, setPlayerOpen = () => {}, schedule = setTimeout, cancel = clearTimeout
 }) {
     let mode = 'unopened', transition = null;
     const clearTransition = () => { if (transition !== null) cancel(transition); transition = null; };
@@ -14,6 +14,7 @@ export function createPlayerViewNavigation({
         playerView.classList.remove('hidden');
         void playerView.offsetHeight;
         prepareLyrics();
+        refreshProgress();
         playerView.classList.add('player-active');
         setPlayerOpen(true);
         transition = schedule(() => {
@@ -24,7 +25,10 @@ export function createPlayerViewNavigation({
 
     function selectTrack() {
         if (mode === 'unopened') expand();
-        else if (mode === 'mini') miniPlayer.classList.remove('hidden');
+        else if (mode === 'mini') {
+            miniPlayer.classList.remove('hidden');
+            refreshProgress();
+        }
     }
 
     function minimize() {
@@ -37,6 +41,7 @@ export function createPlayerViewNavigation({
             transition = null;
             playerView.classList.add('hidden');
             miniPlayer.classList.toggle('hidden', !hasTrack());
+            if (hasTrack()) refreshProgress();
         }, 280);
     }
 

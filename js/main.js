@@ -43,6 +43,7 @@ import { setupMediaSession, updateMediaSessionMetadata } from './features/player
 import { MiniPlayerController } from './features/player/MiniPlayerController.js';
 import { createPlayerViewNavigation } from './features/player/PlayerViewNavigation.js';
 import { resumePlayerLyrics } from './features/player/PlayerLyricViewResume.js';
+import { createPlayerProgressView } from './features/player/PlayerProgressView.js';
 import { setupQueuePanel } from './features/player/QueuePanelController.js';
 import { setupRecordingController } from './features/player/RecordingModalController.js';
 import { initPlaybackCoordinator } from './features/player/PlaybackCoordinator.js';
@@ -62,6 +63,7 @@ import {
     setCachedLibraryOrder
 } from './features/library/HomeGridRenderer.js';
 import { setupBoxExpansionListeners } from './features/library/HomeBoxExpansion.js';
+import { playLibraryTrack } from './features/library/LibraryTrackSelection.js';
 import { setupUploadHandler } from './features/library/UploadHandler.js';
 import { triggerCinematicLine, clearCinematicLine } from './features/visualizer/CinematicTextRenderer.js';
 import {
@@ -146,6 +148,13 @@ let lastVolume          = 0.8;
 let isMuted             = false;
 let toastTimeout        = null;
 let lastFormattedSec    = -1;
+const syncProgressView = createPlayerProgressView({
+    playerView, progressSlider, progressBarFill,
+    miniPlayer: document.getElementById('mini-player'),
+    miniSlider: document.getElementById('mini-progress-slider'),
+    isFullDragging: () => isDraggingSlider,
+    isMiniDragging: () => MiniPlayerController.isDragging(), drawMiniWaveform
+});
 const renderLoop = createRenderLoop({
     engine: playbackEngine,
     updateProgress,
@@ -157,10 +166,13 @@ const renderLoop = createRenderLoop({
 const playerNavigation = createPlayerViewNavigation({
     homeView, playerView, miniPlayer: document.getElementById('mini-player'),
     hasTrack: () => Boolean(getPlaybackSource()[PlayerController.getCurrentTrackIndex()] && playbackEngine.currentTrack),
-    prepareLyrics: () => resumePlayerLyrics({ engine: playbackEngine, LyricEngine, lyricsContainer, updateProgress }),
+    prepareLyrics: () => resumePlayerLyrics({ engine: playbackEngine, LyricEngine, lyricsContainer }),
+    refreshProgress: updateProgress,
     setPlayerOpen: open => window._idleSetPlayerOpen?.(open)
 });
-window.addEventListener('pagehide', () => playerNavigation.dispose());
+window.addEventListener('pagehide', event => {
+    if (!event.persisted) { playerNavigation.dispose(); renderLoop.dispose(); }
+});
 
 // ── 6. UI Helper Functions ───────────────────────────────────────────────────
 function showToast(message) {
@@ -343,14 +355,16 @@ function togglePlay() {
 }
 
 function prevTrack() {
-    const source = getPlaybackSource();
-    if (source.length === 0) return;
+    if (getPlaybackSource().length === 0) return;
     if (playbackEngine.currentTime > 3) {
         playbackEngine.seek(0);
         if (PlayerController.getIsPlaying()) playAudio(); else updateProgress();
         return;
     }
     if (PlayerController.getRepeatMode() === 2) { playbackEngine.seek(0); playAudio(); return; }
+
+    PlayerController.continueInLibrary();
+    const source = getPlaybackSource();
 
     let currentTrackIndex = PlayerController.getCurrentTrackIndex();
     if (PlayerController.getIsShuffle()) {
@@ -370,10 +384,12 @@ function prevTrack() {
 }
 
 function nextTrack(isAutoNext = false) {
-    const source = getPlaybackSource();
-    if (source.length === 0) return;
+    if (getPlaybackSource().length === 0) return;
     const repeatMode = PlayerController.getRepeatMode();
     if (repeatMode === 2) { playbackEngine.seek(0); playAudio(); return; }
+
+    PlayerController.continueInLibrary();
+    const source = getPlaybackSource();
 
     let currentTrackIndex = PlayerController.getCurrentTrackIndex();
     if (PlayerController.getIsShuffle()) {
@@ -408,16 +424,7 @@ function updateProgress() {
     const currentTime = audio.currentTime;
     const percent     = (currentTime / duration) * 100;
 
-    if (!isDraggingSlider) {
-        progressSlider.value         = percent;
-        progressBarFill.style.width  = `${percent}%`;
-    }
-
-    const miniSlider = document.getElementById('mini-progress-slider');
-    if (miniSlider && !MiniPlayerController.isDragging()) {
-        miniSlider.value = percent;
-        drawMiniWaveform(percent);
-    }
+    syncProgressView(percent);
 
     const floorTime = Math.floor(currentTime);
     if (floorTime !== lastFormattedSec) {
@@ -490,13 +497,8 @@ function setupEventListeners() {
         }
         if (card) {
             if (card.classList.contains('vinyl-box-card')) return;
-            const songId   = card.getAttribute('data-id');
-            const playlist = PlayerController.getPlaylist();
-            const pIdx = playlist.findIndex(s => s.id === songId);
-            if (pIdx !== -1) {
-                PlayerController.startQueue(playlist, pIdx, 'library');
-                openPlayer(pIdx);
-            }
+            if (card.classList.contains('box-slider-song-card')) return;
+            playLibraryTrack({ controller: PlayerController, trackId: card.getAttribute('data-id'), openPlayer });
         }
     });
 
