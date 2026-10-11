@@ -106,18 +106,18 @@ test('crate previews preserve data SVGs and URLs containing parentheses', () => 
     assert.equal(readLibraryBackgroundUrl('none'), null);
 });
 
-test('re-rendering a card with the same ID keeps its model and lease; offscreen retirement releases both', () => {
+test('stable cards retain models, display-density changes replace the artwork tier and retirement releases all leases', () => {
     const oldDocument = globalThis.document;
     globalThis.document = { body: { classList: { contains: () => false } }, activeElement: null };
-    let acquired = 0, released = 0;
+    let acquired = 0, released = 0; const tiers = [];
     const resources = new LibraryModelResources();
     const collection = Object.create(ThreeLibraryScene.prototype);
     Object.assign(collection, { scene: new THREE.Scene(), resources, entries: new Map(), pointer: { x: -1000, y: -1000 },
         width: 800, height: 600, visualState: { sync() {} }, drag: { update() {} },
-        budget: { acquire() { acquired++; return { texture: new THREE.Texture(), ready: true }; }, release(lease) { released++; lease.texture.dispose(); } } });
+        budget: { acquire(_url, size) { acquired++; tiers.push(size); return { texture: new THREE.Texture(), ready: true }; }, release(lease) { released++; lease.texture.dispose(); } } });
     const flags = () => ({ contains: () => false, toggle() {}, remove() {} });
     const record = () => ({ key: 'song:grid:a', urls: ['a'], color: '#444444', card: { classList: flags(), contains: () => false },
-        anchor: { classList: flags() }, rect: { left: 0, top: 0, right: 100, bottom: 100, width: 100, height: 100 }, clip: { left: 0, top: 0, right: 800, bottom: 600 } });
+        anchor: { classList: flags() }, rect: { left: 0, top: 0, right: 300, bottom: 300, width: 300, height: 300 }, clip: { left: 0, top: 0, right: 800, bottom: 600 } });
     const first = record();
     const bind = item => { collection.bindings = { sync() {}, visibility: { visible: new Set([item.anchor]) }, byKey: new Map([[item.key, item]]), byAnchor: new Map([[item.anchor, item]]) }; };
     try {
@@ -125,8 +125,12 @@ test('re-rendering a card with the same ID keeps its model and lease; offscreen 
         const model = collection.entries.get(first.key).model;
         const next = record(); bind(next); collection.update(1 / 60, false);
         assert.equal(collection.entries.get(next.key).model, model); assert.equal(acquired, 1); assert.equal(released, 0);
+        collection.pixelRatio = 2; collection.update(1 / 60, false);
+        assert.notEqual(collection.entries.get(next.key).model, model);
+        assert.deepEqual(tiers, [512, 1024]); assert.equal(released, 1);
+        collection.update(1 / 60, false); assert.equal(acquired, 2);
         collection.bindings.visibility.visible.clear(); collection.update(1 / 60, false);
-        assert.equal(collection.entries.size, 0); assert.equal(released, 1);
+        assert.equal(collection.entries.size, 0); assert.equal(released, 2);
     } finally { resources.dispose(); globalThis.document = oldDocument; }
 });
 

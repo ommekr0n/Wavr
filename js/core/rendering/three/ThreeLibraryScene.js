@@ -44,8 +44,8 @@ export class ThreeLibraryScene {
         this.invalidate();
     }
 
-    resize(width, height) {
-        this.width = width; this.height = height;
+    resize(width, height, pixelRatio = 1) {
+        this.width = width; this.height = height; this.pixelRatio = pixelRatio;
         this.camera.left = -width / 2; this.camera.right = width / 2; this.camera.top = height / 2; this.camera.bottom = -height / 2;
         this.camera.updateProjectionMatrix(); this.markDirty();
     }
@@ -63,7 +63,7 @@ export class ThreeLibraryScene {
     }
 
     create(record) {
-        const size = libraryArtworkTier(record.rect.width, record.crate);
+        const size = libraryArtworkTier(record.rect.width * (this.pixelRatio || 1), record.crate);
         const leases = record.urls.map(url => this.budget.acquire(url, size));
         const model = record.crate ? new LibraryCrateModel(this.resources, leases, record.color) : new LibrarySleeveModel(this.resources, leases[0]);
         model.group.traverse(object => object.layers.set(record.tray ? 2 : 1));
@@ -87,7 +87,7 @@ export class ThreeLibraryScene {
             const record = this.bindings.byAnchor.get(anchor);
             if (!record?.rect?.width) continue;
             const card = record.card;
-            const signature = `${libraryArtworkTier(record.rect.width, record.crate)}:${record.color}:${record.urls.join('|')}`;
+            const signature = `${libraryArtworkTier(record.rect.width * (this.pixelRatio || 1), record.crate)}:${record.color}:${record.urls.join('|')}`;
             let entry = this.entries.get(record.key);
             if (entry && entry.signature !== signature) { this.remove(entry); this.entries.delete(record.key); entry = null; }
             if (!entry) { entry = this.create(record); this.entries.set(record.key, entry); }

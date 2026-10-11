@@ -13,6 +13,8 @@ import { ThreeLivingSleeve } from '../../core/rendering/three/ThreeLivingSleeve.
 import { RealityTearRenderEffect } from '../../core/rendering/three/RealityTearRenderEffect.js';
 import { RendererViewport } from '../../core/rendering/three/RendererViewport.js';
 import { GraphicsWarmup } from '../../core/rendering/three/GraphicsWarmup.js';
+import { PlayerIntroPreparation } from '../../core/rendering/three/PlayerIntroPreparation.js';
+import { renderPixelRatio } from '../../core/rendering/three/RenderResolution.js';
 
 /** Owns one GPU context and the lifecycle of Wavr's separate render modules. */
 export class ThreeRendererController {
@@ -46,6 +48,7 @@ export class ThreeRendererController {
         this.unregister = registerVisualRenderer(this);
         this.abort = new AbortController(); const signal = this.abort.signal;
         this.tear = new RealityTearRenderEffect(this, signal);
+        this.introPreparation = new PlayerIntroPreparation(this);
         window.addEventListener('resize', () => this.resize(), { signal });
         document.addEventListener('scroll', () => this.surfaces.markDirty(), { capture: true, passive: true, signal });
         document.addEventListener('pointermove', event => { this.surfaces.pointer.x = event.clientX; this.surfaces.pointer.y = event.clientY; if (this.mode === 'player' || (['library', 'edit'].includes(this.mode) && this.surfaces.pointerChanged())) this.invalidate(); }, { passive: true, signal });
@@ -59,13 +62,13 @@ export class ThreeRendererController {
         attachThreeContextRecovery(this, signal);
         this.resize(); this.setEnabled(true);
         this.warmup = new GraphicsWarmup([
-            () => this.warmScene(this.atelier),
-            () => this.warmSleeve(),
-            () => this.warmScene(this.atelier, this.atelier.displayScene),
+            () => this.prepareArtistIntro(),
             () => this.warmScene(this.vinyl),
             () => this.warmScene(this.stage, this.stage.scene, THREE.ACESFilmicToneMapping)
-        ], { canRun: () => this.enabled && !document.hidden });
+        ], { canRun: () => this.enabled && !document.hidden && !this.tear.active });
     }
+
+    prepareArtistIntro() { return this.introPreparation.prepare(innerWidth, innerHeight); }
 
     warmScene(module, scene = module.scene, toneMapping = THREE.NoToneMapping) {
         const previous = this.renderer.toneMapping;
@@ -76,7 +79,7 @@ export class ThreeRendererController {
     }
 
     warmSleeve() {
-        if (this.sleeve.active) return this.warmScene(this.sleeve);
+        if (this.sleeve.active && this.sleeve.face.map) return this.warmScene(this.sleeve);
         // Prepare the textured shader variant used on entry, even before the image loads.
         const url = this.sleeve.node.src, resource = this.textures.acquire(url);
         const materials = [this.sleeve.face, this.sleeve.disc.labelMaterial];
@@ -100,6 +103,7 @@ export class ThreeRendererController {
         document.getElementById('player-view').classList.toggle('atelier-ready', enabled);
         this.renderer.domElement.hidden = !enabled;
         if (!enabled) {
+            this.introPreparation.reset();
             this.tear.cancel();
             this.stage.fire.reset();
             this.butterflies.active = false;
@@ -134,7 +138,7 @@ export class ThreeRendererController {
         this.scheduler.stop();
         this.stats.resetSampling();
         if (this.enabled && !document.hidden) {
-            this.warmup?.resume();
+            if (this.tear.active) this.warmup?.pause(); else this.warmup?.resume();
             this.lastRender = performance.now();
             this.scheduler.resume(this.needsAnimation());
         } else this.warmup?.pause();
@@ -150,8 +154,7 @@ export class ThreeRendererController {
     resize() {
         this.stats.resetSampling();
         this.width = innerWidth; this.height = innerHeight;
-        const cap = this.mode === 'cinematic' || this.mode === 'angelic' ? 1 : 1.5;
-        const ratio = Math.min(devicePixelRatio, cap, Math.sqrt(2000000 / (this.width * this.height)));
+        const ratio = renderPixelRatio(this.width, this.height, devicePixelRatio);
         const modules = this.mode === 'cinematic' ? [this.stage]
             : this.mode === 'angelic' ? [this.vinyl, this.butterflies]
             : this.mode === 'player' ? [this.atelier, this.sleeve, this.tear] : [this.surfaces];

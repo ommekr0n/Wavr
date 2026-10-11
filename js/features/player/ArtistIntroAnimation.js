@@ -18,7 +18,7 @@ export class ArtistIntroAnimation {
         window.addEventListener('resize', () => this.cancel(false), { signal: this.abort.signal });
     }
     preload(profile) {
-        this.stage.setLogo(profile.logo);
+        return this.stage.setLogo(profile.logo);
     }
     play(profile, reducedMotion) {
         this.cancel(false); const version = ++this.version;

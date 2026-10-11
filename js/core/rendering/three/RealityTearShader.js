@@ -21,6 +21,11 @@ vec4 sceneAt(vec2 p) { return texture2D(uScene, vec2(p.x / uResolution.x, 1.0 - 
 ${tearAnalogShader}
 void main() {
     vec2 p = vec2(vUv.x, 1.0 - vUv.y) * uResolution;
+    if (uOpening < .0001) {
+        gl_FragColor = sceneAt(p);
+        #include <colorspace_fragment>
+        return;
+    }
     float side = distanceToCut(p) < 0.0 ? -1.0 : 1.0;
     vec2 normal = mix(vec2(1.0, 0.0), vec2(0.0, 1.0), uHorizontal);
     vec2 along = normal.yx;
@@ -46,7 +51,6 @@ void main() {
     float veil = tearAnalogVeil(q, d) * smoothstep(.08, .65, uOpening);
     depth = mix(depth, surface.rgb * .55, veil);
     gl_FragColor = mix(vec4(depth, 1.0), surface, seam);
-    if (uOpening < .0001) gl_FragColor = sceneAt(p);
     #include <colorspace_fragment>
 }
 `;

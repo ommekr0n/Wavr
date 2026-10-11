@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { loadImageForColorExtraction } from '../../../modules/color-extractor.js';
 
 export function libraryArtworkTier(pixels, preview = false) {
-    return preview ? 256 : pixels > 200 ? 512 : 256;
+    return preview ? 256 : pixels > 512 ? 1024 : pixels > 200 ? 512 : 256;
 }
 
 /** Resized texture leases with a bounded inactive LRU; player textures stay separate. */
@@ -14,6 +14,7 @@ export class LibraryArtworkBudget {
         this.resize = resize || ((image, size) => {
             const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size;
             const context = canvas.getContext('2d');
+            context.imageSmoothingEnabled = true; context.imageSmoothingQuality = 'high';
             const w = image.naturalWidth || image.width, h = image.naturalHeight || image.height;
             const side = Math.min(w, h);
             context.drawImage(image, (w - side) / 2, (h - side) / 2, side, side, 0, 0, size, size);
@@ -27,6 +28,7 @@ export class LibraryArtworkBudget {
         let entry = this.entries.get(key);
         if (!entry) {
             const texture = new THREE.Texture(); texture.colorSpace = THREE.SRGBColorSpace;
+            texture.anisotropy = 4;
             const material = new THREE.MeshBasicMaterial({ map: texture, color: 0xffffff, toneMapped: false });
             entry = { key, texture, material, ready: false, failed: false, refs: 0, used: 0, bytes: size * size * 4 * 4 / 3 };
             this.entries.set(key, entry); this.bytes += entry.bytes;

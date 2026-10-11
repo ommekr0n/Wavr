@@ -16,7 +16,12 @@ export class RealityTearStage {
         this.mark.style.setProperty('width', `${Math.min(field.horizontal ? 150 : 180, field.gap * 1.8)}px`);
     }
     setLogo(url) {
-        if (this.logo.getAttribute('src') !== url) { this.logo.src = url; this.logo.decode?.().catch(() => {}); }
-        this.presence.setLogo(url);
+        if (this.logo.getAttribute('src') !== url) {
+            this.logo.src = url;
+            this.logoReady = this.logo.decode?.().catch(() => {});
+        }
+        const presenceReady = this.presence.setLogo(url);
+        const decoding = [this.logoReady, presenceReady].filter(Boolean);
+        return decoding.length ? Promise.all(decoding) : undefined;
     }
 }

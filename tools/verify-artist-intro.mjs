@@ -22,7 +22,7 @@ test('title mentions, partial names and unconfirmed album guests do not trigger 
     ]) assert.equal(getArtistIntroProfile(track), null);
 });
 
-function fixture(t) {
+function fixture(t, options = {}) {
     const keys = ['document', 'window', 'matchMedia', 'MutationObserver', 'setTimeout', 'clearTimeout', 'Image', 'innerWidth', 'innerHeight', 'getComputedStyle', 'performance'];
     const saved = Object.fromEntries(keys.map(key => [key, globalThis[key]]));
     globalThis.performance = { now: () => 1000 };
@@ -69,13 +69,66 @@ function fixture(t) {
     const engine = Object.assign(new EventTarget(), { currentTime: 17, playing: true });
     const emit = (target, type, detail, properties = {}) => { const event = new Event(type, { cancelable: true }); Object.assign(event, { detail }, properties); target.dispatchEvent(event); return event; };
     const events = []; document.addEventListener('wavr:artistintro', event => events.push(event.detail));
-    const dispose = setupArtistIntro({ engine }); const overlay = document.body.children[0];
+    const dispose = setupArtistIntro({ engine, ...options }); const overlay = document.body.children[0];
     const open = () => { view.classList.remove('hidden'); view.classList.add('player-active'); observer.callback(); };
     const load = artist => emit(engine, 'trackchange', { track: { artist } });
     const finish = () => [...timers.values()][0]?.callback();
     t.after(() => { dispose(); Object.assign(globalThis, saved); });
     return { view, left, right, cinematic, angelic, previousFocus, engine, media, overlay, events, timers, animations, observer, open, load, finish, emit, dispose };
 }
+
+const settlePreparation = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
+
+test('first intro waits for GPU and all logo decodes before starting its full timeline', async t => {
+    let finishGraphics; const finishLogos = []; let clock = 1000;
+    const f = fixture(t, { prepareGraphics: () => new Promise(resolve => { finishGraphics = resolve; }) });
+    globalThis.performance = { now: () => clock };
+    const mark = f.overlay.children[1].children[0];
+    for (const image of [mark.children[0], ...mark.children.slice(2).map(node => node.children[0])]) {
+        image.decode = () => new Promise(resolve => finishLogos.push(resolve));
+    }
+    f.load('Bloodring'); f.open();
+    assert.equal(f.overlay.hidden, true); assert.equal(f.events.length, 0); assert.equal(f.timers.size, 0);
+    finishGraphics(true); await settlePreparation();
+    assert.equal(f.overlay.hidden, true); assert.equal(finishLogos.length, 3);
+    clock = 1800; finishLogos.forEach(resolve => resolve()); await settlePreparation();
+    assert.equal(f.overlay.hidden, false); assert.equal(f.events.at(-1).start, 1800);
+    assert.equal(f.events.at(-1).duration, REALITY_TEAR_DURATION);
+    assert.ok(f.animations.every(animation => animation.startTime === 1800));
+    assert.equal(f.engine.currentTime, 17); assert.equal(f.engine.playing, true);
+});
+
+test('a superseded cold preparation cannot start an intro for an old track', async t => {
+    const pending = [];
+    const f = fixture(t, { prepareGraphics: () => new Promise(resolve => pending.push(resolve)) });
+    f.open(); f.load('Bloodring'); f.load('Other Artist'); pending[0](true); await settlePreparation();
+    assert.equal(f.events.length, 0); assert.equal(f.overlay.hidden, true);
+    f.load('Rev'); f.load('XOLITXO'); pending[1](true); await settlePreparation();
+    assert.equal(f.overlay.hidden, true);
+    pending[2](true); await settlePreparation(); assert.equal(f.overlay.hidden, false);
+    assert.equal(f.events.filter(event => event.active).length, 1);
+});
+
+test('hiding, leaving, resizing and disposing cancel pending preparation without a late intro', async t => {
+    const pending = [];
+    const f = fixture(t, { prepareGraphics: () => new Promise(resolve => pending.push(resolve)) });
+    f.open(); f.load('Bloodring'); document.hidden = true; f.emit(document, 'visibilitychange');
+    document.hidden = false; pending[0](true); await settlePreparation(); assert.equal(f.overlay.hidden, true);
+    f.load('Rev'); f.view.classList.remove('player-active'); f.observer.callback();
+    f.open(); pending[1](true); await settlePreparation(); assert.equal(f.overlay.hidden, true);
+    f.load('XOLITXO'); f.emit(window, 'resize'); pending[2](true); await settlePreparation();
+    assert.equal(f.overlay.hidden, true);
+    f.load('Rev'); f.dispose(); pending[3](true); await settlePreparation();
+    assert.equal(f.events.length, 0); assert.equal(f.timers.size, 0);
+});
+
+test('failed graphics preparation leaves playback controls usable and reduced motion does not prepare', async t => {
+    let calls = 0;
+    const f = fixture(t, { prepareGraphics: () => { calls++; return Promise.reject(new Error('GPU unavailable')); } });
+    f.open(); f.load('Bloodring'); await settlePreparation();
+    assert.equal(f.overlay.hidden, true); assert.equal(f.view.inert, false); assert.equal(f.engine.playing, true);
+    f.media.matches = true; f.load('Rev'); assert.equal(calls, 1); assert.equal(f.timers.size, 0);
+});
 
 test('mini player waits for opening, runs once and never blocks playback controls or audio', t => {
     const f = fixture(t); f.load('Bloodring'); assert.equal(f.overlay.hidden, true);

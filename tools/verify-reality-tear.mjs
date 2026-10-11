@@ -5,22 +5,22 @@ import { ThreeChromaticAtelier } from '../js/core/rendering/three/ThreeChromatic
 import { sampleTearOpening, REALITY_TEAR_DURATION } from '../js/features/player/RealityTearTiming.js';
 import { tearCurve, tearDistance, tearPose } from '../js/features/player/RealityTearGeometry.js';
 import { pinSleeveForTear, readSleeveLayout } from '../js/core/rendering/three/RealityTearSleeveAnchor.js';
+import { FULL_HD_PIXELS } from '../js/core/rendering/three/RenderResolution.js';
 
 const field = { cx: 600, cy: 400, width: 1200, height: 800, horizontal: false, amplitude: 1, gap: 82, angle: .9 };
 function fixture(t) {
-    const saved = { document: globalThis.document, setTimeout: globalThis.setTimeout, clearTimeout: globalThis.clearTimeout };
-    globalThis.document = new EventTarget(); let warm, allocations = 0, compiled = 0;
-    globalThis.setTimeout = callback => { warm = callback; return 1; }; globalThis.clearTimeout = () => {};
+    const saved = { document: globalThis.document };
+    globalThis.document = new EventTarget();
     const renderer = { target: null, autoClear: false, draws: [], getPixelRatio: () => 1.5,
         getRenderTarget() { return this.target; }, setRenderTarget(target) { this.target = target; },
         render(scene) { this.draws.push({ scene, target: this.target, autoClear: this.autoClear }); },
-        initRenderTarget() { allocations++; }, compileAsync() { compiled++; return Promise.resolve(); } };
+        initRenderTarget() {}, compileAsync() { return Promise.resolve(); } };
     const owner = { renderer, mode: 'player', enabled: true, reducedMotion: false, loops: 0, syncMode() {}, syncLoop() { this.loops++; } };
     const abort = new AbortController(), effect = new RealityTearRenderEffect(owner, abort.signal);
     effect.resize(1200, 800);
     const intro = (active, extras = {}) => document.dispatchEvent(new CustomEvent('wavr:artistintro', { detail: { active, field, start: 1000, duration: 680, ...extras } }));
     t.after(() => { abort.abort(); effect.dispose(); Object.assign(globalThis, saved); });
-    return { renderer, owner, effect, intro, warm: () => warm(), counts: () => ({ allocations, compiled }) };
+    return { renderer, owner, effect, intro };
 }
 
 test('a cut captures the live scene, composes once, and restores nested renderer targets', t => {
@@ -49,13 +49,14 @@ test('absolute timing catches up after missed frames and ends without a lingerin
     f.owner.reducedMotion = false; f.owner.mode = 'angelic'; f.intro(true); assert.equal(f.effect.active, false);
 });
 
-test('buffers stay bounded at 4K, warm once, and all GPU resources are disposed', t => {
-    const f = fixture(t); f.effect.resize(3840, 2160);
-    assert.ok(f.effect.target.width * f.effect.target.height <= 1200000);
-    f.warm(); assert.deepEqual(f.counts(), { allocations: 1, compiled: 1 });
+test('intro preserves Full HD player detail, stays bounded at 4K and disposes all GPU resources', t => {
+    const f = fixture(t); f.effect.resize(1920, 1080);
+    assert.deepEqual([f.effect.target.width, f.effect.target.height], [1920, 1080]);
+    f.effect.resize(3840, 2160);
+    assert.ok(f.effect.target.width * f.effect.target.height <= FULL_HD_PIXELS);
     let disposed = 0;
     for (const resource of [f.effect.geometry, f.effect.material, f.effect.target]) resource.addEventListener('dispose', () => disposed++);
-    f.effect.dispose(); assert.equal(disposed, 3); f.warm(); assert.equal(f.counts().compiled, 1);
+    f.effect.dispose(); assert.equal(disposed, 3); f.effect.dispose(); assert.equal(disposed, 3);
 });
 
 test('organic cut coordinates and sheet transforms work in both orientations and close exactly', () => {

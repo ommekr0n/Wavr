@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { tearVertex, tearFragment } from './RealityTearShader.js';
 import { sampleTearOpening } from '../../../features/player/RealityTearTiming.js';
 import { pinSleeveForTear } from './RealityTearSleeveAnchor.js';
+import { FULL_HD_PIXELS } from './RenderResolution.js';
 
 /** Distorts the live Atelier + sleeve render using the existing context and scheduler. */
 export class RealityTearRenderEffect {
@@ -18,14 +19,6 @@ export class RealityTearRenderEffect {
         this.scene.add(new THREE.Mesh(this.geometry, this.material));
         this.listener = event => this.setIntro(event.detail);
         document.addEventListener('wavr:artistintro', this.listener, { signal });
-        const warm = () => {
-            if (this.disposed) return;
-            owner.renderer.initRenderTarget(this.target);
-            Promise.resolve(owner.renderer.compileAsync(this.scene, this.camera)).catch(() => {});
-        };
-        if (globalThis.requestIdleCallback) {
-            this.idle = requestIdleCallback(warm, { timeout: 1200 }); this.cancelWarm = () => cancelIdleCallback(this.idle);
-        } else { this.idle = setTimeout(warm, 100); this.cancelWarm = () => clearTimeout(this.idle); }
     }
     setIntro(detail) {
         if (this.disposed) return;
@@ -46,7 +39,7 @@ export class RealityTearRenderEffect {
         this.owner.syncLoop();
     }
     resize(width, height) {
-        const scale = Math.min(this.owner.renderer.getPixelRatio(), Math.sqrt(1200000 / (width * height)));
+        const scale = Math.min(this.owner.renderer.getPixelRatio(), Math.sqrt(FULL_HD_PIXELS / (width * height)));
         this.target.setSize(Math.max(1, Math.floor(width * scale)), Math.max(1, Math.floor(height * scale)));
         this.uniforms.uResolution.value.set(width, height);
     }
@@ -69,7 +62,7 @@ export class RealityTearRenderEffect {
     cancel() { this.active = false; pinSleeveForTear(this.owner.sleeve, null); }
     dispose() {
         if (this.disposed) return;
-        this.disposed = true; this.cancelWarm(); this.cancel();
+        this.disposed = true; this.cancel();
         document.removeEventListener('wavr:artistintro', this.listener);
         this.geometry.dispose(); this.material.dispose(); this.target.dispose();
     }

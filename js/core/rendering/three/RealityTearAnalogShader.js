@@ -19,6 +19,8 @@ vec4 analogPixels(vec2 source, float size) {
         mix(analogTap((cell + vec2(.5, 1.5)) * size), analogTap((cell + 1.5) * size), f.x), f.y);
 }
 vec4 tearAnalogSurface(vec4 surface, vec2 source, float edgeDistance, vec2 normal, vec2 along) {
+    // Beyond the largest possible band the original blend weight is exactly zero.
+    if (uOpening <= .06 || abs(edgeDistance) >= mix(115.0, 82.8, uHorizontal)) return surface;
     float size = mix(16.0, 12.0, uHorizontal);
     float flow = analogNoise(vec2(dot(source, along) / 70.0, uPixelTime * .24));
     float width = mix(100.0, 72.0, uHorizontal) * (.8 + flow * .35);
@@ -40,6 +42,8 @@ vec4 tearAnalogSurface(vec4 surface, vec2 source, float edgeDistance, vec2 norma
     return mix(surface, pixel, weight * .94);
 }
 float tearAnalogVeil(vec2 source, float edgeDistance) {
+    // The veil is zero on the intact sheet and deeper than 44px inside the gap.
+    if (uOpening <= .08 || edgeDistance >= 1.0 || edgeDistance <= -44.0) return 0.0;
     vec2 along = mix(vec2(0.0, 1.0), vec2(1.0, 0.0), uHorizontal);
     vec2 flow = vec2(dot(source, along) / 21.0 + uPixelTime * .16, edgeDistance / 18.0);
     float coarse = analogNoise(flow);

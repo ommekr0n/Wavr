@@ -187,7 +187,7 @@ export async function startScreenRecording(modeId, options = {}) {
     try {
         mediaRecorder = new MediaRecorder(stream, {
             mimeType: mimeType,
-            videoBitsPerSecond: 6000000 // 6 Mbps optimal for smooth 1080p60
+            videoBitsPerSecond: 12000000 // Preserve more artwork and lyric detail in 1080p60 capture.
         });
     } catch (e) {
         console.warn('MediaRecorder init fallback without bitrates:', e);

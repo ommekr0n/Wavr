@@ -3,11 +3,11 @@ import { loadImageForColorExtraction } from '../../../modules/color-extractor.js
 
 /** Reference-counted album texture ownership across views. */
 export class ThreeTextureCache {
-    constructor(onLoad, { load = loadImageForColorExtraction, maxDimension = 1024, resize = resizeTextureImage } = {}) {
+    constructor(onLoad, { load = loadImageForColorExtraction, maxDimension = 2048, anisotropy = 4, resize = resizeTextureImage } = {}) {
         this.entries = new Map();
         this.onLoad = onLoad;
         this.disposed = false;
-        this.load = load; this.maxDimension = maxDimension; this.resize = resize;
+        this.load = load; this.maxDimension = maxDimension; this.anisotropy = anisotropy; this.resize = resize;
     }
 
     acquire(url) {
@@ -27,6 +27,7 @@ export class ThreeTextureCache {
                 this.onLoad?.();
             });
             entry.texture.colorSpace = THREE.SRGBColorSpace;
+            entry.texture.anisotropy = this.anisotropy;
         }
         entry.refs++;
         return entry;
@@ -55,6 +56,8 @@ export function resizeTextureImage(image, maxDimension) {
     if (scale === 1) return image;
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.round(width * scale)); canvas.height = Math.max(1, Math.round(height * scale));
-    canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+    const context = canvas.getContext('2d');
+    context.imageSmoothingEnabled = true; context.imageSmoothingQuality = 'high';
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
     return canvas;
 }

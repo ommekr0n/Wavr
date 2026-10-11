@@ -8,10 +8,14 @@ export class RendererViewport {
             renderer.setDrawingBufferSize(width, height, ratio);
             this.width = width; this.height = height; this.ratio = ratio;
         }
+        this.resizeModules(width, height, ratio, modules);
+    }
+
+    resizeModules(width, height, ratio, modules) {
         for (const module of modules) {
             const previous = this.scenes.get(module);
             if (previous?.width === width && previous?.height === height && previous?.ratio === ratio) continue;
-            module.resize(width, height);
+            module.resize(width, height, ratio);
             this.scenes.set(module, { width, height, ratio });
         }
     }

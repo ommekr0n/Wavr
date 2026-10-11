@@ -10,10 +10,14 @@ export class RealityTearLogoPresence {
         mark.append(this.halo, ...this.echoes.map(echo => echo.element));
     }
     setLogo(url) {
+        const decoding = [];
         for (const { image } of this.echoes) {
             if (image.getAttribute('src') === url) continue;
-            image.src = url; image.decode?.().catch(() => {});
+            image.src = url;
+            if (image.decode) decoding.push(image.decode().catch(() => {}));
         }
+        if (decoding.length) this.ready = Promise.all(decoding);
+        return this.ready;
     }
     animate(duration) {
         const pose = (x, y, scale, angle = 0) => `translate(${x}px, ${y}px) rotate(${angle}deg) scale(${scale})`;

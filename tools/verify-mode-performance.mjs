@@ -122,11 +122,11 @@ test('large player artwork keeps its aspect ratio and small sprite atlases remai
     let canvas, draws = 0;
     globalThis.document = { createElement() { return canvas = { getContext: () => ({ drawImage() { draws++; } }) }; } };
     const image = { naturalWidth: 6000, naturalHeight: 4000 };
-    const resized = resizeTextureImage(image, 1024);
-    assert.equal(resized, canvas); assert.equal(resized.width, 1024); assert.equal(resized.height, 683);
+    const resized = resizeTextureImage(image, 2048);
+    assert.equal(resized, canvas); assert.equal(resized.width, 2048); assert.equal(resized.height, 1365);
     assert.equal(draws, 1);
     const atlas = { width: 576, height: 192 };
-    assert.equal(resizeTextureImage(atlas, 1024), atlas); assert.equal(draws, 1);
+    assert.equal(resizeTextureImage(atlas, 2048), atlas); assert.equal(draws, 1);
 });
 
 test('bounded player texture uploads retain ownership and ignore a released pending load', async () => {
@@ -137,7 +137,8 @@ test('bounded player texture uploads retain ownership and ignore a released pend
     });
     const a = cache.acquire('a'); assert.equal(cache.acquire('a'), a); assert.equal(a.refs, 2);
     pending.get('a')({}); await Promise.resolve();
-    assert.equal(a.texture.image.width, 1024); assert.equal(resized, 1); assert.equal(a.ready, true);
+    assert.equal(a.texture.image.width, 2048); assert.equal(a.texture.anisotropy, 4);
+    assert.equal(resized, 1); assert.equal(a.ready, true);
     cache.release('a'); assert.equal(a.refs, 1); cache.release('a'); assert.equal(cache.entries.size, 0);
     const stale = cache.acquire('stale'); cache.release('stale'); pending.get('stale')({});
     await Promise.resolve(); assert.equal(stale.ready, false); assert.equal(resized, 1); assert.equal(invalidated, 1);

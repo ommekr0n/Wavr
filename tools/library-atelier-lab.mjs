@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ThreeLibraryScene } from '../js/core/rendering/three/ThreeLibraryScene.js';
 import { RenderScheduler } from '../js/core/rendering/three/RenderScheduler.js';
+import { renderPixelRatio } from '../js/core/rendering/three/RenderResolution.js';
 import { PlayerController } from '../js/features/player/PlayerController.js';
 import { renderSongGrid, setCachedVinylBoxes, setCachedLibraryOrder } from '../js/features/library/HomeGridRenderer.js';
 import { setupBoxExpansionListeners } from '../js/features/library/HomeBoxExpansion.js';
@@ -22,7 +23,11 @@ const scheduler = new RenderScheduler(now => {
     collection.update(dt, reducedMotion); collection.render(renderer); scheduler.setContinuous(collection.animating);
 }, { onStateChange: state => { renderer.domElement.dataset.renderState = state; } });
 const collection = new ThreeLibraryScene(null, () => scheduler.requestFrame());
-function resize() { renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5, Math.sqrt(2000000 / (innerWidth * innerHeight)))); renderer.setSize(innerWidth, innerHeight); collection.resize(innerWidth, innerHeight); }
+function resize() {
+    const ratio = renderPixelRatio(innerWidth, innerHeight, devicePixelRatio);
+    renderer.setDrawingBufferSize(innerWidth, innerHeight, ratio);
+    collection.resize(innerWidth, innerHeight, ratio);
+}
 function show(next) {
     mode = next;
     document.getElementById('home-view').classList.toggle('hidden', mode !== 'library');

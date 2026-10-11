@@ -9,3 +9,5 @@ export function registerVisualRenderer(renderer) {
 export function publishVisualFrame(frame) {
     adapter?.setAudioFrame(frame);
 }
+
+export function prepareArtistIntro() { return adapter?.prepareArtistIntro?.(); }
