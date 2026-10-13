@@ -30,11 +30,12 @@
     position: absolute; margin: 0; white-space: nowrap; pointer-events: none;
     font: normal 400 clamp(140px, 25vw, 520px)/1.1 var(--nostalgia-hand);
     color: #c9e2fc; opacity: .16; filter: blur(4px); transform-origin: center;
-    will-change: transform;
+    will-change: transform; user-select: none;
 }
-#nostalgia-ghost-title { top: -9%; left: 0; transform: translateX(var(--nostalgia-title-x, 100vw)) scaleY(1.16); }
-#nostalgia-ghost-artist { bottom: 6%; left: 0; transform: translateX(var(--nostalgia-artist-x, 100vw)) scaleY(1.08); }
+#nostalgia-ghost-title { top: -9%; left: 0; }
+#nostalgia-ghost-artist { bottom: 6%; left: 0; }
 #nostalgia-view[data-cue='title'] .nostalgia-ghost { opacity: 0; }
+.nostalgia-ghost-seg { display: inline-block; padding-right: 0.25em; }
 #nostalgia-subtitle-raster, #nostalgia-outgoing-raster {
     position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%;
     pointer-events: none; image-rendering: auto; opacity: var(--nostalgia-cue-opacity, 1);
@@ -65,13 +66,17 @@
 }
 .nostalgia-top { top: max(24px, env(safe-area-inset-top)); left: 24px; right: 24px; }
 #nostalgia-filename { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000a; }
-.nostalgia-mode-label { margin-left: auto; opacity: .55; letter-spacing: .1em; }
+.nostalgia-mode-label {
+    margin-left: auto; opacity: .55; letter-spacing: .1em;
+    cursor: pointer; user-select: none; transition: opacity .2s;
+}
+.nostalgia-mode-label:hover { opacity: .95; text-decoration: underline; }
 .nostalgia-controls {
     bottom: max(24px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
     width: min(580px, calc(100% - 48px)); padding: 8px 12px; background: #071c3559;
 }
-#nostalgia-view.controls-awake .nostalgia-top, #nostalgia-view.controls-awake .nostalgia-controls,
-.nostalgia-top:focus-within, .nostalgia-controls:focus-within { opacity: 1; pointer-events: auto; }
+#nostalgia-view.controls-awake .nostalgia-top,
+#nostalgia-view.controls-awake .nostalgia-controls { opacity: 1; pointer-events: auto; }
 #nostalgia-view .icon-btn { flex-shrink: 0; width: 38px; height: 38px; color: #fff; border-radius: 0; }
 #nostalgia-view .icon-btn:hover { background: #ffffff24; }
 #nostalgia-view button:focus-visible, #nostalgia-progress:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }

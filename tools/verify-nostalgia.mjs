@@ -7,6 +7,7 @@ import { wrapNostalgiaText, createNostalgiaRaster } from '../js/features/visuali
 import { setupNostalgiaMode } from '../js/features/visualizer/NostalgiaController.js';
 import { VisualizerController } from '../js/features/visualizer/VisualizerController.js';
 import { LyricEngine } from '../js/features/lyrics/LyricEngine.js';
+import { createNostalgiaBackground } from '../js/features/visualizer/NostalgiaBackground.js';
 
 // A small DOM fixture keeps controller tests independent of a browser and network.
 class Element extends EventTarget {
@@ -235,3 +236,42 @@ test('small subtitle raster does not repaint between cues, clears gaps, and igno
     view.classList.add('hidden'); raster.paint(true);
     assert.equal(clears, initial + 1);
 });
+
+test('NostalgiaBackground supports seamless counter-tape, rebound bounce, and DVD screensaver modes', t => {
+    const doc = { createElement: tag => new Element(tag) };
+    const titleEl = new Element('div');
+    const artistEl = new Element('div');
+    titleEl.ownerDocument = doc;
+    artistEl.ownerDocument = doc;
+    const modeLabelEl = new Element('span');
+    modeLabelEl.ownerDocument = doc;
+    const bg = createNostalgiaBackground(null, { titleEl, artistEl, modeLabelEl });
+    t.after(() => bg.dispose());
+
+    bg.setTrack('Memories', 'Retro Artist');
+    assert.equal(titleEl.children.length, 6);
+    assert.equal(artistEl.children.length, 6);
+    assert.ok(titleEl.children[0].textContent.includes('Memories'));
+    assert.equal(bg.getMode(), 'tape');
+
+    bg.sync(10, false);
+    assert.ok(titleEl.style.transform.includes('scaleY(1.16)'));
+    assert.ok(artistEl.style.transform.includes('scaleY(1.08)'));
+
+    bg.cycleMode();
+    assert.equal(bg.getMode(), 'bounce');
+    assert.equal(modeLabelEl.textContent, 'NOSTALGIA • BOUNCE');
+    bg.sync(10, false);
+    assert.ok(titleEl.style.transform.includes('scaleY(1.16)'));
+
+    bg.cycleMode();
+    assert.equal(bg.getMode(), 'dvd');
+    assert.equal(modeLabelEl.textContent, 'NOSTALGIA • DVD');
+    bg.sync(10, false);
+    assert.ok(titleEl.style.transform.includes('scaleY(1.16)'));
+
+    bg.cycleMode();
+    assert.equal(bg.getMode(), 'tape');
+    assert.equal(modeLabelEl.textContent, 'NOSTALGIA • TAPE');
+});
+

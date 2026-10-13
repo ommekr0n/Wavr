@@ -4,6 +4,7 @@ import { LyricTimeline } from '../lyrics/LyricTimeline.js';
 import { EnhancedWordHighlighter } from '../lyrics/EnhancedWordHighlighter.js';
 import { resolveNostalgiaFrame, buildNostalgiaSlides } from './NostalgiaCue.js';
 import { createNostalgiaRaster } from './NostalgiaRaster.js';
+import { createNostalgiaBackground } from './NostalgiaBackground.js';
 
 /** Small subtitle raster with DOM controls; shares the existing audio clock. */
 export function setupNostalgiaMode({ audio, playerView, togglePlay, prevTrack, nextTrack, seek }) {
@@ -23,6 +24,12 @@ export function setupNostalgiaMode({ audio, playerView, togglePlay, prevTrack, n
     const highlighter = new EnhancedWordHighlighter();
     const raster = createNostalgiaRaster(view, root, document.getElementById('nostalgia-subtitle-raster'));
     const outgoingRaster = createNostalgiaRaster(view, outgoingRoot, document.getElementById('nostalgia-outgoing-raster'));
+    const background = createNostalgiaBackground(view, {
+        titleEl: document.getElementById('nostalgia-ghost-title'),
+        artistEl: document.getElementById('nostalgia-ghost-artist'),
+        modeLabelEl: view.querySelector('.nostalgia-mode-label'),
+        screenEl: view.querySelector('.nostalgia-screen'),
+    });
     const abort = new AbortController(), { signal } = abort;
     let lyrics = null, drift = null, cueKey = null, idleTimer = null, slides = [], lastTravel = -Infinity;
     let lastSecond = -1, lastProgress = -Infinity, trackTitle = '', trackArtist = '', paused = null, lastOpacity = null;
@@ -35,15 +42,19 @@ export function setupNostalgiaMode({ audio, playerView, togglePlay, prevTrack, n
     function wakeControls() {
         view.classList.add('controls-awake');
         clearTimeout(idleTimer);
-        idleTimer = setTimeout(() => view.classList.remove('controls-awake'), 2500);
+        idleTimer = setTimeout(() => {
+            view.classList.remove('controls-awake');
+            if (view.contains(document.activeElement) && document.activeElement !== view) {
+                document.activeElement.blur();
+            }
+        }, 2500);
     }
 
     function refreshMetadata() {
         trackTitle = title.textContent.trim().normalize('NFC') || 'Untitled';
         trackArtist = artist.textContent.trim().normalize('NFC');
         document.getElementById('nostalgia-filename').textContent = `${trackTitle}.mp4`;
-        document.getElementById('nostalgia-ghost-title').textContent = trackTitle;
-        document.getElementById('nostalgia-ghost-artist').textContent = trackArtist;
+        background.setTrack(trackTitle, trackArtist);
         refreshCoverAvailability();
         cueKey = null; outgoingKey = null;
         ghost.textContent = '';
@@ -121,11 +132,9 @@ export function setupNostalgiaMode({ audio, playerView, togglePlay, prevTrack, n
             lastOutgoingOpacity = outgoing.opacity;
         }
         if (cue.kind === 'lyric') highlighter.sync(root, cue.index, time, drift, 'normal');
-        // Deterministic pans follow playback, so pauses and backwards seeks match the frame.
+        // Background typography follows playback and maintains motion across pauses.
         if (Math.abs(time - lastTravel) >= 1 / 30 || audio.paused) {
-            const travel = Math.max(0, time - (timeline.lines[0]?.start ?? 0));
-            view.style.setProperty('--nostalgia-title-x', `${100 - (travel % 48) / 48 * 200}vw`);
-            view.style.setProperty('--nostalgia-artist-x', `${100 - (Math.max(0, travel - 19) % 48) / 48 * 200}vw`);
+            background.sync(time, audio.paused);
             lastTravel = time;
         }
         if (paused !== audio.paused) {
@@ -175,9 +184,10 @@ export function setupNostalgiaMode({ audio, playerView, togglePlay, prevTrack, n
     document.getElementById('nostalgia-prev').addEventListener('click', prevTrack, { signal });
     document.getElementById('nostalgia-next').addEventListener('click', () => nextTrack(), { signal });
     progress.addEventListener('input', () => {
+        wakeControls();
         if (Number.isFinite(audio.duration) && audio.duration > 0) seek(Number(progress.value) / 1000 * audio.duration);
     }, { signal });
-    for (const event of ['pointermove', 'pointerdown', 'keydown']) view.addEventListener(event, wakeControls, { passive: true, signal });
+    for (const event of ['pointermove', 'pointerdown', 'keydown', 'focusin']) view.addEventListener(event, wakeControls, { passive: true, signal });
     for (const event of ['play', 'pause', 'ended', 'loadedmetadata', 'durationchange', 'seeking', 'timeupdate']) {
         audio.addEventListener(event, () => { lastSecond = -1; sync(); }, { signal });
     }
@@ -189,5 +199,5 @@ export function setupNostalgiaMode({ audio, playerView, togglePlay, prevTrack, n
     for (const element of [title, artist]) metadataObserver.observe(element, { childList: true, characterData: true, subtree: true });
     metadataObserver.observe(cover, { attributes: true, attributeFilter: ['src'] });
 
-    return { sync, dispose() { leave(); raster.dispose(); outgoingRaster.dispose(); abort.abort(); metadataObserver.disconnect(); clearTimeout(idleTimer); highlighter.reset(); } };
+    return { sync, dispose() { leave(); raster.dispose(); outgoingRaster.dispose(); background.dispose(); abort.abort(); metadataObserver.disconnect(); clearTimeout(idleTimer); highlighter.reset(); } };
 }
