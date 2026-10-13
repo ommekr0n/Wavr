@@ -49,6 +49,10 @@ export function initGlobalKeyHandlers({
                 return;
             }
 
+            if (VisualizerController.getIsNostalgiaMode()) {
+                document.getElementById('btn-exit-nostalgia')?.click();
+                return;
+            }
             if (VisualizerController.getIsCinematicMode()) {
                 const btnExitCine = document.getElementById('btn-exit-cinematic');
                 if (btnExitCine) btnExitCine.click();

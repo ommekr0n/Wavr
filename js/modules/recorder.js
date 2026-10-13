@@ -9,6 +9,9 @@ export const recordingModeRegistry = {
         id: 'normal',
         label: 'Normal Player',
         setup: () => {
+            if (!document.getElementById('nostalgia-view')?.classList.contains('hidden')) {
+                document.getElementById('btn-exit-nostalgia')?.click();
+            }
             const btnExitCine = document.getElementById('btn-exit-cinematic');
             const btnExitAngel = document.getElementById('btn-exit-angelic');
             const homeView = document.getElementById('home-view');
@@ -48,6 +51,16 @@ export const recordingModeRegistry = {
             const btnExitCine = document.getElementById('btn-exit-cinematic');
             if (btnExitCine) btnExitCine.click();
         }
+    },
+    nostalgia: {
+        id: 'nostalgia',
+        label: 'Nostalgia Mode',
+        setup: () => {
+            document.getElementById('home-view')?.classList.add('hidden');
+            document.getElementById('player-view')?.classList.add('player-active');
+            document.getElementById('btn-nostalgia')?.click();
+        },
+        teardown: () => document.getElementById('btn-exit-nostalgia')?.click()
     },
     angelic: {
         id: 'angelic',
@@ -104,8 +117,11 @@ export async function startScreenRecording(modeId, options = {}) {
     const playerView = document.getElementById('player-view');
     const cinematicView = document.getElementById('cinematic-view');
     const angelicView = document.getElementById('angelic-view');
+    const nostalgiaView = document.getElementById('nostalgia-view');
 
-    if (cinematicView && !cinematicView.classList.contains('hidden')) {
+    if (nostalgiaView && !nostalgiaView.classList.contains('hidden')) {
+        initialViewState = 'nostalgia';
+    } else if (cinematicView && !cinematicView.classList.contains('hidden')) {
         initialViewState = 'cinematic';
     } else if (angelicView && !angelicView.classList.contains('hidden')) {
         initialViewState = 'angelic';
@@ -291,11 +307,14 @@ async function finishRecording(options = {}) {
     const cinematicView = document.getElementById('cinematic-view');
     const angelicView = document.getElementById('angelic-view');
 
-    [homeView, editView, playerView, cinematicView, angelicView].forEach(v => {
+    const nostalgiaView = document.getElementById('nostalgia-view');
+    [homeView, editView, playerView, cinematicView, angelicView, nostalgiaView].forEach(v => {
         if (v) v.classList.add('hidden');
     });
 
-    if (initialViewState === 'cinematic') {
+    if (initialViewState === 'nostalgia') {
+        document.getElementById('btn-nostalgia')?.click();
+    } else if (initialViewState === 'cinematic') {
         const btnCine = document.getElementById('btn-cinematic');
         if (btnCine) btnCine.click();
     } else if (initialViewState === 'angelic') {

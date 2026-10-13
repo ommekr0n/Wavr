@@ -1,0 +1,103 @@
+/* Reference: flat colour, small-video Comic Sans subtitles, oversized drifting credits. */
+@font-face {
+    font-family: 'Nostalgia Hand';
+    src: url('../assets/fonts/shantell-sans/ShantellSans-BoldItalic.woff2') format('woff2');
+    font-style: italic; font-weight: 700; font-display: swap;
+}
+@font-face {
+    font-family: 'Nostalgia Hand';
+    src: url('../assets/fonts/shantell-sans/ShantellSans-Regular.woff2') format('woff2');
+    font-style: normal; font-weight: 400; font-display: swap;
+}
+@font-face {
+    font-family: 'Nostalgia Japanese';
+    src: url('../assets/fonts/yomogi/Yomogi-Regular.woff2') format('woff2');
+    font-style: normal; font-weight: 400; font-display: swap;
+    unicode-range: U+3000-30FF, U+31F0-31FF, U+3400-9FFF, U+F900-FAFF, U+FF00-FFEF, U+20000-2FA1F;
+}
+
+#nostalgia-view {
+    z-index: 1000; overflow: hidden; color: #fff; isolation: isolate; outline: none;
+    --nostalgia-hand: 'Comic Sans MS', 'Nostalgia Hand', 'Nostalgia Japanese', 'Yu Gothic', sans-serif;
+    --nostalgia-wash: var(--blob-1-color, #0766a4);
+    background: var(--nostalgia-wash);
+}
+#nostalgia-view.hidden { visibility: hidden; }
+#nostalgia-view[data-has-artwork='false'] { --nostalgia-wash: #0766a4; }
+.nostalgia-screen { position: absolute; inset: 0; overflow: hidden; background: inherit; }
+#nostalgia-ghost-lyric { display: none; }
+.nostalgia-ghost {
+    position: absolute; margin: 0; white-space: nowrap; pointer-events: none;
+    font: normal 400 clamp(140px, 25vw, 520px)/1.1 var(--nostalgia-hand);
+    color: #c9e2fc; opacity: .16; filter: blur(4px); transform-origin: center;
+    will-change: transform;
+}
+#nostalgia-ghost-title { top: -9%; left: 0; transform: translateX(var(--nostalgia-title-x, 100vw)) scaleY(1.16); }
+#nostalgia-ghost-artist { bottom: 6%; left: 0; transform: translateX(var(--nostalgia-artist-x, 100vw)) scaleY(1.08); }
+#nostalgia-view[data-cue='title'] .nostalgia-ghost { opacity: 0; }
+#nostalgia-subtitle-raster, #nostalgia-outgoing-raster {
+    position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%;
+    pointer-events: none; image-rendering: auto; opacity: var(--nostalgia-cue-opacity, 1);
+}
+.nostalgia-text-container {
+    position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 1.9em; padding: 7%;
+    pointer-events: none; text-align: center; opacity: var(--nostalgia-cue-opacity, 1);
+}
+#nostalgia-outgoing-raster, #nostalgia-outgoing-text { opacity: var(--nostalgia-outgoing-opacity, 0); }
+.nostalgia-line {
+    max-width: 100%; font: italic 700 clamp(24px, 4.17vw, 70px)/1.9 var(--nostalgia-hand);
+    white-space: pre-line; overflow-wrap: anywhere;
+    text-shadow: 4px 6px 4px #071c35c9, -2px 0 2px #75d9f080;
+    filter: blur(.6px);
+}
+.nostalgia-backing { font-size: .72em; }
+/* Keep the semantic lyric surface available while the actual video frame is rasterized. */
+#nostalgia-view.nostalgia-raster-ready .nostalgia-text-container {
+    inset: auto; width: 1px; height: 1px; padding: 0; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+}
+
+.nostalgia-top, .nostalgia-controls {
+    position: absolute; z-index: 6; display: flex; align-items: center; gap: 16px;
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+    font: 12px/1.4 Arial, 'Yu Gothic', sans-serif; color: #fff;
+}
+.nostalgia-top { top: max(24px, env(safe-area-inset-top)); left: 24px; right: 24px; }
+#nostalgia-filename { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000a; }
+.nostalgia-mode-label { margin-left: auto; opacity: .55; letter-spacing: .1em; }
+.nostalgia-controls {
+    bottom: max(24px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
+    width: min(580px, calc(100% - 48px)); padding: 8px 12px; background: #071c3559;
+}
+#nostalgia-view.controls-awake .nostalgia-top, #nostalgia-view.controls-awake .nostalgia-controls,
+.nostalgia-top:focus-within, .nostalgia-controls:focus-within { opacity: 1; pointer-events: auto; }
+#nostalgia-view .icon-btn { flex-shrink: 0; width: 38px; height: 38px; color: #fff; border-radius: 0; }
+#nostalgia-view .icon-btn:hover { background: #ffffff24; }
+#nostalgia-view button:focus-visible, #nostalgia-progress:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
+#nostalgia-play[data-paused='true'] .nostalgia-pause-icon, #nostalgia-play[data-paused='false'] .nostalgia-play-icon { display: none; }
+#nostalgia-progress { width: 100%; min-width: 32px; accent-color: #fff; cursor: pointer; }
+#nostalgia-time { flex-shrink: 0; font-variant-numeric: tabular-nums; }
+body.is-recording #nostalgia-view .nostalgia-top, body.is-recording #nostalgia-view .nostalgia-controls { display: none; }
+#nostalgia-view.hidden .nostalgia-ghost { will-change: auto; }
+@media (max-width: 600px) {
+    .nostalgia-ghost { font-size: 45vw; filter: blur(2px); }
+    #nostalgia-ghost-title { top: 12%; }
+    #nostalgia-ghost-artist { bottom: 20%; }
+    .nostalgia-top { left: 16px; right: 16px; gap: 10px; }
+    .nostalgia-mode-label { display: none; }
+    .nostalgia-controls { width: calc(100% - 32px); gap: 6px; padding: 6px; flex-wrap: wrap; justify-content: center; }
+    #nostalgia-progress { width: calc(100% - 110px); order: 4; }
+    #nostalgia-time { order: 5; font-size: 11px; }
+}
+@media (max-height: 450px) and (orientation: landscape) {
+    .nostalgia-top { top: 10px; }
+    .nostalgia-controls { bottom: 10px; padding: 3px 12px; }
+}
+@media (max-width: 360px) and (orientation: portrait) {
+    #player-top-utilities.header-utilities-bar .icon-btn { width: 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    #nostalgia-view .nostalgia-ghost { display: none; }
+    #nostalgia-view *, #nostalgia-view *::after { animation: none !important; transition: none !important; }
+}

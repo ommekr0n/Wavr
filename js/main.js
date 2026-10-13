@@ -31,6 +31,7 @@ import './floral-templates.js';
 import { PlayerController, setPlaybackEngine } from './features/player/PlayerController.js';
 import { LyricEngine } from './features/lyrics/LyricEngine.js';
 import { VisualizerController } from './features/visualizer/VisualizerController.js';
+import { setupNostalgiaMode } from './features/visualizer/NostalgiaController.js';
 import { observeGraphicsAvailability } from './features/visualizer/GraphicsAvailability.js';
 import { notifyVisualPalette } from './features/player/VisualPaletteEvent.js';
 import { setupArtistIntro } from './features/player/ArtistIntroController.js';
@@ -155,6 +156,10 @@ const syncProgressView = createPlayerProgressView({
     isFullDragging: () => isDraggingSlider,
     isMiniDragging: () => MiniPlayerController.isDragging(), drawMiniWaveform
 });
+const nostalgiaMode = setupNostalgiaMode({
+    audio, playerView, togglePlay, prevTrack, nextTrack,
+    seek: time => { prepareLyricNearTime(time); playbackEngine.seek(time); updateProgress(); }
+});
 const renderLoop = createRenderLoop({
     engine: playbackEngine,
     updateProgress,
@@ -171,7 +176,7 @@ const playerNavigation = createPlayerViewNavigation({
     setPlayerOpen: open => window._idleSetPlayerOpen?.(open)
 });
 window.addEventListener('pagehide', event => {
-    if (!event.persisted) { playerNavigation.dispose(); renderLoop.dispose(); }
+    if (!event.persisted) { playerNavigation.dispose(); renderLoop.dispose(); nostalgiaMode.dispose(); }
 });
 
 // ── 6. UI Helper Functions ───────────────────────────────────────────────────
@@ -419,6 +424,7 @@ function nextTrack(isAutoNext = false) {
 }
 
 function updateProgress() {
+    nostalgiaMode.sync();
     if (isNaN(audio.duration)) return;
     const duration    = audio.duration;
     const currentTime = audio.currentTime;

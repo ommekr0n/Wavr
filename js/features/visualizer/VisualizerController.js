@@ -11,6 +11,7 @@ import { cancelAngelicLineTransitions } from '../angelic/AngelicLineLifecycle.js
 // ── Mode State ───────────────────────────────────────────────────────────────
 let isCinematicMode = false;
 let isAngelicMode   = false;
+let isNostalgiaMode = false;
 let mouseTimeout    = null;
 
 export const VisualizerController = {
@@ -18,6 +19,22 @@ export const VisualizerController = {
     // ── Getters ─────────────────────────────────────────────────────────────
     getIsCinematicMode() { return isCinematicMode; },
     getIsAngelicMode()   { return isAngelicMode; },
+    getIsNostalgiaMode() { return isNostalgiaMode; },
+
+    enterNostalgiaMode(playerView, nostalgiaView) {
+        isNostalgiaMode = true;
+        isCinematicMode = false;
+        isAngelicMode = false;
+        playerView.classList.add('hidden');
+        nostalgiaView.classList.remove('hidden');
+    },
+
+    exitNostalgiaMode(nostalgiaView, playerView) {
+        isNostalgiaMode = false;
+        nostalgiaView.classList.add('hidden');
+        playerView.classList.remove('hidden');
+        LyricEngine.setActiveLyricIndex(-1);
+    },
 
     // ── Setters (used by orchestrator for ESC handler compatibility) ─────────
     setIsCinematicMode(val) { isCinematicMode = val; },
@@ -139,7 +156,7 @@ export const VisualizerController = {
             globalIdleTimeout = setTimeout(() => {
                 const playerView = document.getElementById('player-view');
                 const isPlayerActive = playerView && playerView.classList.contains('player-active') && !playerView.classList.contains('hidden');
-                if (isCinematicMode || isAngelicMode || isPlayerActive) {
+                if (isCinematicMode || isAngelicMode || isNostalgiaMode || isPlayerActive) {
                     document.body.classList.add('user-idle');
                     document.body.classList.remove('mouse-active');
                 }

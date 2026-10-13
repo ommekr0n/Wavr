@@ -6,6 +6,7 @@ import { prepareArtistIntro } from '../../core/rendering/VisualRenderBridge.js';
 export function setupArtistIntro({ engine, prepareGraphics = prepareArtistIntro }) {
     const abort = new AbortController(), signal = abort.signal;
     const view = document.getElementById('player-view'), cinematic = document.getElementById('cinematic-view'), angelic = document.getElementById('angelic-view');
+    const nostalgia = document.getElementById('nostalgia-view');
     const intro = new ArtistIntroAnimation(view), motion = matchMedia('(prefers-reduced-motion: reduce)');
     intro.preload(BVTGVNG_INTRO);
     let pending = null, preparing = null, version = 0;
@@ -16,7 +17,7 @@ export function setupArtistIntro({ engine, prepareGraphics = prepareArtistIntro 
         intro.cancel(restoreFocus);
     };
     const sync = () => {
-        if (shown(cinematic) || shown(angelic)) { cancel(); return; }
+        if (shown(cinematic) || shown(angelic) || (nostalgia && shown(nostalgia))) { cancel(); return; }
         if (!shown(view) || !view.classList.contains('player-active') || document.hidden) {
             cancel(preparing !== null || !intro.root.hidden); return;
         }
@@ -33,7 +34,7 @@ export function setupArtistIntro({ engine, prepareGraphics = prepareArtistIntro 
             if (version !== ticket) return;
             preparing = null;
             if (results.some(result => result.status === 'rejected' || result.value === false)) return;
-            if (!document.hidden && shown(view) && view.classList.contains('player-active') && !shown(cinematic) && !shown(angelic)) {
+            if (!document.hidden && shown(view) && view.classList.contains('player-active') && !shown(cinematic) && !shown(angelic) && (!nostalgia || !shown(nostalgia))) {
                 intro.play(profile, motion.matches);
             }
         });
@@ -49,7 +50,7 @@ export function setupArtistIntro({ engine, prepareGraphics = prepareArtistIntro 
     motion.addEventListener('change', () => cancel(true, true), { signal });
     window.addEventListener('resize', () => cancel(), { signal });
     const observer = new MutationObserver(sync);
-    for (const element of [view, cinematic, angelic]) observer.observe(element, { attributes: true, attributeFilter: ['class'] });
+    for (const element of [view, cinematic, angelic, nostalgia].filter(Boolean)) observer.observe(element, { attributes: true, attributeFilter: ['class'] });
     const dispose = () => { cancel(); abort.abort(); observer.disconnect(); intro.dispose(); };
     window.addEventListener('pagehide', event => { if (event.persisted) cancel(); else dispose(); }, { signal });
     return dispose;

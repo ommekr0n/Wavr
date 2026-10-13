@@ -58,14 +58,14 @@ export class ThreeRendererController {
         document.addEventListener('visibilitychange', () => this.syncLoop(), { signal });
         document.addEventListener('wavr:palettechange', () => { this.nextPaletteRead = 0; this.invalidate(); }, { signal });
         this.viewObserver = new MutationObserver(() => this.syncMode());
-        for (const id of ['home-view', 'edit-library-view', 'player-view', 'cinematic-view', 'angelic-view']) this.viewObserver.observe(document.getElementById(id), { attributes: true, attributeFilter: ['class'] });
+        for (const id of ['home-view', 'edit-library-view', 'player-view', 'cinematic-view', 'angelic-view', 'nostalgia-view']) this.viewObserver.observe(document.getElementById(id), { attributes: true, attributeFilter: ['class'] });
         attachThreeContextRecovery(this, signal);
         this.resize(); this.setEnabled(true);
         this.warmup = new GraphicsWarmup([
             () => this.prepareArtistIntro(),
             () => this.warmScene(this.vinyl),
             () => this.warmScene(this.stage, this.stage.scene, THREE.ACESFilmicToneMapping)
-        ], { canRun: () => this.enabled && !document.hidden && !this.tear.active });
+        ], { canRun: () => this.enabled && !document.hidden && !this.tear.active && this.mode !== 'nostalgia' });
     }
 
     prepareArtistIntro() { return this.introPreparation.prepare(innerWidth, innerHeight); }
@@ -118,7 +118,7 @@ export class ThreeRendererController {
     syncMode() {
         if (!this.enabled) return;
         const shown = id => !document.getElementById(id).classList.contains('hidden');
-        const mode = shown('cinematic-view') ? 'cinematic' : shown('angelic-view') ? 'angelic' : shown('edit-library-view') ? 'edit' : shown('player-view') && document.getElementById('player-view').classList.contains('player-active') ? 'player' : 'library';
+        const mode = shown('nostalgia-view') ? 'nostalgia' : shown('cinematic-view') ? 'cinematic' : shown('angelic-view') ? 'angelic' : shown('edit-library-view') ? 'edit' : shown('player-view') && document.getElementById('player-view').classList.contains('player-active') ? 'player' : 'library';
         if (mode === this.mode) return;
         if (this.mode === 'cinematic') this.stage.fire.reset();
         if (this.mode === 'library' || this.mode === 'edit') this.surfaces.suspend();
@@ -127,6 +127,11 @@ export class ThreeRendererController {
         this.mode = mode;
         this.sleeve.setActive(mode === 'player');
         this.butterflies.active = mode === 'angelic';
+        if (mode === 'nostalgia') {
+            this.renderer.domElement.hidden = true;
+            this.syncLoop();
+            return;
+        }
         const parent = mode === 'cinematic' ? document.querySelector('.crt-screen-container') : document.getElementById(mode === 'angelic' ? 'angelic-view' : mode === 'player' ? 'player-view' : mode === 'edit' ? 'edit-library-view' : 'home-view');
         parent.appendChild(this.renderer.domElement);
         this.renderer.domElement.hidden = false;
@@ -137,7 +142,7 @@ export class ThreeRendererController {
     syncLoop() {
         this.scheduler.stop();
         this.stats.resetSampling();
-        if (this.enabled && !document.hidden) {
+        if (this.enabled && !document.hidden && this.mode !== 'nostalgia') {
             if (this.tear.active) this.warmup?.pause(); else this.warmup?.resume();
             this.lastRender = performance.now();
             this.scheduler.resume(this.needsAnimation());
@@ -145,6 +150,7 @@ export class ThreeRendererController {
     }
 
     needsAnimation() {
+        if (this.mode === 'nostalgia') return false;
         if (this.mode === 'cinematic') return !this.audio.paused;
         if (this.mode === 'angelic') return (!this.audio.paused && !this.reducedMotion) || this.butterflies.records.length > 0;
         if (this.mode === 'player') return this.tear.active || (!this.audio.paused && !this.reducedMotion) || this.sleeve.animating || this.atelier.settling || this.atelier.dirty;
@@ -153,6 +159,7 @@ export class ThreeRendererController {
 
     resize() {
         this.stats.resetSampling();
+        if (this.mode === 'nostalgia') return;
         this.width = innerWidth; this.height = innerHeight;
         const ratio = renderPixelRatio(this.width, this.height, devicePixelRatio);
         const modules = this.mode === 'cinematic' ? [this.stage]

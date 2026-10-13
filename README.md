@@ -8,7 +8,7 @@ Wavr is a personal music player with a visual library, lyric display, equalizer,
 - Add or edit album art, song information, and timed `.lrc` lyrics.
 - Play music with an equalizer, waveform seek bar, and Media Session controls.
 - View and edit the playback queue: Play next, add songs, reorder, remove, or clear it.
-- Switch between Cinematic and Angelic visualizer modes.
+- Switch between Cinematic, Angelic and Nostalgia visualizer modes.
 - Optionally sign in to Cloud Vault to keep your library and settings between devices.
 
 ## Getting started
@@ -19,6 +19,8 @@ Wavr is a personal music player with a visual library, lyric display, equalizer,
 4. Use **Edit Library** to group songs into Vinyl Boxes.
 
 Selecting a track inside a Vinyl Box starts that box's queue at the selected song. Repeat All keeps transport inside the box; with Repeat Off, the next transport action continues through the full library. Queue changes retain the current song by ID, and clicking a box track always starts the clicked song regardless of shuffle or repeat settings.
+
+The cassette button in the player's top toolbar opens **Nostalgia**, based on the supplied Mechatok/Bladee lyric video: a flat colour field, rounded bold italic white subtitles with soft offset shadows, and oversized credits drifting horizontally. The flat background uses the cover's primary colour, falling back to the reference blue when artwork is unavailable. Comic Sans MS is preferred where installed, with bundled Shantell Sans for Vietnamese-capable fallback and a Japanese-only Yomogi face. Subtitles are centered in a small 480-pixel-wide video frame (240 on phones) and scaled up for the source's soft low-resolution appearance. Consecutive plain LRC lines form two-line slides; gaps and authored enhanced phrases stay separate. Adjacent slides overlap in a 650 ms crossfade, shortened for rapid phrases; two fixed subtitle surfaces follow the existing audio clock, retain their opacity on pause and reconstruct both sides immediately after a seek. Instrumental gaps and empty LRC lines do not bridge unrelated lyrics. The introductory `.mp4` title fades away within six seconds, or earlier to leave space before the first vocal, including for tracks without lyrics. Controls appear on interaction, Escape returns to the player, and Nostalgia is available in the screen recording chooser. Credits freeze on pause and disappear with reduced motion. Subtitle rasters repaint only on cue, size or font changes, retain a semantic DOM lyric surface, and suspend the existing GPU renderer.
 
 ### Keyboard shortcuts
 
