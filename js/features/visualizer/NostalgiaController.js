@@ -27,8 +27,6 @@ export function setupNostalgiaMode({ audio, playerView, togglePlay, prevTrack, n
     const background = createNostalgiaBackground(view, {
         titleEl: document.getElementById('nostalgia-ghost-title'),
         artistEl: document.getElementById('nostalgia-ghost-artist'),
-        modeLabelEl: view.querySelector('.nostalgia-mode-label'),
-        screenEl: view.querySelector('.nostalgia-screen'),
     });
     const abort = new AbortController(), { signal } = abort;
     let lyrics = null, drift = null, cueKey = null, idleTimer = null, slides = [], lastTravel = -Infinity;
@@ -63,6 +61,16 @@ export function setupNostalgiaMode({ audio, playerView, togglePlay, prevTrack, n
 
     function refreshCoverAvailability() {
         view.dataset.hasArtwork = String(Boolean(cover.complete && cover.naturalWidth > 0));
+        refreshBackgroundInk();
+    }
+
+    function refreshBackgroundInk() {
+        if (typeof getComputedStyle !== 'function') return;
+        const channels = getComputedStyle(view).backgroundColor?.match(/[\d.]+/g)?.slice(0, 3).map(Number);
+        if (!channels || channels.length !== 3) return;
+        const brightness = (channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722) / 255;
+        const ink = brightness > .65 ? '#263d58' : '#c9e2fc';
+        view.style.setProperty('--nostalgia-background-ink', ink);
     }
 
     function paintCue(cue, surface = root) {
@@ -132,9 +140,9 @@ export function setupNostalgiaMode({ audio, playerView, togglePlay, prevTrack, n
             lastOutgoingOpacity = outgoing.opacity;
         }
         if (cue.kind === 'lyric') highlighter.sync(root, cue.index, time, drift, 'normal');
-        // Background typography follows playback and maintains motion across pauses.
+        // Sparse background passes follow the same clock as the lyric dissolves.
         if (Math.abs(time - lastTravel) >= 1 / 30 || audio.paused) {
-            background.sync(time, audio.paused);
+            background.sync(time, audio.duration);
             lastTravel = time;
         }
         if (paused !== audio.paused) {
@@ -192,6 +200,7 @@ export function setupNostalgiaMode({ audio, playerView, togglePlay, prevTrack, n
         audio.addEventListener(event, () => { lastSecond = -1; sync(); }, { signal });
     }
     for (const event of ['load', 'error']) cover.addEventListener(event, refreshCoverAvailability, { signal });
+    document.addEventListener('wavr:palettechange', refreshBackgroundInk, { signal });
     document.addEventListener('visibilitychange', () => view.classList.toggle('nostalgia-suspended', document.hidden), { signal });
     const metadataObserver = new MutationObserver(() => {
         if (VisualizerController.getIsNostalgiaMode()) refreshMetadata();

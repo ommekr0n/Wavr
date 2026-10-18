@@ -7,7 +7,7 @@ import { wrapNostalgiaText, createNostalgiaRaster } from '../js/features/visuali
 import { setupNostalgiaMode } from '../js/features/visualizer/NostalgiaController.js';
 import { VisualizerController } from '../js/features/visualizer/VisualizerController.js';
 import { LyricEngine } from '../js/features/lyrics/LyricEngine.js';
-import { createNostalgiaBackground } from '../js/features/visualizer/NostalgiaBackground.js';
+import { createNostalgiaBackground, resolveNostalgiaBackground, nostalgiaTextPosition } from '../js/features/visualizer/NostalgiaBackground.js';
 
 // A small DOM fixture keeps controller tests independent of a browser and network.
 class Element extends EventTarget {
@@ -237,41 +237,82 @@ test('small subtitle raster does not repaint between cues, clears gaps, and igno
     assert.equal(clears, initial + 1);
 });
 
-test('NostalgiaBackground supports seamless counter-tape, rebound bounce, and DVD screensaver modes', t => {
-    const doc = { createElement: tag => new Element(tag) };
-    const titleEl = new Element('div');
-    const artistEl = new Element('div');
-    titleEl.ownerDocument = doc;
-    artistEl.ownerDocument = doc;
-    const modeLabelEl = new Element('span');
-    modeLabelEl.ownerDocument = doc;
-    const bg = createNostalgiaBackground(null, { titleEl, artistEl, modeLabelEl });
-    t.after(() => bg.dispose());
+test('background has artist, title and simultaneous split phases with fading boundaries', () => {
+    for(const duration of [30,180,360]) {
+        const artist=resolveNostalgiaBackground(duration*.18,duration);
+        assert.equal(artist.phase,'artist');assert.equal(artist.artistOpacity,1);assert.equal(artist.titleOpacity,0);
+        const title=resolveNostalgiaBackground(duration*.5,duration);
+        assert.equal(title.phase,'title');assert.equal(title.artistOpacity,0);assert.equal(title.titleOpacity,1);
+        for(const ratio of [.72,.8,.9]) {
+            const split=resolveNostalgiaBackground(duration*ratio,duration);
+            assert.equal(split.phase,'split');assert.equal(split.artistOpacity,1);assert.equal(split.titleOpacity,1);
+        }
+        const blend=Math.min(3,duration*.025);
+        const entering=resolveNostalgiaBackground(duration*.66+blend/2,duration);
+        assert.ok(entering.artistOpacity>0 && entering.artistOpacity<1);
+        assert.equal(entering.artistOpacity,entering.titleOpacity);
+        for(const ratio of [0,.34,.98,1]) {
+            const scene=resolveNostalgiaBackground(duration*ratio,duration);
+            assert.equal(scene.artistOpacity+scene.titleOpacity,0);
+        }
+    }
+    assert.equal(resolveNostalgiaBackground(20,NaN).phase,'artist');
+});
 
-    bg.setTrack('Memories', 'Retro Artist');
-    assert.equal(titleEl.children.length, 6);
-    assert.equal(artistEl.children.length, 6);
-    assert.ok(titleEl.children[0].textContent.includes('Memories'));
-    assert.equal(bg.getMode(), 'tape');
+test('split puts artists in upper half and title in lower half, then restores solo framing on backward seeks', t => {
+    const view=new Element(),titleEl=new Element(),artistEl=new Element();
+    view.ownerDocument={createElement:tag=>new Element(tag)};
+    const bg=createNostalgiaBackground(view,{titleEl,artistEl});t.after(()=>bg.dispose());
+    bg.setTrack('Ký ức 日本','Mechatok & Bladee');
+    assert.deepEqual(artistEl.children.map(row=>row.textContent),['Mechatok','Bladee']);
+    bg.sync(20,180);const first=artistEl.children.map(row=>row.style.transform);
+    assert.equal(artistEl.style.height,'100%');assert.equal(titleEl.style.top,'50%');
+    bg.sync(130,180);
+    assert.equal(view.dataset.backgroundPhase,'split');
+    assert.equal(artistEl.style.height,'50%');assert.equal(titleEl.style.top,'75%');
+    assert.equal(artistEl.style.opacity,'0.12');assert.equal(titleEl.style.opacity,'0.12');
+    const held=[titleEl.style.transform,...artistEl.children.map(row=>row.style.transform)];
+    for(let i=0;i<60;i++)bg.sync(130,180);
+    assert.deepEqual([titleEl.style.transform,...artistEl.children.map(row=>row.style.transform)],held);
+    bg.sync(131,180);assert.notEqual(titleEl.style.transform,held[0]);
+    bg.sync(20,180);
+    assert.equal(artistEl.style.height,'100%');assert.equal(titleEl.style.top,'50%');
+    assert.deepEqual(artistEl.children.map(row=>row.style.transform),first);
+    assert.equal(titleEl.style.opacity,'0');
+    bg.sync(90,180);assert.equal(titleEl.style.opacity,'0.16');
+    assert.ok(titleEl.style.transform.includes('scaleY(1.65)'));
+    bg.setTrack('Next song','Solo artist');assert.equal(titleEl.textContent,'Next song');assert.equal(artistEl.children.length,1);
+});
 
-    bg.sync(10, false);
-    assert.ok(titleEl.style.transform.includes('scaleY(1.16)'));
-    assert.ok(artistEl.style.transform.includes('scaleY(1.08)'));
+test('short and very long credits have the same slow velocity without a loop jump', () => {
+    for (const viewport of [390, 1920]) {
+        for (const textWidth of [viewport * .5, viewport * 8]) {
+            const at = time => nostalgiaTextPosition(viewport, textWidth, time);
+            const delta = at(10) - at(0);
+            assert.ok(Math.abs(delta + viewport * .18) < 1e-8);
+            // Previously 22/26-second modulo wrap teleported the text and restarted it.
+            for (const time of [21.9, 22, 25.9, 26, 52]) {
+                assert.ok(Math.abs(at(time + .1) - at(time) + viewport * .0018) < 1e-8);
+            }
+            assert.equal(nostalgiaTextPosition(viewport, textWidth, 60, -1, true), (viewport - textWidth) / 2);
+            const opposite = nostalgiaTextPosition(viewport, textWidth, 10, 1) - nostalgiaTextPosition(viewport, textWidth, 0, 1);
+            assert.ok(Math.abs(opposite + delta) < 1e-8);
+        }
+    }
+});
 
-    bg.cycleMode();
-    assert.equal(bg.getMode(), 'bounce');
-    assert.equal(modeLabelEl.textContent, 'NOSTALGIA • BOUNCE');
-    bg.sync(10, false);
-    assert.ok(titleEl.style.transform.includes('scaleY(1.16)'));
-
-    bg.cycleMode();
-    assert.equal(bg.getMode(), 'dvd');
-    assert.equal(modeLabelEl.textContent, 'NOSTALGIA • DVD');
-    bg.sync(10, false);
-    assert.ok(titleEl.style.transform.includes('scaleY(1.16)'));
-
-    bg.cycleMode();
-    assert.equal(bg.getMode(), 'tape');
-    assert.equal(modeLabelEl.textContent, 'NOSTALGIA • TAPE');
+test('background ink follows light/dark palette changes during paused playback', t => {
+    const f = fixture(t), previousStyle = globalThis.getComputedStyle;
+    let backgroundColor = 'rgb(245, 221, 210)';
+    globalThis.getComputedStyle = () => ({ backgroundColor });
+    t.after(() => { globalThis.getComputedStyle = previousStyle; });
+    const properties = new Map();
+    f.get('nostalgia-view').style.setProperty = (key, value) => properties.set(key, value);
+    f.get('btn-nostalgia').click();
+    assert.equal(properties.get('--nostalgia-background-ink'), '#263d58');
+    backgroundColor = 'rgb(7, 102, 164)';
+    document.dispatchEvent(new Event('wavr:palettechange'));
+    assert.equal(properties.get('--nostalgia-background-ink'), '#c9e2fc');
+    assert.equal(f.audio.paused, true);
 });
 

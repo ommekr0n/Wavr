@@ -1,243 +1,98 @@
-/**
- * NostalgiaBackground.js
- * Retro-inspired background typography effects for Nostalgia mode:
- * - 'tape': Bi-directional endless repeating ticker (MTV / Winamp counter-marquee)
- * - 'bounce': Ping-pong rebound between screen bounds (Windows Screensaver Marquee)
- * - 'dvd': 2D angled corner-bounce reflection (DVD Screensaver)
- */
+const clamp = value => Math.max(0, Math.min(1, value));
+const smooth = value => { const x = clamp(value); return x * x * (3 - 2 * x); };
 
-const SEPARATOR = '   •   ';
-const MODES = ['tape', 'bounce', 'dvd'];
-
-function measureWidth(el, fallbackText = '') {
-    if (!el) return 0;
-    if (typeof el.getBoundingClientRect === 'function') {
-        const rect = el.getBoundingClientRect();
-        if (rect && rect.width > 0) return rect.width;
-    }
-    if (typeof el.offsetWidth === 'number' && el.offsetWidth > 0) {
-        return el.offsetWidth;
-    }
-    const len = fallbackText ? fallbackText.length : (el.textContent?.length || 10);
-    return Math.max(300, len * 70);
+/** Editorial windows include breathing room; they are not equal thirds or beat detection. */
+export function resolveNostalgiaBackground(time, duration) {
+    const end = Number.isFinite(duration) && duration > 0 ? duration : 180;
+    const t = Math.max(0, Number.isFinite(time) ? time : 0);
+    const artistStart = end * .08, artistEnd = end * .30;
+    const titleStart = end * .38, titleEnd = end * .65;
+    const splitStart = end * .66, splitEnd = end * .97;
+    const blend = Math.min(3, end * .025);
+    const envelope = (start, finish) => smooth((t - start) / blend) * smooth((finish - t) / blend);
+    const localTime = (start, finish) => Math.max(0, Math.min(t, finish) - start);
+    const splitOpacity = envelope(splitStart, splitEnd);
+    return {
+        phase: t >= end ? 'ended' : t >= splitStart ? 'split' : t >= titleStart ? 'title'
+            : t >= artistEnd || t < artistStart ? 'quiet' : 'artist',
+        artistOpacity: envelope(artistStart, artistEnd) + splitOpacity,
+        titleOpacity: envelope(titleStart, titleEnd) + splitOpacity,
+        artistTime: t >= splitStart ? localTime(splitStart, splitEnd) : localTime(artistStart, artistEnd),
+        titleTime: t >= splitStart ? localTime(splitStart, splitEnd) : localTime(titleStart, titleEnd),
+    };
 }
 
-function getViewportWidth() {
-    return typeof window !== 'undefined' && window.innerWidth ? window.innerWidth : 1920;
+/** A slow single drift. Long credits never move faster and never wrap back into view. */
+export function nostalgiaTextPosition(viewportWidth, textWidth, elapsed, direction = -1, still = false) {
+    const center = (viewportWidth - textWidth) / 2;
+    if (still) return center;
+    return center + direction * viewportWidth * (Math.max(0, elapsed) * .018 - .36);
 }
 
-function getViewportHeight() {
-    return typeof window !== 'undefined' && window.innerHeight ? window.innerHeight : 1080;
-}
+/** Uses playback time only: pause freezes the scene and seeks reconstruct it directly. */
+export function createNostalgiaBackground(view, { titleEl, artistEl } = {}) {
+    const abort = new AbortController(), { signal } = abort;
+    const reducedMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    const doc = view?.ownerDocument || (typeof document !== 'undefined' ? document : null);
+    let width = 0, titleWidth = 0, rows = [];
+    let lastTime = 0, lastDuration = NaN, disposed = false;
 
-export function createNostalgiaBackground(view, { titleEl, artistEl, modeLabelEl, screenEl } = {}) {
-    let mode = 'tape';
-    try {
-        const stored = typeof localStorage !== 'undefined' && localStorage.getItem('wavr-nostalgia-bg-mode');
-        if (stored && MODES.includes(stored)) mode = stored;
-    } catch {
-        // Fall back to default mode when localStorage is restricted
-    }
-
-    let trackTitle = '';
-    let trackArtist = '';
-    let segmentWidthTitle = 0;
-    let segmentWidthArtist = 0;
-    let lastTime = 0;
-    let idleAccumulator = 0;
-    const abort = new AbortController();
-    const { signal } = abort;
-
-    function getDoc(container) {
-        return container?.ownerDocument || view?.ownerDocument || (typeof document !== 'undefined' ? document : null) || globalThis.document;
-    }
-
-    function createSpan(container) {
-        const doc = getDoc(container);
-        if (doc && typeof doc.createElement === 'function') return doc.createElement('span');
-        return { tag: 'span', className: '', textContent: '' };
-    }
-
-    function buildTapeDom(container, text, count = 5) {
-        if (!container) return;
-        container.replaceChildren();
-        const base = text + SEPARATOR;
-        for (let i = 0; i < count; i++) {
-            const span = createSpan(container);
-            span.className = 'nostalgia-ghost-seg';
-            span.textContent = base;
-            container.append(span);
-        }
-    }
-
-    function buildSingleDom(container, text) {
-        if (!container) return;
-        container.replaceChildren();
-        const span = createSpan(container);
-        span.className = 'nostalgia-ghost-seg';
-        span.textContent = text;
-        container.append(span);
-    }
-
-    function measureSegments() {
-        const firstTitleSeg = titleEl?.querySelector?.('.nostalgia-ghost-seg');
-        segmentWidthTitle = measureWidth(firstTitleSeg, trackTitle + SEPARATOR);
-
-        const firstArtistSeg = artistEl?.querySelector?.('.nostalgia-ghost-seg');
-        segmentWidthArtist = measureWidth(firstArtistSeg, (trackArtist || trackTitle) + SEPARATOR);
-    }
-
-    function updateDomForMode() {
-        const artistText = trackArtist || trackTitle || 'NOSTALGIA';
-        const titleText = trackTitle || 'Untitled';
-
-        if (mode === 'tape') {
-            buildTapeDom(titleEl, titleText, 6);
-            buildTapeDom(artistEl, artistText, 6);
-        } else {
-            buildSingleDom(titleEl, titleText);
-            buildSingleDom(artistEl, artistText);
-        }
-
-        measureSegments();
-        updateLabel();
-    }
-
-    function updateLabel() {
-        if (!modeLabelEl) return;
-        const labels = {
-            tape: 'NOSTALGIA • TAPE',
-            bounce: 'NOSTALGIA • BOUNCE',
-            dvd: 'NOSTALGIA • DVD'
-        };
-        modeLabelEl.textContent = labels[mode] || 'NOSTALGIA';
-        modeLabelEl.title = `Retro background style: ${mode.toUpperCase()} (Click to change)`;
-    }
-
-    function cycleMode() {
-        const currentIndex = MODES.indexOf(mode);
-        mode = MODES[(currentIndex + 1) % MODES.length];
-        try {
-            if (typeof localStorage !== 'undefined') {
-                localStorage.setItem('wavr-nostalgia-bg-mode', mode);
-            }
-        } catch {
-            // Ignore storage quota / privacy errors
-        }
-        updateDomForMode();
+    function measure() {
+        width = view?.clientWidth || (typeof window !== 'undefined' && window.innerWidth) || 1920;
+        titleWidth = titleEl?.scrollWidth || width;
+        rows = Array.from(artistEl?.children || [], element => ({ element, width: element.scrollWidth || width }));
     }
 
     function setTrack(title, artist) {
-        trackTitle = (title || '').trim();
-        trackArtist = (artist || '').trim();
-        updateDomForMode();
-    }
-
-    function sync(time, isPaused) {
-        if (!titleEl || !artistEl) return;
-
-        if (isPaused) {
-            idleAccumulator += 1 / 60;
-        } else {
-            lastTime = time;
+        if (titleEl) titleEl.textContent = (title || 'Untitled').trim();
+        if (artistEl) {
+            const credits = (artist || '').trim().split(/\s*(?:,|&|×|\bfeat\.?\s|\bwith\s)\s*/iu).filter(Boolean);
+            artistEl.replaceChildren();
+            credits.forEach((credit, index) => {
+                const row = doc.createElement('div');
+                row.className = 'nostalgia-artist-row';
+                row.textContent = credit;
+                row.style.top = `${(index + .5) / credits.length * 100}%`;
+                artistEl.append(row);
+            });
         }
+        measure();
+    }
 
-        const t = (Number.isFinite(lastTime) ? lastTime : 0) + idleAccumulator * 0.35;
-        const vw = getViewportWidth();
-        const vh = getViewportHeight();
-
-        if (mode === 'tape') {
-            const w1 = Math.max(100, segmentWidthTitle || 600);
-            const w2 = Math.max(100, segmentWidthArtist || 600);
-
-            // Title flows right-to-left seamlessly
-            const speed1 = 64; // px per second
-            const offset1 = -((t * speed1) % w1);
-            const waveY1 = Math.sin(t * 0.75) * 12;
-
-            // Artist flows left-to-right (counter-flow) seamlessly
-            const speed2 = 52;
-            const offset2 = ((t * speed2) % w2) - w2;
-            const waveY2 = Math.cos(t * 0.6) * 10;
-
-            const t1 = `translate3d(${offset1.toFixed(1)}px, ${waveY1.toFixed(1)}px, 0) scaleY(1.16)`;
-            const t2 = `translate3d(${offset2.toFixed(1)}px, ${waveY2.toFixed(1)}px, 0) scaleY(1.08)`;
-
-            titleEl.style.transform = t1;
-            titleEl.style.setProperty?.('transform', t1);
-            artistEl.style.transform = t2;
-            artistEl.style.setProperty?.('transform', t2);
-        } else if (mode === 'bounce') {
-            // Windows Screensaver rebound oscillation
-            const span1 = Math.max(200, vw - measureWidth(titleEl, trackTitle));
-            const span2 = Math.max(200, vw - measureWidth(artistEl, trackArtist || trackTitle));
-
-            // Smooth ease-in-out cosine rebound (no teleport, ping-pongs between margins)
-            const p1 = 0.5 - 0.5 * Math.cos(t * (Math.PI * 2 / 18));
-            const p2 = 0.5 - 0.5 * Math.cos(t * (Math.PI * 2 / 24) + 1.2);
-
-            const x1 = Math.max(-100, p1 * span1);
-            const x2 = Math.max(-100, p2 * span2);
-            const y1 = Math.sin(t * 0.5) * 8;
-            const y2 = Math.cos(t * 0.45) * 8;
-
-            const t1 = `translate3d(${x1.toFixed(1)}px, ${y1.toFixed(1)}px, 0) scaleY(1.16)`;
-            const t2 = `translate3d(${x2.toFixed(1)}px, ${y2.toFixed(1)}px, 0) scaleY(1.08)`;
-
-            titleEl.style.transform = t1;
-            titleEl.style.setProperty?.('transform', t1);
-            artistEl.style.transform = t2;
-            artistEl.style.setProperty?.('transform', t2);
-        } else if (mode === 'dvd') {
-            // DVD Screensaver corner bounce
-            const w1 = measureWidth(titleEl, trackTitle);
-            const w2 = measureWidth(artistEl, trackArtist || trackTitle);
-            const spanX1 = Math.max(100, vw - w1);
-            const spanX2 = Math.max(100, vw - w2);
-            const spanY = Math.max(100, vh * 0.45);
-
-            function pingPong(val, max) {
-                if (max <= 0) return 0;
-                const mod = val % (max * 2);
-                return mod < max ? mod : max * 2 - mod;
-            }
-
-            const x1 = pingPong(t * 70, spanX1);
-            const y1 = pingPong(t * 45, spanY);
-            const x2 = pingPong(t * 62 + 200, spanX2);
-            const y2 = pingPong(t * 40 + 150, spanY);
-
-            const t1 = `translate3d(${x1.toFixed(1)}px, ${y1.toFixed(1)}px, 0) scaleY(1.16)`;
-            const t2 = `translate3d(${x2.toFixed(1)}px, ${y2.toFixed(1)}px, 0) scaleY(1.08)`;
-
-            titleEl.style.transform = t1;
-            titleEl.style.setProperty?.('transform', t1);
-            artistEl.style.transform = t2;
-            artistEl.style.setProperty?.('transform', t2);
+    function sync(time, duration) {
+        if (disposed) return;
+        lastTime = time; lastDuration = duration;
+        const scene = resolveNostalgiaBackground(time, duration);
+        if (view) view.dataset.backgroundPhase = scene.phase;
+        const still = Boolean(reducedMotion?.matches);
+        const split = scene.phase === 'split';
+        const letteringOpacity = split ? .12 : .16;
+        if (artistEl) {
+            artistEl.style.height = split ? '50%' : '100%';
+            artistEl.style.opacity = String(scene.artistOpacity * letteringOpacity);
+            rows.forEach(({ element, width: rowWidth }, index) => {
+                const x = nostalgiaTextPosition(width, rowWidth, scene.artistTime, index % 2 ? 1 : -1, still);
+                element.style.transform = `translate3d(${x.toFixed(1)}px, -50%, 0)`;
+            });
         }
-    }
-
-    if (modeLabelEl) {
-        modeLabelEl.addEventListener('click', cycleMode, { signal });
-    }
-
-    if (screenEl) {
-        screenEl.addEventListener('dblclick', cycleMode, { signal });
-    }
-
-    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-        window.addEventListener('resize', measureSegments, { passive: true, signal });
-    }
-
-    return {
-        setTrack,
-        sync,
-        cycleMode,
-        getMode: () => mode,
-        dispose() {
-            abort.abort();
-            titleEl?.replaceChildren?.();
-            artistEl?.replaceChildren?.();
+        if (titleEl) {
+            titleEl.style.top = split ? '75%' : '50%';
+            titleEl.style.opacity = String(scene.titleOpacity * letteringOpacity);
+            const x = nostalgiaTextPosition(width, titleWidth, scene.titleTime, split ? 1 : -1, still);
+            titleEl.style.transform = `translate3d(${x.toFixed(1)}px, -50%, 0) scaleY(${split ? 1 : 1.65})`;
         }
-    };
+        return scene;
+    }
+
+    function resize() { measure(); sync(lastTime, lastDuration); }
+    if (typeof window !== 'undefined') {
+        window.addEventListener('resize', resize, { passive: true, signal });
+        reducedMotion?.addEventListener('change', resize, { signal });
+    }
+    doc?.fonts?.ready.then(() => { if (!disposed) resize(); });
+    doc?.fonts?.addEventListener('loadingdone', resize, { signal });
+    return { setTrack, sync, dispose() {
+        disposed = true; abort.abort(); rows = [];
+        artistEl?.replaceChildren(); titleEl?.replaceChildren();
+    } };
 }
