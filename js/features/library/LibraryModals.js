@@ -266,13 +266,13 @@ export const LibraryModals = {
                                         if (audioFile) {
                                             const fileNameSanitized = audioFile.name.replace(/[^a-zA-Z0-9.-]/g, '_');
                                             updatedAudioUrl = await SupabaseService.uploadMediaFile(audioFile, `tracks/${Date.now()}_${fileNameSanitized}`);
-                                            song.url = updatedAudioUrl;
+                                            song.url = await SupabaseService.resolveMediaUrl(updatedAudioUrl);
                                         }
 
                                         // Upload new cover file if replaced
                                         if (coverFile) {
                                             updatedCoverUrl = await SupabaseService.uploadMediaFile(coverFile, `covers/${Date.now()}.webp`);
-                                            song.cover = updatedCoverUrl;
+                                            song.cover = await SupabaseService.resolveMediaUrl(updatedCoverUrl);
                                         }
 
                                         await SupabaseService.updateTrack(song.id, {

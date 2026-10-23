@@ -1,125 +1,51 @@
-/**
- * WaveformEngine.js
- * Real-audio waveform decoding, LRU caching, and mini-player canvas rendering.
- */
+/** Real-audio waveforms loaded on demand, with one decode slot and reusable derived peaks. */
+import { WaveformLoader, WAVEFORM_BARS } from './WaveformLoader.js';
+import { WaveformStore } from './WaveformStore.js';
+import { resolveMediaUrl } from '../vault/MediaUrlAccess.js';
 
-const waveformCtx   = new (window.AudioContext || window.webkitAudioContext)();
-const MAX_CACHE_SIZE = 30; // LRU limit to prevent excessive memory usage
-const waveformCache = new Map(); // Map preserves insertion order for LRU eviction
-let currentWaveformData = null;
-let currentWaveformUrl  = null;
-
-// Keep a reference to the audio element (set by init)
-let _audio = null;
-let visibilityObserver = null;
+let waveformCtx = null, currentWaveformData = null, selection = 0;
+let _audio = null, visibilityObserver = null;
+const loader = new WaveformLoader({
+    store: new WaveformStore(),
+    fetchAudio: async (url, signal) => {
+        const freshUrl = await resolveMediaUrl(url);
+        const response = await fetch(freshUrl, { signal });
+        if (!response.ok) throw new Error(`Waveform request failed (${response.status})`);
+        return response.arrayBuffer();
+    },
+    decode: buffer => {
+        waveformCtx ||= new (window.AudioContext || window.webkitAudioContext)();
+        return waveformCtx.decodeAudioData(buffer);
+    },
+    onError: error => console.warn('Waveform unavailable, using placeholder:', error)
+});
+const placeholder = Array.from({ length: WAVEFORM_BARS }, (_, i) => .15 + Math.abs(Math.sin(i * .08)) * .15);
 
 export function initWaveform(audioEl) {
     _audio = audioEl;
     visibilityObserver?.disconnect();
-    visibilityObserver = new MutationObserver(() => {
-        const percent = Number.isFinite(_audio.duration) && _audio.duration > 0 ? _audio.currentTime / _audio.duration * 100 : 0;
-        drawMiniWaveform(percent);
-    });
+    visibilityObserver = new MutationObserver(() => drawMiniWaveform(waveformPercent()));
     const miniPlayer = document.getElementById('mini-player');
     if (miniPlayer) visibilityObserver.observe(miniPlayer, { attributes: true, attributeFilter: ['class'] });
 }
 
+function waveformPercent() {
+    return _audio && Number.isFinite(_audio.duration) && _audio.duration > 0 ? _audio.currentTime / _audio.duration * 100 : 0;
+}
+
 export function clearWaveformCache() {
-    waveformCache.clear();
-}
-
-/**
- * Access LRU Cache: Re-inserts key to mark as most recently used.
- */
-function getFromCache(url) {
-    if (!waveformCache.has(url)) return null;
-    const val = waveformCache.get(url);
-    waveformCache.delete(url);
-    waveformCache.set(url, val);
-    return val;
-}
-
-/**
- * Put into LRU Cache: Evicts oldest entry if size exceeds limit.
- */
-function putInCache(url, data) {
-    if (waveformCache.has(url)) {
-        waveformCache.delete(url);
-    } else if (waveformCache.size >= MAX_CACHE_SIZE) {
-        const oldestKey = waveformCache.keys().next().value;
-        if (oldestKey) waveformCache.delete(oldestKey);
-    }
-    waveformCache.set(url, data);
+    selection++; currentWaveformData = null;
+    return loader.clear();
 }
 
 export async function loadAndDecodeWaveform(url) {
-    if (!url) return;
-    currentWaveformUrl = url;
-
-    const cached = getFromCache(url);
-    if (cached) {
-        currentWaveformData = cached;
-        const pct = (!_audio || isNaN(_audio.duration)) ? 0 : (_audio.currentTime / _audio.duration) * 100;
-        drawMiniWaveform(pct);
-        return;
-    }
-
-    // Placeholder while decoding
-    currentWaveformData = Array.from({ length: 140 }, (_, i) => 0.15 + Math.abs(Math.sin(i * 0.08)) * 0.15);
+    const ticket = ++selection;
+    currentWaveformData = url ? placeholder : null;
     drawMiniWaveform(0);
-
-    try {
-        const response    = await fetch(url);
-        const arrayBuffer = await response.arrayBuffer();
-        const audioBuffer = await waveformCtx.decodeAudioData(arrayBuffer);
-        const channelData = audioBuffer.getChannelData(0);
-        const totalSamples = channelData.length;
-        const numBars  = 140;
-        const blockSize = Math.floor(totalSamples / numBars);
-        const step      = Math.max(1, Math.floor(blockSize / 24));
-
-        const points = [];
-        let maxVal   = 0;
-
-        for (let i = 0; i < numBars; i++) {
-            let peak = 0, sumSq = 0, count = 0;
-            const start = i * blockSize;
-            const end   = start + blockSize;
-            for (let j = start; j < end; j += step) {
-                const val = Math.abs(channelData[j] || 0);
-                if (val > peak) peak = val;
-                sumSq += val * val;
-                count++;
-            }
-            const rms      = count > 0 ? Math.sqrt(sumSq / count) : 0;
-            const combined = peak * 0.75 + rms * 0.25;
-            points.push(combined);
-            if (combined > maxVal) maxVal = combined;
-        }
-
-        const normalizedPoints = points.map(p => {
-            if (maxVal === 0) return 0.12;
-            return 0.1 + Math.pow(p / maxVal, 0.75) * 0.9;
-        });
-
-        putInCache(url, normalizedPoints);
-        if (currentWaveformUrl === url) {
-            currentWaveformData = normalizedPoints;
-            const pct = (!_audio || isNaN(_audio.duration)) ? 0 : (_audio.currentTime / _audio.duration) * 100;
-            drawMiniWaveform(pct);
-        }
-    } catch (err) {
-        console.warn('Waveform decoding failed, using dynamic fallback:', err);
-        const fallback = Array.from({ length: 140 }, (_, i) =>
-            0.15 + Math.abs(Math.sin(i * 0.15) * Math.cos(i * 0.05)) * 0.7
-        );
-        putInCache(url, fallback);
-        if (currentWaveformUrl === url) {
-            currentWaveformData = fallback;
-            const pct = (!_audio || isNaN(_audio.duration)) ? 0 : (_audio.currentTime / _audio.duration) * 100;
-            drawMiniWaveform(pct);
-        }
-    }
+    const points = await loader.load(url);
+    if (ticket !== selection || !points) return;
+    currentWaveformData = points;
+    drawMiniWaveform(waveformPercent());
 }
 
 let cachedCanvasWidth = 0;

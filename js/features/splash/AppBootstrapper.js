@@ -1,9 +1,8 @@
 /**
  * AppBootstrapper.js
- * Handles initial splash screen loading bar, silly jokes, waveform decoding, and first-time tutorial modal.
+ * Handles the initial splash and tutorial without downloading or decoding the library.
  */
 
-import { loadAndDecodeWaveform } from '../player/WaveformEngine.js';
 import { setupTutorialDismissal } from './TutorialDismissal.js';
 
 const sillyLoadingJokes = [
@@ -20,7 +19,7 @@ const sillyLoadingJokes = [
     "Checking for high frequencies..."
 ];
 
-export async function runSplashBootstrapper(loadedPlaylist = []) {
+export async function runSplashBootstrapper() {
     const modalTutorials = document.getElementById('modal-tutorials');
     setupTutorialDismissal(modalTutorials);
 
@@ -51,24 +50,6 @@ export async function runSplashBootstrapper(loadedPlaylist = []) {
         localStorage.setItem('wavr_has_visited', 'true');
     } else {
         updateSplashProgress(25);
-
-        const totalTracks = loadedPlaylist.length;
-        let completed = 0;
-
-        const preloadPromises = loadedPlaylist.map(async (song) => {
-            if (song.url) {
-                try {
-                    await loadAndDecodeWaveform(song.url);
-                } catch (err) {
-                    console.warn(`Failed to preload waveform for ${song.title}`, err);
-                }
-            }
-            completed++;
-            const pct = 25 + (completed / totalTracks) * 70;
-            updateSplashProgress(pct);
-        });
-
-        await Promise.all(preloadPromises);
 
         updateSplashProgress(100);
         await new Promise(res => setTimeout(res, 300));

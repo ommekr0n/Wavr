@@ -96,6 +96,8 @@ export function setupUploadHandler({ uploadModal, uploadForm, uploadAudio, uploa
                         if (savedRecord && savedRecord.id) newSong.id = savedRecord.id;
                     }
 
+                    newSong.url = await SupabaseService.resolveMediaUrl(newSong.url);
+                    newSong.cover = await SupabaseService.resolveMediaUrl(newSong.cover);
                     playlist.push(newSong);
                     await renderSongGrid({ homeSongGrid, setupBoxExpansionListeners });
                     showToast('Track successfully uploaded to Cloud Vault!', 'info');

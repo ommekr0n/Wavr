@@ -1,3 +1,5 @@
+import { resolveMediaUrl } from '../features/vault/MediaUrlAccess.js';
+
 export function extractColorsFromImage(imgEl, updateCSSVariables) {
     if (!imgEl) {
         const defaultColors = [
@@ -84,12 +86,17 @@ export function extractColorsFromImage(imgEl, updateCSSVariables) {
     }
 }
 
-export function loadImageForColorExtraction(source) {
+export async function loadImageForColorExtraction(source, { signal } = {}) {
+    source = await resolveMediaUrl(source);
     return new Promise((resolve, reject) => {
+        if (signal?.aborted) { reject(new DOMException('Image no longer needed', 'AbortError')); return; }
         const image = new Image();
         image.crossOrigin = 'anonymous';
-        image.onload = () => resolve(image);
-        image.onerror = reject;
+        const cleanup = () => { signal?.removeEventListener('abort', abort); image.onload = image.onerror = null; };
+        const abort = () => { cleanup(); image.src = ''; reject(new DOMException('Image no longer needed', 'AbortError')); };
+        image.onload = () => { cleanup(); resolve(image); };
+        image.onerror = error => { cleanup(); reject(error); };
+        signal?.addEventListener('abort', abort, { once: true });
 
         const sourceUrl = new URL(source, window.location.href);
         if ((sourceUrl.protocol === 'http:' || sourceUrl.protocol === 'https:') && sourceUrl.origin !== window.location.origin) {

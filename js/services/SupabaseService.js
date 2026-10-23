@@ -6,11 +6,15 @@
 import { createClient } from '@supabase/supabase-js';
 import { createVaultAuthOperations, subscribeToVaultAuth } from '../features/vault/VaultAuthOperations.js';
 import { vaultClientAuthOptions } from '../features/vault/VaultClientOptions.js';
+import { createPrivateMediaResolver, mediaUrlNeedsRefresh, privateMediaUri } from '../features/vault/PrivateMediaUrls.js';
+import { setMediaUrlResolver } from '../features/vault/MediaUrlAccess.js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://stbzeroodquuevmrwfyi.supabase.co';
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_DTIzsD_0Qwotf4MZWsHs4w_N6uj-UQh';
 const R2_URI_PREFIX = 'r2://';
 const MEDIA_WORKER_URL = (import.meta.env.VITE_MEDIA_WORKER_URL || 'https://wavr-media-gateway.vinhvy-vn.workers.dev').replace(/\/$/, '');
+const resolvePrivateMedia = createPrivateMediaResolver(MEDIA_WORKER_URL, (...args) => SupabaseService.requestMediaWorker(...args));
+setMediaUrlResolver(resolvePrivateMedia);
 
 export const isSupabaseConfigured = Boolean(
     SUPABASE_URL && 
@@ -126,20 +130,10 @@ export const SupabaseService = {
 
     /** Returns a short-lived Worker URL only for media owned by the signed-in user. */
     async resolveMediaUrl(uri) {
-        if (!uri) return uri;
-        let path = null;
-        if (uri.startsWith(R2_URI_PREFIX)) path = uri.slice(R2_URI_PREFIX.length);
-        else {
-            try {
-                const legacyUrl = new URL(uri);
-                if (legacyUrl.hostname.endsWith('.r2.dev')) path = decodeURIComponent(legacyUrl.pathname.replace(/^\//, ''));
-            } catch (_) {}
-        }
-        if (!path) return uri;
-        const response = await this.requestMediaWorker(`/v1/signed/${this.encodeMediaPath(path)}`, { method: 'POST' });
-        if (!response.ok) throw new Error('Could not access private cloud media.');
-        return (await response.json()).url;
+        return resolvePrivateMedia(uri);
     },
+
+    mediaUrlNeedsRefresh(uri) { return mediaUrlNeedsRefresh(uri, MEDIA_WORKER_URL); },
 
     async saveTrack(trackData) {
         if (!supabase) throw new Error('Supabase is not configured.');
@@ -153,8 +147,8 @@ export const SupabaseService = {
             album: trackData.album || 'Unknown Album',
             duration: trackData.duration || 0,
             file_size: trackData.fileSize || 0,
-            audio_url: trackData.audioUrl,
-            cover_url: trackData.coverUrl || null,
+            audio_url: privateMediaUri(trackData.audioUrl, MEDIA_WORKER_URL),
+            cover_url: privateMediaUri(trackData.coverUrl, MEDIA_WORKER_URL) || null,
             lrc_text: trackData.lrcText || '',
             waveform_data: trackData.waveformData || null,
             is_enhanced: Boolean(trackData.isEnhanced)
@@ -179,8 +173,8 @@ export const SupabaseService = {
         if (updates.title !== undefined) updatePayload.title = updates.title;
         if (updates.artist !== undefined) updatePayload.artist = updates.artist;
         if (updates.album !== undefined) updatePayload.album = updates.album;
-        if (updates.audioUrl !== undefined) updatePayload.audio_url = updates.audioUrl;
-        if (updates.coverUrl !== undefined) updatePayload.cover_url = updates.coverUrl;
+        if (updates.audioUrl !== undefined) updatePayload.audio_url = privateMediaUri(updates.audioUrl, MEDIA_WORKER_URL);
+        if (updates.coverUrl !== undefined) updatePayload.cover_url = privateMediaUri(updates.coverUrl, MEDIA_WORKER_URL);
         if (updates.lrcText !== undefined) updatePayload.lrc_text = updates.lrcText;
         if (updates.fileSize !== undefined) updatePayload.file_size = updates.fileSize;
         if (updates.isEnhanced !== undefined) updatePayload.is_enhanced = updates.isEnhanced;

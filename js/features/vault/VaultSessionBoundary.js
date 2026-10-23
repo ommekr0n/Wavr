@@ -15,8 +15,9 @@ export function initVaultSessionBoundary(service, { clearPrivateState, reload })
         if (userId === nextId) return;
         userId = nextId;
         transitioning = true;
-        clearPrivateState();
-        reload();
+        const clearing = clearPrivateState();
+        if (clearing?.then) Promise.resolve(clearing).then(reload, reload);
+        else reload();
     });
 }
 

@@ -25,6 +25,8 @@ import { createRenderLoop } from './core/RenderLoop.js';
 import { PlaybackEngine } from './core/PlaybackEngine.js';
 import { queueManager } from './core/QueueManager.js';
 import { SupabaseService } from './services/SupabaseService.js';
+import { createMediaPlaybackGate } from './features/vault/MediaPlaybackGate.js';
+import { initMediaUrlLifecycle } from './features/vault/MediaUrlLifecycle.js';
 import './floral-templates.js';
 
 // ── 2. Feature & Controller Imports ──────────────────────────────────────────
@@ -39,7 +41,7 @@ import { LibraryModals } from './features/library/LibraryModals.js';
 import { setupEQController } from './features/eq/EQController.js';
 import { initCloudVaultUI } from './features/vault/CloudVaultUI.js';
 import { initVaultSessionBoundary, clearVaultBrowserState } from './features/vault/VaultSessionBoundary.js';
-import { initWaveform, loadAndDecodeWaveform, drawMiniWaveform } from './features/player/WaveformEngine.js';
+import { initWaveform, loadAndDecodeWaveform, drawMiniWaveform, clearWaveformCache } from './features/player/WaveformEngine.js';
 import { setupMediaSession, updateMediaSessionMetadata } from './features/player/MediaSessionManager.js';
 import { MiniPlayerController } from './features/player/MiniPlayerController.js';
 import { createPlayerViewNavigation } from './features/player/PlayerViewNavigation.js';
@@ -101,6 +103,15 @@ const audio       = document.getElementById('audio-player');
 audio.addEventListener('seeking', () => { LyricEngine.invalidateSeek(); updateProgress(); });
 
 const playbackEngine = new PlaybackEngine(audio);
+const mediaPlayback = createMediaPlaybackGate({
+    resolve: uri => SupabaseService.resolveMediaUrl(uri),
+    play: () => playbackEngine.play(),
+    pause: () => playbackEngine.pause(),
+    getTime: () => playbackEngine.currentTime,
+    restoreTime: (time, isCurrent) => audio.addEventListener('loadedmetadata', () => {
+        if (isCurrent()) playbackEngine.seek(time);
+    }, { once: true })
+});
 setupArtistIntro({ engine: playbackEngine });
 // Register engine with PlayerController so getIsPlaying() reads engine state.
 setPlaybackEngine(playbackEngine);
@@ -260,6 +271,11 @@ function loadTrack(index) {
         return;
     }
 
+    return mediaPlayback.load(track, () => applyTrack(track))
+        .catch(error => console.error('Unable to load private media:', error));
+}
+
+function applyTrack(track) {
     FFTAnalyzer.reset();
     playbackEngine.loadTrack(track);
     loadAndDecodeWaveform(track.url);
@@ -331,6 +347,7 @@ function loadTrack(index) {
     }
 
     updateMediaSessionMetadata(track);
+    updateMiniPlayerUI();
 }
 
 function prepareLyricNearTime(time) {
@@ -345,13 +362,13 @@ function prepareLyricNearTime(time) {
  * via 'statechange' events emitted by PlaybackEngine.
  */
 function playAudio() {
-    playbackEngine.play().catch(err => {
+    mediaPlayback.play().catch(err => {
         console.error('Play error:', err);
     });
 }
 
 function pauseAudio() {
-    playbackEngine.pause();
+    mediaPlayback.pause();
 }
 
 function togglePlay() {
@@ -832,6 +849,11 @@ async function initHome() {
         }
     });
 
+    initMediaUrlLifecycle({
+        getTracks: () => [...new Set([...PlayerController.getPlaylist(), ...getPlaybackSource()])],
+        resolve: uri => SupabaseService.resolveMediaUrl(uri),
+        needsRefresh: uri => SupabaseService.mediaUrlNeedsRefresh(uri)
+    });
     await renderSongGrid({
         homeSongGrid,
         setupBoxExpansionListeners: (boxes) =>
@@ -886,7 +908,7 @@ async function initHome() {
         prepareLyricNearTime
     });
 
-    await runSplashBootstrapper(loadedPlaylist);
+    await runSplashBootstrapper();
     observeGraphicsAvailability(showToast);
 }
 
@@ -894,7 +916,7 @@ async function initHome() {
 preloadAngelicAssets();
 preloadCinematicAssets();
 initVaultSessionBoundary(SupabaseService, {
-    clearPrivateState: clearVaultBrowserState,
+    clearPrivateState: () => { clearVaultBrowserState(); return clearWaveformCache(); },
     reload: () => window.location.reload()
 });
 initHome();
