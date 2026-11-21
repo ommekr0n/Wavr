@@ -178,7 +178,8 @@ export function updateVignette(energy) {
     if (!_vignetteEl) return;
     // Nghịch đảo: energy thấp → vignette tối (cảm giác verse thâm trầm), energy cao → vignette sáng
     const target = Math.max(0, 0.6 - energy * 0.7);
-    _vignetteOpacity += (_vignetteOpacity < target ? 0.04 : 0.025) * Math.abs(target - _vignetteOpacity) / (Math.abs(target - _vignetteOpacity) + 0.001);
+    const rate = _vignetteOpacity < target ? 0.04 : 0.025;
+    _vignetteOpacity = Math.max(0, Math.min(1, _vignetteOpacity + (target - _vignetteOpacity) * rate));
     // Dùng CSS var — custom property animation không trigger layout
     _vignetteEl.style.setProperty('--vignette-opacity', _vignetteOpacity.toFixed(3));
 }

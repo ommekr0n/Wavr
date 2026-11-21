@@ -10,8 +10,8 @@ CREATE TABLE IF NOT EXISTS public.tracks (
     title TEXT NOT NULL,
     artist TEXT DEFAULT 'Unknown Artist',
     album TEXT DEFAULT 'Unknown Album',
-    duration FLOAT8 DEFAULT 0,
-    file_size BIGINT DEFAULT 0,
+    duration FLOAT8 DEFAULT 0 CHECK (duration >= 0),
+    file_size BIGINT DEFAULT 0 CHECK (file_size >= 0),
     audio_url TEXT NOT NULL,
     cover_url TEXT,
     lrc_text TEXT,
@@ -23,6 +23,33 @@ CREATE TABLE IF NOT EXISTS public.tracks (
 
 -- Safely add file_size column if table was created in an earlier step
 ALTER TABLE public.tracks ADD COLUMN IF NOT EXISTS file_size BIGINT DEFAULT 0;
+
+-- Enforce non-negative duration and file_size constraints idempotently
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'tracks_file_size_nonnegative'
+          AND conrelid = 'public.tracks'::regclass
+    ) THEN
+        ALTER TABLE public.tracks
+            ADD CONSTRAINT tracks_file_size_nonnegative CHECK (file_size >= 0);
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'tracks_duration_nonnegative'
+          AND conrelid = 'public.tracks'::regclass
+    ) THEN
+        ALTER TABLE public.tracks
+            ADD CONSTRAINT tracks_duration_nonnegative CHECK (duration >= 0);
+    END IF;
+END $$;
+
+-- Data API access is explicit. Anonymous clients do not need direct table access;
+-- signed-in users are still constrained to their own rows by the RLS policies below.
+REVOKE ALL ON TABLE public.tracks FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.tracks TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.tracks TO service_role;
 
 -- Index for ultra-fast user queries
 CREATE INDEX IF NOT EXISTS idx_tracks_user_id ON public.tracks(user_id);
@@ -39,18 +66,23 @@ DROP POLICY IF EXISTS "Users can delete own tracks" ON public.tracks;
 
 CREATE POLICY "Users can view own tracks"
     ON public.tracks FOR SELECT
+    TO authenticated
     USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can insert own tracks"
     ON public.tracks FOR INSERT
+    TO authenticated
     WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Users can update own tracks"
     ON public.tracks FOR UPDATE
-    USING (auth.uid() = user_id);
+    TO authenticated
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Users can delete own tracks"
     ON public.tracks FOR DELETE
+    TO authenticated
     USING (auth.uid() = user_id);
 
 -- 3. Storage Quota Helper Function (Cleaned for Supabase Database Linter 0011, 0028, 0029)
@@ -74,9 +106,11 @@ BEGIN
 END;
 $$;
 
--- Revoke execution from anonymous public role for security
-REVOKE EXECUTE ON FUNCTION public.get_user_storage_bytes() FROM anon;
+-- PostgreSQL grants function execution to PUBLIC by default, so revoke that
+-- inherited access before opting authenticated callers in.
+REVOKE EXECUTE ON FUNCTION public.get_user_storage_bytes() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_user_storage_bytes() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_user_storage_bytes() TO service_role;
 
 -- 4. Create Playlists Table
 CREATE TABLE IF NOT EXISTS public.playlists (
@@ -88,12 +122,20 @@ CREATE TABLE IF NOT EXISTS public.playlists (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+REVOKE ALL ON TABLE public.playlists FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.playlists TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.playlists TO service_role;
+
 ALTER TABLE public.playlists ENABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS idx_playlists_user_id ON public.playlists(user_id);
 
 DROP POLICY IF EXISTS "Users can manage own playlists" ON public.playlists;
 CREATE POLICY "Users can manage own playlists"
     ON public.playlists FOR ALL
-    USING (auth.uid() = user_id);
+    TO authenticated
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
 
 -- Playlist Tracks Junction Table
 CREATE TABLE IF NOT EXISTS public.playlist_tracks (
@@ -103,22 +145,68 @@ CREATE TABLE IF NOT EXISTS public.playlist_tracks (
     PRIMARY KEY (playlist_id, track_id)
 );
 
+REVOKE ALL ON TABLE public.playlist_tracks FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.playlist_tracks TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.playlist_tracks TO service_role;
+
 ALTER TABLE public.playlist_tracks ENABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS idx_playlist_tracks_track_id ON public.playlist_tracks(track_id);
 
 DROP POLICY IF EXISTS "Users can manage own playlist tracks" ON public.playlist_tracks;
 CREATE POLICY "Users can manage own playlist tracks"
     ON public.playlist_tracks FOR ALL
+    TO authenticated
     USING (
         EXISTS (
             SELECT 1 FROM public.playlists p 
             WHERE p.id = playlist_tracks.playlist_id AND p.user_id = auth.uid()
         )
+        AND EXISTS (
+            SELECT 1 FROM public.tracks t
+            WHERE t.id = playlist_tracks.track_id AND t.user_id = auth.uid()
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.playlists p
+            WHERE p.id = playlist_tracks.playlist_id AND p.user_id = auth.uid()
+        )
+        AND EXISTS (
+            SELECT 1 FROM public.tracks t
+            WHERE t.id = playlist_tracks.track_id AND t.user_id = auth.uid()
+        )
     );
 
 -- 5. Create Media Storage Bucket Policies (wavr-media)
-INSERT INTO storage.buckets (id, name, public) 
-VALUES ('wavr-media', 'wavr-media', false)
-ON CONFLICT (id) DO UPDATE SET public = false;
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+    'wavr-media',
+    'wavr-media',
+    false,
+    104857600,
+    ARRAY[
+        'audio/mpeg',
+        'audio/mp3',
+        'audio/mp4',
+        'audio/aac',
+        'audio/wav',
+        'audio/x-wav',
+        'audio/flac',
+        'audio/ogg',
+        'audio/webm',
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'image/gif',
+        'image/avif',
+        'application/octet-stream'
+    ]
+)
+ON CONFLICT (id) DO UPDATE
+SET public = false,
+    file_size_limit = EXCLUDED.file_size_limit,
+    allowed_mime_types = EXCLUDED.allowed_mime_types;
 
 DROP POLICY IF EXISTS "Users can upload own media" ON storage.objects;
 DROP POLICY IF EXISTS "Users can access own media" ON storage.objects;
@@ -127,14 +215,15 @@ DROP POLICY IF EXISTS "Users can update own media" ON storage.objects;
 
 CREATE POLICY "Users can upload own media"
     ON storage.objects FOR INSERT
+    TO authenticated
     WITH CHECK (
         bucket_id = 'wavr-media' 
-        AND auth.role() = 'authenticated'
         AND (storage.foldername(name))[1] = auth.uid()::text
     );
 
 CREATE POLICY "Users can access own media"
     ON storage.objects FOR SELECT
+    TO authenticated
     USING (
         bucket_id = 'wavr-media'
         AND (storage.foldername(name))[1] = auth.uid()::text
@@ -142,6 +231,7 @@ CREATE POLICY "Users can access own media"
 
 CREATE POLICY "Users can delete own media"
     ON storage.objects FOR DELETE
+    TO authenticated
     USING (
         bucket_id = 'wavr-media'
         AND (storage.foldername(name))[1] = auth.uid()::text
@@ -149,6 +239,7 @@ CREATE POLICY "Users can delete own media"
 
 CREATE POLICY "Users can update own media"
     ON storage.objects FOR UPDATE
+    TO authenticated
     USING (
         bucket_id = 'wavr-media'
         AND (storage.foldername(name))[1] = auth.uid()::text

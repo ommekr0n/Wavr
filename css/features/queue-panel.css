@@ -61,11 +61,4 @@
     .queue-scroll { padding: 18px 10px; }
     .queue-row-action { width: 32px; height: 40px; }
     .queue-track-meta strong { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-    .living-player .app-header { padding: 0 8px; gap: 4px; }
-    .living-player .header-left { gap: 0; }
-    .living-player .header-left .icon-btn { width: 28px; }
-    .living-player .header-utilities-bar { position: static; transform: none; gap: 1px; padding: 3px; }
-    .living-player .header-utilities-bar .icon-btn { width: 27px; }
-    .living-player .header-right { gap: 1px; }
-    .living-player .header-right .icon-btn { width: 28px; }
 }

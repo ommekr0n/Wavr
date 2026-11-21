@@ -22,11 +22,26 @@ export function setupUploadHandler({ uploadModal, uploadForm, uploadAudio, uploa
     };
 
     const MAX_SINGLE_FILE_BYTES = 35 * 1024 * 1024; // 35 MB max single file
+    const MAX_COVER_FILE_BYTES = 15 * 1024 * 1024; // 15 MB max cover image
+    const MAX_LRC_FILE_BYTES = 2 * 1024 * 1024; // 2 MB max lyrics file
     const MAX_TOTAL_QUOTA_BYTES = 500 * 1024 * 1024; // 500 MB max user vault
     const ALLOWED_EXTENSIONS = ['.mp3', '.flac', '.wav', '.ogg', '.m4a', '.aac'];
+    const ALLOWED_IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif'];
+    const ALLOWED_LRC_EXTENSIONS = ['.lrc', '.txt'];
+
+    const readFileAsText = (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => resolve(event.target.result || '');
+        reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
+        reader.readAsText(file);
+    });
+
+    let isUploading = false;
 
     const handleUploadForm = async (e) => {
         e.preventDefault();
+        if (isUploading) return;
+
         const playlist = PlayerController.getPlaylist();
         const audioFile = uploadAudio.files[0];
         const lrcFile = uploadLrc.files[0] || pendingUploadLrcBlob;
@@ -49,86 +64,134 @@ export function setupUploadHandler({ uploadModal, uploadForm, uploadAudio, uploa
             return;
         }
 
-        // ── Security Shield Layer 3: Auth & Vault Quota check ──
-        if (SupabaseService.isConfigured()) {
-            const currentUser = await SupabaseService.getCurrentUser();
-            if (!currentUser) {
-                showToast('Security Shield: You must sign into your Cloud Vault to upload tracks!', 'error');
-                const modalCloudVault = document.getElementById('modal-cloud-vault');
-                if (modalCloudVault) modalCloudVault.classList.remove('hidden');
+        // ── Cover image validation ──
+        if (coverFile) {
+            const coverExt = '.' + (coverFile.name || '').split('.').pop().toLowerCase();
+            const isValidCoverMime = coverFile.type ? (coverFile.type.startsWith('image/') && coverFile.type !== 'image/svg+xml') : false;
+            const isValidCoverExt = ALLOWED_IMAGE_EXTENSIONS.includes(coverExt);
+            if ((coverFile.type && !isValidCoverMime) || (!isValidCoverMime && !isValidCoverExt)) {
+                showToast('Security Shield: Invalid cover image format. Only PNG, JPG, WEBP, GIF allowed!', 'error');
                 return;
             }
-
-            const usedBytes = await SupabaseService.getUserStorageBytes();
-            if (usedBytes + audioFile.size > MAX_TOTAL_QUOTA_BYTES) {
-                showToast(`Security Shield: Storage quota exceeded (${(usedBytes / 1024 / 1024).toFixed(1)}MB / 500MB). Delete old tracks to upload more!`, 'error');
+            if (coverFile.size > MAX_COVER_FILE_BYTES) {
+                showToast(`Security Shield: Cover image too large (${(coverFile.size / 1024 / 1024).toFixed(1)}MB). Max 15MB allowed!`, 'error');
                 return;
             }
         }
 
-        showToast('Uploading to Supabase Cloud Vault...', 'info');
-
-        const processUpload = async (coverBlob, defaultCoverUrl) => {
-            const createSongObject = async (lrcText) => {
-                try {
-                    let audioUrl = URL.createObjectURL(audioFile);
-                    let coverUrl = defaultCoverUrl;
-
-                    if (SupabaseService.isConfigured() && (await SupabaseService.getCurrentUser())) {
-                        const fileNameSanitized = audioFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-                        audioUrl = await SupabaseService.uploadMediaFile(audioFile, `tracks/${Date.now()}_${fileNameSanitized}`);
-                        if (coverBlob instanceof Blob || coverBlob instanceof File) {
-                            coverUrl = await SupabaseService.uploadMediaFile(coverBlob, `covers/${Date.now()}.webp`);
-                        }
-                    }
-
-                    const newSong = {
-                        id: 'song-' + Date.now() + '-' + Math.floor(Math.random() * 100000),
-                        title, artist, url: audioUrl, cover: coverUrl, lyrics: lrcText || '',
-                        drift: 1.0, isEnhanced: Boolean(lrcText && lrcText.includes('<'))
-                    };
-
-                    if (SupabaseService.isConfigured() && (await SupabaseService.getCurrentUser())) {
-                        const savedRecord = await SupabaseService.saveTrack({
-                            title, artist, audioUrl, coverUrl, lrcText: lrcText || '',
-                            isEnhanced: newSong.isEnhanced
-                        });
-                        if (savedRecord && savedRecord.id) newSong.id = savedRecord.id;
-                    }
-
-                    newSong.url = await SupabaseService.resolveMediaUrl(newSong.url);
-                    newSong.cover = await SupabaseService.resolveMediaUrl(newSong.cover);
-                    playlist.push(newSong);
-                    await renderSongGrid({ homeSongGrid, setupBoxExpansionListeners });
-                    showToast('Track successfully uploaded to Cloud Vault!', 'info');
-                    
-                    uploadForm.reset();
-                    pendingUploadLrcBlob = null;
-                    const uploadLrcStatus = document.getElementById('upload-lrc-status');
-                    if (uploadLrcStatus) uploadLrcStatus.textContent = '';
-                    uploadModal.classList.add('hidden');
-                } catch (err) {
-                    console.error('Upload Error:', err);
-                    showToast('Upload failed: ' + (err.message || err), 'error');
+        // ── Lyrics file validation ──
+        if (lrcFile) {
+            if (lrcFile.name) {
+                const lrcExt = '.' + lrcFile.name.split('.').pop().toLowerCase();
+                if (!ALLOWED_LRC_EXTENSIONS.includes(lrcExt)) {
+                    showToast(`Security Shield: Invalid lyrics format (${lrcExt}). Only .lrc or .txt allowed!`, 'error');
+                    return;
                 }
+            }
+            if (lrcFile.size > MAX_LRC_FILE_BYTES) {
+                showToast(`Security Shield: Lyrics file too large (${(lrcFile.size / 1024 / 1024).toFixed(1)}MB). Max 2MB allowed!`, 'error');
+                return;
+            }
+        }
+
+        const submitBtn = uploadForm.querySelector?.('button[type="submit"], input[type="submit"]');
+        isUploading = true;
+        if (submitBtn) submitBtn.disabled = true;
+
+        let tempAudioBlobUrl = null;
+        let tempCoverBlobUrl = null;
+        let keptAudioBlobUrl = false;
+        let keptCoverBlobUrl = false;
+
+        try {
+            // ── Security Shield Layer 3: Auth & Vault Quota check ──
+            const isCloudConfigured = SupabaseService.isConfigured();
+            let currentUser = null;
+            if (isCloudConfigured) {
+                currentUser = await SupabaseService.getCurrentUser();
+                if (!currentUser) {
+                    showToast('Security Shield: You must sign into your Cloud Vault to upload tracks!', 'error');
+                    const modalCloudVault = document.getElementById('modal-cloud-vault');
+                    if (modalCloudVault) modalCloudVault.classList.remove('hidden');
+                    return;
+                }
+
+                const usedBytes = await SupabaseService.getUserStorageBytes();
+                const totalUploadBytes = audioFile.size + (coverFile ? coverFile.size : 0);
+                if (usedBytes + totalUploadBytes > MAX_TOTAL_QUOTA_BYTES) {
+                    showToast(`Security Shield: Storage quota exceeded (${(usedBytes / 1024 / 1024).toFixed(1)}MB / 500MB). Delete old tracks to upload more!`, 'error');
+                    return;
+                }
+            }
+
+            showToast('Uploading to Supabase Cloud Vault...', 'info');
+
+            let coverBlob = null;
+            let defaultCoverUrl = coverImgUrl;
+            if (coverFile) {
+                coverBlob = coverFile;
+                tempCoverBlobUrl = URL.createObjectURL(coverFile);
+                defaultCoverUrl = tempCoverBlobUrl;
+            } else {
+                try {
+                    const res = await fetch(coverImgUrl);
+                    coverBlob = await res.blob();
+                } catch {
+                    coverBlob = null;
+                }
+            }
+
+            const lrcText = lrcFile ? await readFileAsText(lrcFile) : '';
+
+            tempAudioBlobUrl = URL.createObjectURL(audioFile);
+            let audioUrl = tempAudioBlobUrl;
+            let coverUrl = defaultCoverUrl;
+
+            if (isCloudConfigured && currentUser) {
+                const fileNameSanitized = audioFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+                audioUrl = await SupabaseService.uploadMediaFile(audioFile, `tracks/${Date.now()}_${fileNameSanitized}`);
+                if (coverBlob instanceof Blob || coverBlob instanceof File) {
+                    coverUrl = await SupabaseService.uploadMediaFile(coverBlob, `covers/${Date.now()}.webp`);
+                }
+            }
+
+            const newSong = {
+                id: 'song-' + Date.now() + '-' + Math.floor(Math.random() * 100000),
+                title, artist, url: audioUrl, cover: coverUrl, lyrics: lrcText || '',
+                drift: 1.0, isEnhanced: Boolean(lrcText && lrcText.includes('<'))
             };
 
-            if (lrcFile) {
-                const reader = new FileReader();
-                reader.onload = async function(event) {
-                    await createSongObject(event.target.result);
-                };
-                reader.readAsText(lrcFile);
-            } else {
-                await createSongObject('');
+            if (isCloudConfigured && currentUser) {
+                const savedRecord = await SupabaseService.saveTrack({
+                    title, artist, audioUrl, coverUrl, lrcText: lrcText || '',
+                    isEnhanced: newSong.isEnhanced
+                });
+                if (savedRecord && savedRecord.id) newSong.id = savedRecord.id;
             }
-        };
 
-        if (coverFile) processUpload(coverFile, URL.createObjectURL(coverFile));
-        else {
-            fetch(coverImgUrl).then(r => r.blob()).then(blob => {
-                processUpload(blob, coverImgUrl);
-            }).catch(() => processUpload(null, coverImgUrl));
+            newSong.url = await SupabaseService.resolveMediaUrl(newSong.url);
+            newSong.cover = await SupabaseService.resolveMediaUrl(newSong.cover);
+
+            if (tempAudioBlobUrl && newSong.url === tempAudioBlobUrl) keptAudioBlobUrl = true;
+            if (tempCoverBlobUrl && newSong.cover === tempCoverBlobUrl) keptCoverBlobUrl = true;
+
+            playlist.push(newSong);
+            await renderSongGrid({ homeSongGrid, setupBoxExpansionListeners });
+            showToast('Track successfully uploaded to Cloud Vault!', 'info');
+
+            uploadForm.reset();
+            pendingUploadLrcBlob = null;
+            const uploadLrcStatus = document.getElementById('upload-lrc-status');
+            if (uploadLrcStatus) uploadLrcStatus.textContent = '';
+            uploadModal.classList.add('hidden');
+        } catch (err) {
+            console.error('Upload Error:', err);
+            showToast('Upload failed: ' + (err.message || err), 'error');
+        } finally {
+            if (tempAudioBlobUrl && !keptAudioBlobUrl) URL.revokeObjectURL(tempAudioBlobUrl);
+            if (tempCoverBlobUrl && !keptCoverBlobUrl) URL.revokeObjectURL(tempCoverBlobUrl);
+            isUploading = false;
+            if (submitBtn) submitBtn.disabled = false;
         }
     };
 

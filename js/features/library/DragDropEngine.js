@@ -13,7 +13,7 @@ import { armLibraryDragCancellation } from './LibraryDragCancellation.js';
 
 // ── FLIP reorder animation ────────────────────────────────────────────────────
 export function reorderFLIP(editGrid, draggingElement, nextSibling) {
-    const cards = [...editGrid.querySelectorAll('.song-card')];
+    const cards = [...editGrid.querySelectorAll(':scope > .song-card')];
 
     const firstPositions = new Map();
     cards.forEach(card => {
@@ -199,8 +199,8 @@ export function setupDragAndDrop() {
                 if (window.appMainContext?.renderSongGrid) window.appMainContext.renderSongGrid();
             } else {
                 settleLibraryDraggedGroup(editGrid, card, draggedSongIds, originalOrder);
-                const currentCards = [...editGrid.querySelectorAll('.song-card')];
-                state.libraryOrder = currentCards.map(c => c.getAttribute('data-id'));
+                const currentCards = [...editGrid.querySelectorAll(':scope > .song-card')];
+                state.libraryOrder = currentCards.map(c => c.getAttribute('data-id')).filter(Boolean);
                 await persistOrder();
             }
         };

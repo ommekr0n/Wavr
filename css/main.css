@@ -6,6 +6,9 @@
 @import './eq-modal.css';
 @import './buttons.css';
 @import './toast-notifications.css';
+@import './features/splash-loader.css';
+@import './features/tutorials-modal.css';
+@import './features/cloud-vault-modal.css';
 @import './modals.css';
 @import './edit-library.css';
 @import './vinyl-crates.css';

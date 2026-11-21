@@ -8,7 +8,7 @@ import { showSongContextMenu } from './SongContextMenu.js';
 import { toggleEditBoxExpansion } from './BoxExpansion.js';
 import { showDeleteBoxModal } from './BoxModals.js';
 import { updateSelectionBar } from './SelectionManager.js';
-import { escapeHtml, safeImageUrl } from '../../modules/safe-html.js';
+import { escapeHtml, safeImageUrl, safeHexColor } from '../../modules/safe-html.js';
 
 export function renderEditGrid() {
     const editGrid = document.getElementById('edit-song-grid');
@@ -63,7 +63,7 @@ export function renderEditGrid() {
                 <div class="card-drag-handle" title="Drag to reorder grid">⋮⋮</div>
                 <div class="song-cover-wrapper" style="position:relative;aspect-ratio:1/1;border-radius:8px;overflow:hidden;margin-bottom:10px;">
                     <img src="${escapeHtml(coverUrl)}" alt="${escapeHtml(song.title)}" draggable="false" style="width:100%;height:100%;object-fit:cover;pointer-events:none;user-select:none;">
-                    <button class="song-options-btn" data-id="${song.id}" title="Options">
+                    <button class="song-options-btn" data-id="${escapeHtml(song.id)}" title="Options">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                             <circle cx="12" cy="5" r="2"></circle>
                             <circle cx="12" cy="12" r="2"></circle>
@@ -103,13 +103,13 @@ export function renderEditGrid() {
 
             let sleevesHTML = '';
             recent.forEach((song, i) => {
-                const coverUrl = safeImageUrl(song.cover, coverImgUrl);
-                sleevesHTML += `<div class="peeking-sleeve sleeve-${i}" style="background-image:url('${escapeHtml(coverUrl)}')"></div>`;
+                sleevesHTML += `<div class="peeking-sleeve sleeve-${i}"></div>`;
             });
 
             card.className = 'song-card vinyl-box-card';
             card.setAttribute('data-id', box.id);
-            card.style.setProperty('--box-color', box.color || '#ffb300');
+            const boxColor  = safeHexColor(box.color, '#ffb300');
+            card.style.setProperty('--box-color', boxColor);
 
             card.innerHTML = `
                 <div class="card-drag-handle" title="Drag to reorder grid">⋮⋮</div>
@@ -119,7 +119,7 @@ export function renderEditGrid() {
                     </svg>
                 </button>
                 <div class="song-card-inner box-card-inner" style="aspect-ratio:1/1;margin-bottom:15px;">
-                    <div class="vinyl-box-visual" style="--box-color:${box.color || '#ffb300'};">
+                    <div class="vinyl-box-visual" style="--box-color:${boxColor};">
                         <div class="vinyl-sleeves-container">
                             ${sleevesHTML}
                             <div class="glass-front"></div>
@@ -129,6 +129,14 @@ export function renderEditGrid() {
                 <div class="song-card-title">${escapeHtml(box.name)}</div>
                 <div class="song-card-artist">${boxSongs.length} Tracks</div>
             `;
+
+            const sleeveEls = card.querySelectorAll('.peeking-sleeve');
+            recent.forEach((song, i) => {
+                const coverUrl = safeImageUrl(song.cover, coverImgUrl);
+                if (sleeveEls[i]) {
+                    sleeveEls[i].style.backgroundImage = `url("${coverUrl.replace(/["\\]/g, '\\$&')}")`;
+                }
+            });
 
             card.querySelector('.btn-delete-box').addEventListener('click', (e) => {
                 e.stopPropagation();

@@ -8,6 +8,9 @@ export function setupTutorialDismissal(modal) {
         }
     });
     document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && !modal.classList.contains('hidden')) close();
+        if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
+            event.stopPropagation();
+            close();
+        }
     });
 }

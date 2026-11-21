@@ -6,17 +6,21 @@ import { parseEnhancedLrc } from '../features/lyrics/EnhancedLrcTiming.js';
  */
 export function parseTimeToSeconds(timeStr) {
     if (!timeStr) return 0;
-    const clean = timeStr.replace(/[\[\]\<\>\(\)]/g, '').trim();
-    const parts = clean.split(':');
+    const clean = String(timeStr).replace(/[\[\]\<\>\(\)]/g, '').trim();
+    const parts = clean.split(':').map(p => p.trim());
     if (parts.length === 2) {
-        const min = parseFloat(parts[0]);
-        const sec = parseFloat(parts[1]);
-        return min * 60 + sec;
+        if (!parts[0] || !parts[1]) return 0;
+        const min = Number(parts[0]);
+        const sec = Number(parts[1]);
+        const total = min * 60 + sec;
+        return (Number.isFinite(total) && min >= 0 && sec >= 0) ? total : 0;
     } else if (parts.length === 3) {
-        const min = parseFloat(parts[0]);
-        const sec = parseFloat(parts[1]);
-        const ms = parseFloat(parts[2]);
-        return min * 60 + sec + (ms > 99 ? ms / 1000 : ms / 100);
+        if (!parts[0] || !parts[1] || !parts[2]) return 0;
+        const min = Number(parts[0]);
+        const sec = Number(parts[1]);
+        const ms = Number(parts[2]);
+        const total = min * 60 + sec + (ms / Math.pow(10, parts[2].length));
+        return (Number.isFinite(total) && min >= 0 && sec >= 0 && ms >= 0) ? total : 0;
     }
     return 0;
 }
@@ -31,18 +35,20 @@ export function parseLyrics(lrcString) {
     if (!lrcString) return parsedLyrics;
 
     const lines = lrcString.split('\n');
-    const lineTimeRegex = /\[(\d{2}):(\d{2}(?:\.\d{2,3})?)\]/g;
+    const lineTimeRegex = /\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)\]/g;
 
     lines.forEach(line => {
+        lineTimeRegex.lastIndex = 0;
         let match;
         // Search for all line-level timestamps in the line
         while ((match = lineTimeRegex.exec(line)) !== null) {
-            const minutes = parseInt(match[1]);
+            const minutes = parseInt(match[1], 10);
             const seconds = parseFloat(match[2]);
             const lineTime = (minutes * 60) + seconds;
+            if (!Number.isFinite(lineTime)) continue;
 
             // Extract content after line timestamps
-            const rawContent = line.replace(/\[\d{2}:\d{2}(?:\.\d{2,3})?\]/g, '').trim();
+            const rawContent = line.replace(/\[\d{1,3}:\d{2}(?:\.\d{1,3})?\]/g, '').trim();
             if (!rawContent) continue;
 
             const enhanced = parseEnhancedLrc(rawContent, lineTime, parseTimeToSeconds);

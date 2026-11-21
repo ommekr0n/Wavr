@@ -61,7 +61,9 @@ export const MiniPlayerController = {
             }
         }
 
-        const pct = isNaN(engine.duration) ? 0 : (engine.currentTime / engine.duration) * 100;
+        const pct = !Number.isFinite(engine.duration) || engine.duration <= 0
+            ? 0
+            : (engine.currentTime / engine.duration) * 100;
         drawMiniWaveform(pct);
 
         const btnMiniRepeat  = document.getElementById('btn-mini-repeat');
@@ -119,6 +121,7 @@ export const MiniPlayerController = {
         updateMiniPlayerUI
     }) {
         const miniPlayer     = document.getElementById('mini-player');
+        const miniLeft       = miniPlayer?.querySelector?.('.mini-left') || document.querySelector('.mini-left');
         const miniSlider     = document.getElementById('mini-progress-slider');
         const miniCenter     = document.querySelector('.mini-center');
         const btnMiniPlay    = document.getElementById('btn-mini-play');
@@ -137,6 +140,14 @@ export const MiniPlayerController = {
             });
         }
 
+        if (miniLeft) {
+            miniLeft.addEventListener('keydown', (e) => {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
+                if (PlayerController.getCurrentTrackIndex() !== -1) expandPlayer();
+            });
+        }
+
         if (miniCenter) {
             miniCenter.addEventListener('click',     (e) => e.stopPropagation());
             miniCenter.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -148,13 +159,13 @@ export const MiniPlayerController = {
                 this._isDraggingSlider = true;
                 const percent = parseFloat(e.target.value);
                 drawMiniWaveform(percent);
-                if (!isNaN(engine.duration)) {
+                if (Number.isFinite(engine.duration) && engine.duration > 0) {
                     prepareLyricNearTime((percent / 100) * engine.duration);
                 }
             });
 
             miniSlider.addEventListener('change', (e) => {
-                if (!isNaN(engine.duration)) {
+                if (Number.isFinite(engine.duration) && engine.duration > 0) {
                     const targetTime = (parseFloat(e.target.value) / 100) * engine.duration;
                     prepareLyricNearTime(targetTime);
                     engine.seek(targetTime);

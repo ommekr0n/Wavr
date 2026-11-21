@@ -56,12 +56,18 @@ export function setupSelectionBox() {
         });
     }, { signal });
 
-    window.addEventListener('mouseup', () => {
+    const finishLassoSelection = () => {
         if (isSelecting) {
             isSelecting = false;
             if (selectionBox) { selectionBox.remove(); selectionBox = null; }
             updateSelectionBar();
         }
+    };
+
+    window.addEventListener('mouseup', finishLassoSelection, { signal });
+    window.addEventListener('blur', finishLassoSelection, { signal });
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') finishLassoSelection();
     }, { signal });
 }
 

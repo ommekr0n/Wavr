@@ -98,14 +98,24 @@ export function registerRecordingMode(modeConfig) {
 let mediaRecorder = null;
 let recordedChunks = [];
 let activeStream = null;
+let isStarting = false;
 let preRollTimeout = null;
+let onAudioEndedHandler = null;
 let currentModeId = 'normal';
 let wasFullscreenBefore = false;
 let initialViewState = 'home';
 let recordedTrack = null;
 
 export async function startScreenRecording(modeId, options = {}) {
+    if (isStarting || activeStream || mediaRecorder?.state === 'recording') return;
+
     const { playAudio, pauseAudio, showToast, getCurrentTrack } = options;
+
+    if (typeof MediaRecorder === 'undefined') {
+        if (showToast) showToast('Screen recording is not supported in this browser.');
+        return;
+    }
+
     const modeConfig = recordingModeRegistry[modeId] || recordingModeRegistry.normal;
     currentModeId = modeId;
     wasFullscreenBefore = !!document.fullscreenElement;
@@ -153,24 +163,29 @@ export async function startScreenRecording(modeId, options = {}) {
         }
     };
 
+    isStarting = true;
     try {
-        stream = await navigator.mediaDevices.getDisplayMedia(displayOptions);
-    } catch (err) {
-        console.warn('Advanced displayMedia failed, trying standard fallback:', err);
         try {
-            stream = await navigator.mediaDevices.getDisplayMedia({
-                video: true,
-                audio: true
-            });
-        } catch (fallbackErr) {
-            console.warn('Display media permission denied or failed:', fallbackErr);
-            if (showToast) showToast('Recording cancelled or permission denied.');
-            return;
+            stream = await navigator.mediaDevices.getDisplayMedia(displayOptions);
+        } catch (err) {
+            console.warn('Advanced displayMedia failed, trying standard fallback:', err);
+            try {
+                stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: true,
+                    audio: true
+                });
+            } catch (fallbackErr) {
+                console.warn('Display media permission denied or failed:', fallbackErr);
+                if (showToast) showToast('Recording cancelled or permission denied.');
+                return;
+            }
         }
-    }
 
-    activeStream = stream;
-    recordedChunks = [];
+        activeStream = stream;
+        recordedChunks = [];
+    } finally {
+        isStarting = false;
+    }
 
     // Step 2: Fullscreen & UI Preparation
     try {
@@ -189,64 +204,94 @@ export async function startScreenRecording(modeId, options = {}) {
     }
 
     // Step 3: MediaRecorder Initialization (Prefer hardware-accelerated VP8/standard WebM)
-    let mimeType = 'video/webm;codecs=vp8,opus';
-    if (!MediaRecorder.isTypeSupported(mimeType)) {
-        if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
-            mimeType = 'video/webm;codecs=vp8';
-        } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
-            mimeType = 'video/webm;codecs=vp9';
-        } else {
-            mimeType = 'video/webm';
-        }
-    }
-
     try {
-        mediaRecorder = new MediaRecorder(stream, {
-            mimeType: mimeType,
-            videoBitsPerSecond: 12000000 // Preserve more artwork and lyric detail in 1080p60 capture.
-        });
-    } catch (e) {
-        console.warn('MediaRecorder init fallback without bitrates:', e);
-        mediaRecorder = new MediaRecorder(stream);
-    }
-
-    mediaRecorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) {
-            recordedChunks.push(e.data);
+        let mimeType = 'video/webm;codecs=vp8,opus';
+        if (typeof MediaRecorder.isTypeSupported === 'function') {
+            if (!MediaRecorder.isTypeSupported(mimeType)) {
+                if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
+                    mimeType = 'video/webm;codecs=vp8';
+                } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+                    mimeType = 'video/webm;codecs=vp9';
+                } else if (MediaRecorder.isTypeSupported('video/webm')) {
+                    mimeType = 'video/webm';
+                } else {
+                    mimeType = '';
+                }
+            }
+        } else {
+            mimeType = '';
         }
-    };
 
-    mediaRecorder.onstop = async () => {
-        await finishRecording(options);
-    };
+        try {
+            const mrOptions = mimeType
+                ? { mimeType, videoBitsPerSecond: 12000000 }
+                : { videoBitsPerSecond: 12000000 };
+            mediaRecorder = new MediaRecorder(stream, mrOptions); // Preserve more artwork and lyric detail in 1080p60 capture.
+        } catch (e) {
+            console.warn('MediaRecorder init fallback without bitrates:', e);
+            mediaRecorder = new MediaRecorder(stream);
+        }
 
-    // If user stops sharing via browser bar
-    const videoTrack = stream.getVideoTracks()[0];
-    if (videoTrack) {
-        videoTrack.onended = () => {
-            stopRecording();
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) {
+                recordedChunks.push(e.data);
+            }
         };
-    }
 
-    // Reset playback state first to ensure clean ambient start from 0.0s
-    if (options.resetPlaybackState) {
-        options.resetPlaybackState();
-    } else {
-        if (pauseAudio) pauseAudio();
-        const audioElement = document.getElementById('audio-player');
-        if (audioElement) {
-            audioElement.currentTime = 0;
+        mediaRecorder.onstop = async () => {
+            await finishRecording(options);
+        };
+
+        // If user stops sharing via browser bar
+        const videoTrack = stream.getVideoTracks()[0];
+        if (videoTrack) {
+            videoTrack.onended = () => {
+                stopRecording();
+            };
         }
+
+        // Reset playback state first to ensure clean ambient start from 0.0s
+        if (options.resetPlaybackState) {
+            options.resetPlaybackState();
+        } else {
+            if (pauseAudio) pauseAudio();
+            const audioElement = document.getElementById('audio-player');
+            if (audioElement) {
+                audioElement.currentTime = 0;
+            }
+        }
+
+        /* =========================================================================
+           SCREEN RECORDING: STREAM TIMESLICE OPTIMIZATION (1000ms Batching)
+           - Kỹ thuật: Truyền timeslice = 1000ms vào mediaRecorder.start(1000).
+           - Tác dụng: Gửi các đoạn video buffer về RAM theo đợt 1 giây/lần thay vì
+             unbuffered stream từng frame liên tục. Điều này giải phóng luồng chính
+             (Main Thread), triệt tiêu lag giật 60 FPS mà KHÔNG GIẢM HIỆU ỨNG NÀO.
+           ========================================================================= */
+        mediaRecorder.start(1000);
+    } catch (err) {
+        console.error('Failed to start MediaRecorder:', err);
+        if (activeStream) {
+            activeStream.getTracks().forEach(track => track.stop());
+            activeStream = null;
+        }
+        mediaRecorder = null;
+        recordedChunks = [];
+        document.body.classList.remove('is-recording');
+        if (modeConfig.teardown) {
+            modeConfig.teardown();
+        }
+        if (!wasFullscreenBefore && document.fullscreenElement) {
+            try {
+                await document.exitFullscreen();
+            } catch (_) {
+                // ignore
+            }
+        }
+        if (showToast) showToast('Failed to start screen recording.');
+        return;
     }
 
-    /* =========================================================================
-       SCREEN RECORDING: STREAM TIMESLICE OPTIMIZATION (1000ms Batching)
-       - Kỹ thuật: Truyền timeslice = 1000ms vào mediaRecorder.start(1000).
-       - Tác dụng: Gửi các đoạn video buffer về RAM theo đợt 1 giây/lần thay vì 
-         unbuffered stream từng frame liên tục. Điều này giải phóng luồng chính 
-         (Main Thread), triệt tiêu lag giật 60 FPS mà KHÔNG GIẢM HIỆU ỨNG NÀO.
-       ========================================================================= */
-    mediaRecorder.start(1000);
     if (showToast) showToast('Recording started! Music starts in 4 seconds...');
 
     // Step 4: 4-second ambient time before playing music
@@ -256,11 +301,13 @@ export async function startScreenRecording(modeId, options = {}) {
         // Listen for track end
         const audioElement = document.getElementById('audio-player');
         if (audioElement) {
-            const onAudioEnded = () => {
+            if (onAudioEndedHandler) {
+                audioElement.removeEventListener('ended', onAudioEndedHandler);
+            }
+            onAudioEndedHandler = () => {
                 stopRecording();
-                audioElement.removeEventListener('ended', onAudioEnded);
             };
-            audioElement.addEventListener('ended', onAudioEnded);
+            audioElement.addEventListener('ended', onAudioEndedHandler);
         }
     }, 4000);
 }
@@ -269,6 +316,14 @@ export function stopRecording() {
     if (preRollTimeout) {
         clearTimeout(preRollTimeout);
         preRollTimeout = null;
+    }
+
+    if (onAudioEndedHandler) {
+        const audioElement = document.getElementById('audio-player');
+        if (audioElement) {
+            audioElement.removeEventListener('ended', onAudioEndedHandler);
+        }
+        onAudioEndedHandler = null;
     }
 
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
@@ -344,16 +399,35 @@ async function finishRecording(options = {}) {
     }
 
     // Process Blob & Download
-    if (recordedChunks.length === 0) {
-        if (showToast) showToast('No video data captured.');
-        return;
+    let blob;
+    let baseMime = 'video/webm';
+    let ext = '.webm';
+    let fileDesc = 'WebM Video File';
+    try {
+        if (recordedChunks.length === 0) {
+            if (showToast) showToast('No video data captured.');
+            return;
+        }
+        const rawMime = mediaRecorder?.mimeType || 'video/webm';
+        const parsedBase = rawMime.split(';')[0].trim().toLowerCase();
+        if (parsedBase === 'video/mp4') {
+            baseMime = 'video/mp4';
+            ext = '.mp4';
+            fileDesc = 'MP4 Video File';
+        } else {
+            baseMime = parsedBase || 'video/webm';
+            ext = '.webm';
+            fileDesc = 'WebM Video File';
+        }
+        blob = new Blob(recordedChunks, { type: rawMime || baseMime });
+    } finally {
+        recordedChunks = [];
     }
 
-    const blob = new Blob(recordedChunks, { type: 'video/webm' });
     const currentTrack = recordedTrack || (getCurrentTrack ? getCurrentTrack() : null);
     const rawTitle = currentTrack?.title || 'Track';
     const cleanTitle = rawTitle.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_');
-    const filename = `Wavr_${cleanTitle || 'Track'}.webm`;
+    const filename = `Wavr_${cleanTitle || 'Track'}${ext}`;
 
     let savedSuccessfully = false;
 
@@ -363,8 +437,8 @@ async function finishRecording(options = {}) {
             const handle = await window.showSaveFilePicker({
                 suggestedName: filename,
                 types: [{
-                    description: 'WebM Video File',
-                    accept: { 'video/webm': ['.webm'] }
+                    description: fileDesc,
+                    accept: { [baseMime]: [ext] }
                 }]
             });
             const writable = await handle.createWritable();
@@ -392,9 +466,9 @@ async function finishRecording(options = {}) {
             document.body.appendChild(a);
             a.click();
             setTimeout(() => {
-                document.body.removeChild(a);
+                if (a.parentNode) a.parentNode.removeChild(a);
                 URL.revokeObjectURL(url);
-            }, 100);
+            }, 15000);
             if (showToast) showToast(`Video downloaded: ${filename}`);
         } catch (e) {
             console.error('Download fallback error:', e);

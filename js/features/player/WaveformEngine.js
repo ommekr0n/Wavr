@@ -58,9 +58,9 @@ export function drawMiniWaveform(percent) {
     if (!canvas || document.hidden || document.getElementById('mini-player')?.classList.contains('hidden')) return;
     const ctx = canvas.getContext('2d');
 
-    if (!cachedCanvasWidth || canvas.width !== cachedCanvasWidth) {
-        const targetW = Math.max(300, Math.floor(canvas.offsetWidth || 500));
-        const targetH = Math.max(36,  Math.floor(canvas.offsetHeight || 48));
+    const targetW = Math.max(300, Math.floor(canvas.offsetWidth || 500));
+    const targetH = Math.max(36,  Math.floor(canvas.offsetHeight || 48));
+    if (canvas.width !== targetW || canvas.height !== targetH || cachedCanvasWidth !== targetW || cachedCanvasHeight !== targetH) {
         canvas.width  = targetW;
         canvas.height = targetH;
         cachedCanvasWidth = targetW;

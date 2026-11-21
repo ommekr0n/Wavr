@@ -22,10 +22,24 @@ export const CloudSyncIndicator = {
         const playerBtn = document.getElementById('btn-auth-vault');
 
         const isConfigured = SupabaseService.isConfigured();
-        const user = isConfigured ? await SupabaseService.getCurrentUser().catch(() => null) : null;
+        const isOffline = currentSyncState === 'offline' || (typeof navigator !== 'undefined' && navigator.onLine === false);
+        let user = null;
+
+        if (isConfigured) {
+            if (isOffline) {
+                const session = typeof SupabaseService.getSession === 'function'
+                    ? await SupabaseService.getSession().catch(() => null)
+                    : null;
+                user = session?.user || null;
+            } else {
+                user = await SupabaseService.getCurrentUser().catch(() => null);
+            }
+        }
 
         if (!isConfigured || !user) {
             currentSyncState = 'local';
+        } else if (isOffline) {
+            currentSyncState = 'offline';
         }
 
         const stateConfig = {

@@ -56,11 +56,14 @@ const _result = {
  */
 function welfordAdd(value, oldValue, hasOld, countRef, meanRef, m2Ref) {
     // Remove old value from window if full
-    if (hasOld) {
+    if (hasOld && countRef[0] > 1) {
         const oldDelta = oldValue - meanRef[0];
-        meanRef[0] -= oldDelta / countRef[0];
+        meanRef[0] -= oldDelta / (countRef[0] - 1);
         const newDelta = oldValue - meanRef[0];
         m2Ref[0] = Math.max(0, m2Ref[0] - oldDelta * newDelta);
+    } else if (hasOld) {
+        meanRef[0] = 0;
+        m2Ref[0] = 0;
     } else {
         countRef[0]++;
     }
@@ -68,7 +71,7 @@ function welfordAdd(value, oldValue, hasOld, countRef, meanRef, m2Ref) {
     const delta  = value - meanRef[0];
     meanRef[0]  += delta / countRef[0];
     const delta2 = value - meanRef[0];
-    m2Ref[0]    += delta * delta2;
+    m2Ref[0]     = Math.max(0, m2Ref[0] + delta * delta2);
 
     const variance = countRef[0] > 1 ? m2Ref[0] / (countRef[0] - 1) : 0;
     return { mean: meanRef[0], stdDev: Math.sqrt(variance) };
@@ -98,7 +101,10 @@ export const FFTAnalyzer = {
         }
 
         // ── 1. Volume Intensities ─────────────────────────────────────────────
-        const intensity      = (dataArray[0] + dataArray[1] + dataArray[2]) / 3 / 255;
+        const subBassEnd = Math.min(3, totalBins);
+        let subBassVolSum = 0;
+        for (let i = 0; i < subBassEnd; i++) subBassVolSum += dataArray[i];
+        const intensity      = subBassVolSum / subBassEnd / 255;
 
         const midEnd = Math.min(24, totalBins);
         let midVolSum = 0;
@@ -138,11 +144,11 @@ export const FFTAnalyzer = {
 
         // ── 4. Spectral Flux (Half-Wave Rectified) ────────────────────────────
         let subBassFluxSum = 0;
-        for (let i = 0; i <= 2; i++) {
+        for (let i = 0; i < subBassEnd; i++) {
             const diff = dataArray[i] - prevDataArray[i];
             if (diff > 0) subBassFluxSum += diff;
         }
-        const subBassFlux = subBassFluxSum / 3 / 255;
+        const subBassFlux = subBassFluxSum / subBassEnd / 255;
 
         let ultraHighFluxSum = 0;
         for (let i = 24; i < highEnd; i++) {

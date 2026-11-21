@@ -10,7 +10,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500;700&family=Inter:wght@300;400;500;600;700;800;900&family=Chakra+Petch:wght@700&family=Dela+Gothic+One&family=DotGothic16&display=swap" rel="stylesheet">
-    <link rel="icon" href="data:,">
 </head>
 <body class="theme-default">
     <!-- Custom Background Layers -->
@@ -40,12 +39,10 @@
     </div>
 
     <!-- Global SVG Filters -->
-    <svg width="0" height="0" style="position: absolute; pointer-events: none;">
+    <svg width="0" height="0" style="position: absolute; pointer-events: none;" aria-hidden="true">
         <defs>
             <filter id="fireFilter" x="-10%" y="-10%" width="120%" height="120%">
-                <feTurbulence type="fractalNoise" baseFrequency="0.03 0.08" numOctaves="1" result="noise">
-                    <animate attributeName="baseFrequency" values="0.03 0.08; 0.03 0.16; 0.03 0.08" dur="1.5s" repeatCount="indefinite"/>
-                </feTurbulence>
+                <feTurbulence type="fractalNoise" baseFrequency="0.03 0.08" numOctaves="1" result="noise" />
                 <feDisplacementMap in="SourceGraphic" in2="noise" scale="20" xChannelSelector="R" yChannelSelector="G" />
             </filter>
         </defs>
@@ -66,30 +63,30 @@
                 </div>
                 <div class="home-header-actions" style="display: flex; gap: 12px; align-items: center;">
                     <!-- Cloud Vault Sign In / Account Button -->
-                    <button id="btn-cloud-vault-home" class="add-btn vault-header-btn" title="Sign In / Register Cloud Vault" style="border-radius: 40px; padding: 0 16px; gap: 8px; height: 40px; display: inline-flex; align-items: center; font-weight: 600; font-size: 0.88rem; background: rgba(0, 229, 255, 0.15); border: 1px solid rgba(0, 229, 255, 0.4); color: var(--accent-color, #00e5ff);">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <button type="button" id="btn-cloud-vault-home" class="add-btn vault-header-btn" title="Sign In / Register Cloud Vault" aria-label="Log In or Sign Up to Cloud Vault" style="border-radius: 40px; padding: 0 16px; gap: 8px; height: 40px; display: inline-flex; align-items: center; font-weight: 600; font-size: 0.88rem; background: rgba(0, 229, 255, 0.15); border: 1px solid rgba(0, 229, 255, 0.4); color: var(--accent-color, #00e5ff);">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                             <circle cx="12" cy="7" r="4"></circle>
                         </svg>
                         <span class="vault-btn-text">Log In / Sign Up</span>
                     </button>
                     <!-- Settings Button -->
-                    <button id="btn-settings" class="add-btn" title="Grid Settings" style="border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <button type="button" id="btn-settings" class="add-btn" title="Grid Settings" aria-label="Grid Settings" style="border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <circle cx="12" cy="12" r="3"></circle>
                             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                         </svg>
                     </button>
                     <!-- Edit Library Button -->
-                    <button id="btn-edit-library" class="add-btn" title="Edit Library" style="border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <button type="button" id="btn-edit-library" class="add-btn" title="Edit Library" aria-label="Edit Library" style="border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                             <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path>
                         </svg>
                     </button>
                     <!-- Add Song Button -->
-                    <button id="btn-add-song" class="add-btn" title="Add new track">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <button type="button" id="btn-add-song" class="add-btn" title="Add new track" aria-label="Add new track">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <line x1="12" y1="5" x2="12" y2="19"></line>
                             <line x1="5" y1="12" x2="19" y2="12"></line>
                         </svg>
@@ -104,7 +101,7 @@
         
         <!-- Mini Player -->
         <div id="mini-player" class="mini-player hidden">
-            <div class="mini-left">
+            <div class="mini-left" role="button" tabindex="0" aria-label="Open full player">
                 <img id="mini-cover" src="assets/images/cover.png" alt="Cover">
                 <div class="mini-meta">
                     <div id="mini-title">Track Title</div>
@@ -114,13 +111,13 @@
             
             <!-- Center: Interactive Waveform Timeline -->
             <div class="mini-center">
-                <canvas id="mini-waveform-canvas" width="400" height="48"></canvas>
-                <input type="range" id="mini-progress-slider" min="0" max="100" step="0.1" value="0">
+                <canvas id="mini-waveform-canvas" width="400" height="48" aria-hidden="true"></canvas>
+                <input type="range" id="mini-progress-slider" min="0" max="100" step="0.1" value="0" aria-label="Seek through track">
             </div>
 
             <div class="mini-right">
-                <button id="btn-mini-shuffle" class="icon-btn mini-btn toggle-btn" title="Shuffle">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button type="button" id="btn-mini-shuffle" class="icon-btn mini-btn toggle-btn" title="Shuffle" aria-label="Shuffle">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <polyline points="16 3 21 3 21 8"></polyline>
                         <line x1="4" y1="20" x2="21" y2="3"></line>
                         <polyline points="21 16 21 21 16 21"></polyline>
@@ -128,34 +125,34 @@
                         <line x1="4" y1="4" x2="9" y2="9"></line>
                     </svg>
                 </button>
-                <button id="btn-mini-prev" class="icon-btn mini-btn" title="Previous">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <button type="button" id="btn-mini-prev" class="icon-btn mini-btn" title="Previous" aria-label="Previous track">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
                         <path d="M6 6h2v12H6zm3.5 6L18 6v12z"/>
                     </svg>
                 </button>
-                <button id="btn-mini-play" class="icon-btn mini-btn" aria-label="Play" title="Play">
-                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                <button type="button" id="btn-mini-play" class="icon-btn mini-btn" aria-label="Play" title="Play">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
                         <path d="M8 5v14l11-7z"/>
                     </svg>
                 </button>
-                <button id="btn-mini-pause" class="icon-btn mini-btn hidden" aria-label="Pause" title="Pause">
-                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                <button type="button" id="btn-mini-pause" class="icon-btn mini-btn hidden" aria-label="Pause" title="Pause">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
                         <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
                     </svg>
                 </button>
-                <button id="btn-mini-next" class="icon-btn mini-btn" title="Next">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <button type="button" id="btn-mini-next" class="icon-btn mini-btn" title="Next" aria-label="Next track">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
                         <path d="M6 18V6l8.5 6zm9-12h2v12h-2z"/>
                     </svg>
                 </button>
-                <button id="btn-mini-repeat" class="icon-btn mini-btn toggle-btn" title="Repeat">
-                    <svg class="icon-repeat" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button type="button" id="btn-mini-repeat" class="icon-btn mini-btn toggle-btn" title="Repeat" aria-label="Repeat">
+                    <svg class="icon-repeat" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <polyline points="17 1 21 5 17 9"></polyline>
                         <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
                         <polyline points="7 23 3 19 7 15"></polyline>
                         <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
                     </svg>
-                    <svg class="icon-repeat-1 hidden" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg class="icon-repeat-1 hidden" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <polyline points="17 1 21 5 17 9"></polyline>
                         <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
                         <polyline points="7 23 3 19 7 15"></polyline>
@@ -179,8 +176,8 @@
                     <h1>Edit Library</h1>
                 </div>
                 <div class="home-header-actions">
-                    <button id="btn-edit-done" class="add-btn" title="Save & Done" style="border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <button type="button" id="btn-edit-done" class="add-btn" title="Save & Done" aria-label="Save and Done" style="border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <polyline points="20 6 9 17 4 12"></polyline>
                         </svg>
                     </button>
@@ -202,31 +199,31 @@
     </div>
 
     <!-- 2.5 Delete Confirmation Modal -->
-    <div id="delete-modal" class="modal hidden">
+    <div id="delete-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
         <div class="modal-content delete-modal-content">
-            <h2>Delete Track</h2>
+            <h2 id="delete-modal-title">Delete Track</h2>
             <p>Are you sure you want to delete this track?</p>
             <div class="modal-actions">
-                <button id="btn-cancel-delete" class="secondary-btn">Cancel</button>
-                <button id="btn-confirm-delete" class="danger-btn">Delete</button>
+                <button type="button" id="btn-cancel-delete" class="secondary-btn">Cancel</button>
+                <button type="button" id="btn-confirm-delete" class="danger-btn">Delete</button>
             </div>
         </div>
     </div>
 
     <!-- 2.55 Delete Box Confirmation Modal -->
-    <div id="delete-box-modal" class="modal hidden">
+    <div id="delete-box-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="delete-box-modal-title">
         <div class="modal-content delete-box-modal-content">
-            <div class="delete-box-icon">
-                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+            <div class="delete-box-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true">
                     <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
                 </svg>
             </div>
-            <h2>Delete Box?</h2>
+            <h2 id="delete-box-modal-title">Delete Box?</h2>
             <p id="delete-box-modal-msg" class="modal-subtitle">The songs inside will remain in your library.</p>
             <div class="modal-actions">
-                <button id="btn-cancel-delete-box" class="secondary-btn">Cancel</button>
-                <button id="btn-confirm-delete-box" class="danger-btn">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right:6px">
+                <button type="button" id="btn-cancel-delete-box" class="secondary-btn">Cancel</button>
+                <button type="button" id="btn-confirm-delete-box" class="danger-btn">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right:6px" aria-hidden="true">
                         <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
                     </svg>
                     Delete Box
@@ -237,9 +234,9 @@
 
 
     <!-- 2.6 Edit Info Modal -->
-    <div id="edit-modal" class="modal hidden">
+    <div id="edit-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
         <div class="modal-content">
-            <h2>Edit Track Info</h2>
+            <h2 id="edit-modal-title">Edit Track Info</h2>
             <form id="edit-form">
                 <div class="form-group">
                     <label for="edit-audio">Update Audio File (.mp3, .m4a) - Optional</label>
@@ -282,15 +279,15 @@
     </div>
 
     <!-- Upload Modal -->
-    <div id="upload-modal" class="modal hidden">
+    <div id="upload-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="upload-modal-title">
         <div class="modal-content">
-            <button id="btn-close-modal" class="close-btn glass-icon-btn danger" title="Close">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <button type="button" id="btn-close-modal" class="close-btn glass-icon-btn danger" title="Close" aria-label="Close upload modal">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>
             </button>
-            <h2>Add New Track</h2>
+            <h2 id="upload-modal-title">Add New Track</h2>
             <p class="modal-subtitle">Upload Audio (.mp3, .m4a, .wav) and Lyrics (.lrc) files.</p>
             
             <form id="upload-form">
@@ -333,15 +330,15 @@
     </div>
 
     <!-- Multi-Version Lyrics Picker Modal -->
-    <div id="lrc-picker-modal" class="modal hidden">
+    <div id="lrc-picker-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="lrc-picker-modal-title">
         <div class="modal-content" style="max-width: 650px; max-height: 85vh; display: flex; flex-direction: column;">
-            <button id="btn-close-lrc-picker" class="close-btn glass-icon-btn danger" title="Close">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <button type="button" id="btn-close-lrc-picker" class="close-btn glass-icon-btn danger" title="Close" aria-label="Close lyrics picker">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>
             </button>
-            <h2>Select Lyrics Version</h2>
+            <h2 id="lrc-picker-modal-title">Select Lyrics Version</h2>
             <p class="modal-subtitle">Found multiple synced lyrics versions on LRCLIB. Pick the one that matches your audio track.</p>
             <div id="lrc-picker-list" style="overflow-y: auto; display: flex; flex-direction: column; gap: 12px; margin-top: 15px; padding-right: 5px; max-height: 60vh;">
                 <!-- Dynamically populated LRCLIB cards -->
@@ -357,8 +354,8 @@
         <!-- Player Header -->
         <header class="app-header">
             <div class="header-left">
-                <button id="btn-back-home" class="icon-btn idle-hideable" title="Back to Library">
-                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button type="button" id="btn-back-home" class="icon-btn idle-hideable" title="Back to Library" aria-label="Back to Library">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <polyline points="15 18 9 12 15 6"></polyline>
                     </svg>
                 </button>
@@ -367,8 +364,8 @@
 
             <!-- Center Top Utilities Bar -->
             <div id="player-top-utilities" class="header-utilities-bar idle-hideable">
-                <button id="btn-eq" class="icon-btn" title="Equalizer">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button type="button" id="btn-eq" class="icon-btn" title="Equalizer" aria-label="Equalizer">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <line x1="4" y1="21" x2="4" y2="14"></line>
                         <line x1="4" y1="10" x2="4" y2="3"></line>
                         <line x1="12" y1="21" x2="12" y2="12"></line>
@@ -380,8 +377,8 @@
                         <line x1="17" y1="16" x2="23" y2="16"></line>
                     </svg>
                 </button>
-                <button id="btn-cinematic" class="icon-btn toggle-btn" title="Cinematic Mode">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button type="button" id="btn-cinematic" class="icon-btn toggle-btn" title="Cinematic Mode" aria-label="Cinematic Mode">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
                         <line x1="7" y1="2" x2="7" y2="22"></line>
                         <line x1="17" y1="2" x2="17" y2="22"></line>
@@ -392,8 +389,8 @@
                         <line x1="17" y1="7" x2="22" y2="7"></line>
                     </svg>
                 </button>
-                <button id="btn-angelic" class="icon-btn toggle-btn" title="Angelic Mode">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button type="button" id="btn-angelic" class="icon-btn toggle-btn" title="Angelic Mode" aria-label="Angelic Mode">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
                     </svg>
                 </button>
@@ -405,8 +402,8 @@
                     </svg>
                 </button>
                 <div class="record-container">
-                    <button id="btn-record" class="icon-btn" title="Screen Recording">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <button type="button" id="btn-record" class="icon-btn" title="Screen Recording" aria-label="Screen Recording">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M23 7l-7 5 7 5V7z"></path>
                             <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
                         </svg>
@@ -415,8 +412,8 @@
                         <!-- Dynamic options will be rendered here -->
                     </div>
                 </div>
-                <button id="btn-toggle-drift" class="icon-btn" title="Lyrics Sync">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button type="button" id="btn-toggle-drift" class="icon-btn" title="Lyrics Sync" aria-label="Lyrics Sync">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <circle cx="12" cy="12" r="10"></circle>
                         <polyline points="12 6 12 12 16 14"></polyline>
                     </svg>
@@ -434,14 +431,14 @@
             </div>
 
             <div class="header-right">
-                <button id="btn-auth-vault" class="icon-btn idle-hideable" title="Sign In / Register to Personal Cloud Vault">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button type="button" id="btn-auth-vault" class="icon-btn idle-hideable" title="Sign In / Register to Personal Cloud Vault" aria-label="Sign In or Register to Personal Cloud Vault">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                         <circle cx="12" cy="7" r="4"></circle>
                     </svg>
                 </button>
-                <button id="fullscreen-btn" class="icon-btn idle-hideable" title="Fullscreen">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button type="button" id="fullscreen-btn" class="icon-btn idle-hideable" title="Fullscreen" aria-label="Toggle Fullscreen">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
                     </svg>
                 </button>
@@ -480,8 +477,8 @@
                     <div class="am-controls-container">
                         <!-- Primary 5-button transport row: [Shuffle] [Prev] [Play/Pause] [Next] [Repeat] -->
                         <div class="am-controls-primary">
-                            <button id="btn-shuffle" class="control-btn toggle-btn am-aux-btn" title="Shuffle">
-                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <button type="button" id="btn-shuffle" class="control-btn toggle-btn am-aux-btn" title="Shuffle" aria-label="Shuffle">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                     <polyline points="16 3 21 3 21 8"></polyline>
                                     <line x1="4" y1="20" x2="21" y2="3"></line>
                                     <polyline points="21 16 21 21 16 21"></polyline>
@@ -490,38 +487,38 @@
                                 </svg>
                             </button>
 
-                            <button id="btn-prev" class="control-btn am-skip-btn" title="Previous">
-                                <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor">
+                            <button type="button" id="btn-prev" class="control-btn am-skip-btn" title="Previous" aria-label="Previous track">
+                                <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
                                     <path d="M6 6h2v12H6zm3.5 6L18 6v12z"/>
                                 </svg>
                             </button>
                             
-                            <button id="btn-play" class="control-btn am-play-btn" title="Play / Pause">
-                                <svg class="play-icon" viewBox="0 0 54 54" width="54" height="54">
+                            <button type="button" id="btn-play" class="control-btn am-play-btn" title="Play / Pause" aria-label="Play or Pause">
+                                <svg class="play-icon" viewBox="0 0 54 54" width="54" height="54" aria-hidden="true">
                                     <circle cx="27" cy="27" r="27" fill="#ffffff"/>
                                     <polygon points="21,17 38,27 21,37" fill="#000000"/>
                                 </svg>
-                                <svg class="pause-icon hidden" viewBox="0 0 54 54" width="54" height="54">
+                                <svg class="pause-icon hidden" viewBox="0 0 54 54" width="54" height="54" aria-hidden="true">
                                     <circle cx="27" cy="27" r="27" fill="#ffffff"/>
                                     <rect x="18" y="17" width="5" height="20" rx="2" fill="#000000"/>
                                     <rect x="31" y="17" width="5" height="20" rx="2" fill="#000000"/>
                                 </svg>
                             </button>
                             
-                            <button id="btn-next" class="control-btn am-skip-btn" title="Next">
-                                <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor">
+                            <button type="button" id="btn-next" class="control-btn am-skip-btn" title="Next" aria-label="Next track">
+                                <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
                                     <path d="M6 18V6l8.5 6zm9-12h2v12h-2z"/>
                                 </svg>
                             </button>
 
-                            <button id="btn-repeat" class="control-btn toggle-btn am-aux-btn" title="Repeat">
-                                <svg class="icon-repeat" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <button type="button" id="btn-repeat" class="control-btn toggle-btn am-aux-btn" title="Repeat" aria-label="Repeat">
+                                <svg class="icon-repeat" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                     <polyline points="17 1 21 5 17 9"></polyline>
                                     <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
                                     <polyline points="7 23 3 19 7 15"></polyline>
                                     <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
                                 </svg>
-                                <svg class="icon-repeat-1 hidden" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <svg class="icon-repeat-1 hidden" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                     <polyline points="17 1 21 5 17 9"></polyline>
                                     <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
                                     <polyline points="7 23 3 19 7 15"></polyline>
@@ -534,8 +531,8 @@
 
                     <!-- Volume Panel (Positioned directly below main 5-button transport row) -->
                     <div class="am-volume-container">
-                        <button id="btn-mute" class="icon-btn" title="Mute / Unmute">
-                            <svg id="volume-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <button type="button" id="btn-mute" class="icon-btn" title="Mute / Unmute" aria-label="Mute or Unmute">
+                            <svg id="volume-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
                                 <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
                             </svg>
@@ -546,7 +543,7 @@
                     <!-- Drift Sync Panel -->
                     <div class="am-drift-container hidden" id="drift-container">
                         <span class="drift-label">Sync speed:</span>
-                        <input type="range" id="drift-slider" min="0.85" max="1.15" step="0.005" value="1">
+                        <input type="range" id="drift-slider" min="0.85" max="1.15" step="0.005" value="1" aria-label="Lyrics sync speed">
                         <span id="drift-val">1.00x</span>
                     </div>
                 </div>
@@ -585,8 +582,8 @@
             <div class="crt-glass-glare"></div>
             <div class="crt-corner-vignette"></div>
         </div>
-        <button id="btn-exit-cinematic" class="auto-hide-btn" title="Exit Cinematic">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <button type="button" id="btn-exit-cinematic" class="auto-hide-btn" title="Exit Cinematic" aria-label="Exit Cinematic Mode">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <line x1="19" y1="12" x2="5" y2="12"></line>
                 <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
@@ -605,8 +602,8 @@
         <div id="angelic-particle-container"></div>
         <div id="angelic-text-container"></div>
         
-        <button id="btn-exit-angelic" class="auto-hide-btn" title="Exit Angelic Mode">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <button type="button" id="btn-exit-angelic" class="auto-hide-btn" title="Exit Angelic Mode" aria-label="Exit Angelic Mode">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <line x1="19" y1="12" x2="5" y2="12"></line>
                 <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
@@ -668,19 +665,14 @@
         </defs>
     </svg>
 
-    <!-- 7. Loading Overlay -->
-    <div id="loading-overlay">
-        <div class="spinner"></div>
-    </div>
-
     <!-- Dependencies -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
     <script type="module" src="js/features/visualizer/ThreeRendererBootstrap.js"></script>
     <!-- EQ Modal -->
-    <div id="eq-modal" class="modal-backdrop hidden">
+    <div id="eq-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="eq-modal-title">
         <div class="eq-panel">
-            <button id="btn-close-eq" class="close-btn glass-icon-btn danger"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
-            <h2>Equalizer</h2>
+            <button type="button" id="btn-close-eq" class="close-btn glass-icon-btn danger" aria-label="Close Equalizer" title="Close"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            <h2 id="eq-modal-title">Equalizer</h2>
             
             <div class="eq-preset-wrapper">
                 <label for="eq-presets">Preset:</label>
@@ -698,27 +690,27 @@
             <div class="eq-sliders">
                 <div class="eq-band">
                     <span class="eq-val">+0dB</span>
-                    <input type="range" class="eq-slider" id="eq-60" min="-12" max="12" value="0" step="0.5" orient="vertical">
+                    <input type="range" class="eq-slider" id="eq-60" min="-12" max="12" value="0" step="0.5" orient="vertical" aria-label="60Hz Equalizer">
                     <span class="eq-label">60Hz</span>
                 </div>
                 <div class="eq-band">
                     <span class="eq-val">+0dB</span>
-                    <input type="range" class="eq-slider" id="eq-230" min="-12" max="12" value="0" step="0.5" orient="vertical">
+                    <input type="range" class="eq-slider" id="eq-230" min="-12" max="12" value="0" step="0.5" orient="vertical" aria-label="230Hz Equalizer">
                     <span class="eq-label">230Hz</span>
                 </div>
                 <div class="eq-band">
                     <span class="eq-val">+0dB</span>
-                    <input type="range" class="eq-slider" id="eq-910" min="-12" max="12" value="0" step="0.5" orient="vertical">
+                    <input type="range" class="eq-slider" id="eq-910" min="-12" max="12" value="0" step="0.5" orient="vertical" aria-label="910Hz Equalizer">
                     <span class="eq-label">910Hz</span>
                 </div>
                 <div class="eq-band">
                     <span class="eq-val">+0dB</span>
-                    <input type="range" class="eq-slider" id="eq-3k" min="-12" max="12" value="0" step="0.5" orient="vertical">
+                    <input type="range" class="eq-slider" id="eq-3k" min="-12" max="12" value="0" step="0.5" orient="vertical" aria-label="3.6kHz Equalizer">
                     <span class="eq-label">3.6kHz</span>
                 </div>
                 <div class="eq-band">
                     <span class="eq-val">+0dB</span>
-                    <input type="range" class="eq-slider" id="eq-14k" min="-12" max="12" value="0" step="0.5" orient="vertical">
+                    <input type="range" class="eq-slider" id="eq-14k" min="-12" max="12" value="0" step="0.5" orient="vertical" aria-label="14kHz Equalizer">
                     <span class="eq-label">14kHz</span>
                 </div>
             </div>
@@ -726,9 +718,9 @@
     </div>
 
     <!-- Settings Modal -->
-    <div id="settings-modal" class="modal hidden">
+    <div id="settings-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
         <div class="modal-content" style="max-width: 440px;">
-            <h2>Settings & Tools</h2>
+            <h2 id="settings-modal-title">Settings & Tools</h2>
             <p class="modal-subtitle" style="margin-bottom: 20px; font-size: 0.85rem; color: var(--text-secondary);">Customize layout and troubleshoot your workspace.</p>
             
             <!-- Group 1: Layout & Grid -->
@@ -805,67 +797,67 @@
             </div>
 
             <div class="modal-actions" style="margin-top: 22px;">
-                <button id="btn-close-settings" class="glass-btn primary" style="width: 100%; justify-content: center;"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Save & Done</button>
+                <button type="button" id="btn-close-settings" class="glass-btn primary" style="width: 100%; justify-content: center;"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg> Save & Done</button>
             </div>
         </div>
     </div>
 
     <!-- Image Crop Modal -->
-    <div id="image-crop-modal" class="modal hidden">
+    <div id="image-crop-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="image-crop-modal-title">
         <div class="modal-content crop-modal-content">
-            <h2>Crop Wallpaper</h2>
+            <h2 id="image-crop-modal-title">Crop Wallpaper</h2>
             <p class="modal-subtitle" style="margin-bottom: 16px; font-size: 0.82rem; color: var(--text-secondary);">Drag to reposition. Recommended output: 1920 × 1080.</p>
             <div id="crop-canvas-wrapper">
                 <canvas id="crop-canvas"></canvas>
             </div>
             <div class="modal-actions" style="margin-top: 16px; display: flex; gap: 10px;">
-                <button id="btn-crop-cancel" class="glass-btn danger" style="flex: 1;">Cancel</button>
-                <button id="btn-crop-apply" class="glass-btn primary" style="flex: 1;">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Apply Crop
+                <button type="button" id="btn-crop-cancel" class="glass-btn danger" style="flex: 1;">Cancel</button>
+                <button type="button" id="btn-crop-apply" class="glass-btn primary" style="flex: 1;">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg> Apply Crop
                 </button>
             </div>
         </div>
     </div>
 
     <!-- Playlist Naming Modal -->
-    <div id="playlist-name-modal" class="modal hidden">
+    <div id="playlist-name-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="playlist-modal-title">
         <div class="modal-content">
             <h2 id="playlist-modal-title">New Vinyl Box</h2>
             <p class="modal-subtitle" style="margin-bottom: 20px; font-size: 0.85rem; color: var(--text-secondary);">Enter a name for this record collection.</p>
             <form id="playlist-name-form">
                 <div class="form-group" style="margin: 20px 0;">
-                    <input type="text" id="playlist-name-input" placeholder="e.g. Chill Vibes, Rock Classics" required style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: #fff; outline: none; box-sizing: border-box;">
+                    <input type="text" id="playlist-name-input" placeholder="e.g. Chill Vibes, Rock Classics" aria-label="Vinyl box name" required style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: #fff; box-sizing: border-box;">
                 </div>
                 <div class="form-group" style="margin: 20px 0; display: flex; align-items: center; gap: 12px;">
                     <label for="playlist-color-input" style="color: var(--text-secondary); font-size: 0.9rem;">Box Color</label>
-                    <input type="color" id="playlist-color-input" value="#5a4232" style="width: 40px; height: 32px; padding: 0; border: none; border-radius: 4px; cursor: pointer; background: transparent; outline: none;">
+                    <input type="color" id="playlist-color-input" value="#5a4232" style="width: 40px; height: 32px; padding: 0; border: none; border-radius: 4px; cursor: pointer; background: transparent;">
                 </div>
                 <div class="modal-actions" style="display: flex; gap: 10px; margin-top: 25px;">
-                    <button type="button" id="btn-cancel-playlist-name" class="glass-btn danger"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Cancel</button>
-                    <button type="submit" id="btn-submit-playlist-name" class="glass-btn primary"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Create Box</button>
+                    <button type="button" id="btn-cancel-playlist-name" class="glass-btn danger"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Cancel</button>
+                    <button type="submit" id="btn-submit-playlist-name" class="glass-btn primary"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg> Create Box</button>
                 </div>
             </form>
         </div>
     </div>
 
     <!-- Add Songs to Box Modal -->
-    <div id="add-songs-to-box-modal" class="modal hidden">
+    <div id="add-songs-to-box-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="add-songs-modal-title">
         <div class="modal-content" style="max-height: 80vh; display: flex; flex-direction: column;">
-            <h2>Add Songs to Box</h2>
+            <h2 id="add-songs-modal-title">Add Songs to Box</h2>
             <p class="modal-subtitle" style="margin-bottom: 20px; font-size: 0.85rem; color: var(--text-secondary);">Select the songs you want to group inside this box.</p>
             <div id="add-songs-list" style="flex: 1; overflow-y: auto; margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; padding-right: 5px;">
                 <!-- Dynamically populated song list with checkboxes -->
             </div>
             <div class="modal-actions" style="display: flex; gap: 10px;">
-                <button type="button" id="btn-cancel-add-songs" class="glass-btn primary"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Done</button>
+                <button type="button" id="btn-cancel-add-songs" class="glass-btn primary"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg> Done</button>
             </div>
         </div>
     </div>
 
     <!-- Screen Recording Setup Modal -->
-    <div id="recording-setup-modal" class="modal hidden">
+    <div id="recording-setup-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="recording-setup-modal-title">
         <div class="modal-content">
-            <h2>Recording Setup</h2>
+            <h2 id="recording-setup-modal-title">Recording Setup</h2>
             <p class="modal-subtitle" style="margin-bottom: 20px; font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5;">
                 To record high-quality video, your browser will prompt you to share your screen. 
                 Please select the <strong>"This Tab"</strong> option and ensure <strong>"Share Tab Audio"</strong> is checked. 
@@ -874,13 +866,13 @@
             </p>
             <div class="modal-actions" style="display: flex; gap: 10px; margin-top: 25px;">
                 <button type="button" id="btn-cancel-recording" class="glass-btn danger">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                         <line x1="6" y1="6" x2="18" y2="18"></line>
                     </svg> Cancel
                 </button>
                 <button type="button" id="btn-confirm-recording" class="glass-btn primary">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <polyline points="20 6 9 17 4 12"></polyline>
                     </svg> I Understand & Start
                 </button>
@@ -934,12 +926,12 @@
     </div>
 
     <!-- Personal Cloud Vault (Supabase Auth & Sync Modal) -->
-    <div id="modal-cloud-vault" class="modal hidden">
+    <div id="modal-cloud-vault" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="cloud-vault-modal-title">
         <div class="modal-content cloud-vault-modal-content">
-            <button type="button" id="btn-close-cloud-vault" class="close-btn">&times;</button>
+            <button type="button" id="btn-close-cloud-vault" class="close-btn" aria-label="Close Cloud Vault" title="Close">&times;</button>
             <div class="vault-header">
-                <div class="vault-icon-badge">☁️</div>
-                <h2>Wavr Personal Cloud Vault</h2>
+                <div class="vault-icon-badge" aria-hidden="true">☁️</div>
+                <h2 id="cloud-vault-modal-title">Wavr Personal Cloud Vault</h2>
                 <p class="modal-subtitle">Your personal music library in private cloud storage</p>
             </div>
 

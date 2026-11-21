@@ -9,6 +9,7 @@ export function attachThreeContextRecovery(controller, signal) {
         setGraphicsAvailability('recovering');
     }, { signal });
     canvas.addEventListener('webglcontextrestored', () => {
+        controller.atelier?.markDirty?.();
         controller.setEnabled(true);
         setGraphicsAvailability('ready');
     }, { signal });

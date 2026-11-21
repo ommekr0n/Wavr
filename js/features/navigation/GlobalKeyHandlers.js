@@ -38,6 +38,8 @@ export function initGlobalKeyHandlers({
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (dismissRecordingPopover()) return;
+            const activePlaylistMenu = document.querySelector('.playlist-context-menu:not(.hidden)');
+            if (activePlaylistMenu) { activePlaylistMenu.classList.add('hidden'); return; }
             const activeMenu = document.querySelector('.context-menu.active');
             if (activeMenu) { activeMenu.classList.remove('active'); return; }
 
@@ -86,12 +88,29 @@ export function initGlobalKeyHandlers({
 
     // ── 3. Media & Playback Shortcuts ────────────────────────────────────────
     window.addEventListener('keydown', (e) => {
-        const tag = document.activeElement.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+        const active = document.activeElement;
+        const tag = active?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || active?.isContentEditable) return;
         if (!audio.src || audio.src.endsWith(window.location.pathname) || audio.src === '') return;
 
+        const hasOpenModal = Boolean(document.querySelector('.modal:not(.hidden)'));
+
         switch (e.code) {
-            case 'Space':
+            case 'Space': {
+                if (hasOpenModal) return;
+                if (
+                    tag === 'BUTTON' ||
+                    tag === 'A' ||
+                    active?.getAttribute?.('role') === 'button' ||
+                    active?.classList?.contains('song-card') ||
+                    active?.closest?.('button, a, [role="button"], .song-card')
+                ) {
+                    return;
+                }
+                e.preventDefault();
+                togglePlay();
+                break;
+            }
             case 'MediaPlayPause':
                 e.preventDefault();
                 togglePlay();
@@ -122,6 +141,7 @@ export function initGlobalKeyHandlers({
                 break;
             }
             case 'ArrowLeft': {
+                if (hasOpenModal) return;
                 e.preventDefault();
                 const t = Math.max(0, audio.currentTime - 5);
                 prepareLyricNearTime(t);
@@ -130,6 +150,7 @@ export function initGlobalKeyHandlers({
                 break;
             }
             case 'ArrowRight': {
+                if (hasOpenModal) return;
                 e.preventDefault();
                 const t = Math.min(audio.duration || 0, audio.currentTime + 5);
                 prepareLyricNearTime(t);
@@ -138,6 +159,7 @@ export function initGlobalKeyHandlers({
                 break;
             }
             case 'ArrowUp': {
+                if (hasOpenModal) return;
                 e.preventDefault();
                 const v = Math.min(1, audio.volume + 0.05);
                 engine.setVolume(v);
@@ -146,6 +168,7 @@ export function initGlobalKeyHandlers({
                 break;
             }
             case 'ArrowDown': {
+                if (hasOpenModal) return;
                 e.preventDefault();
                 const v = Math.max(0, audio.volume - 0.05);
                 engine.setVolume(v);

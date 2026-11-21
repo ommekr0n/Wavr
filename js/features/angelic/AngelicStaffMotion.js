@@ -63,6 +63,11 @@ export class AngelicStaffMotion {
         };
     }
 
+    refreshWrapper(wrapper) {
+        if (!wrapper || !this.records.has(wrapper)) return;
+        this.records.set(wrapper, this.capture(wrapper));
+    }
+
     update(time, now = performance.now()) {
         for (const [wrapper, record] of this.records) {
             // An outgoing line is a cached dissolve: don't invalidate its SVG

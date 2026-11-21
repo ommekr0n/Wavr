@@ -50,9 +50,17 @@ export function setupSongCardDropHandler({
             }
             // 2. Cover Art Image (.png, .jpg, .jpeg, .webp, .gif)
             else if (file.type.startsWith('image/')) {
+                const MAX_COVER_IMAGE_BYTES = 15 * 1024 * 1024;
+                if (file.size > MAX_COVER_IMAGE_BYTES) {
+                    showToast(`Image too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max 15MB allowed!`, 'error');
+                    continue;
+                }
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const dataUrl = e.target.result;
+                    if (track.cover && track.cover.startsWith('blob:')) {
+                        URL.revokeObjectURL(track.cover);
+                    }
                     track.cover = dataUrl;
                     saveLibraryToDB();
 
@@ -79,6 +87,9 @@ export function setupSongCardDropHandler({
             }
             // 3. Audio File (.mp3, .wav, .m4a, .flac)
             else if (file.type.startsWith('audio/') || fileName.endsWith('.mp3') || fileName.endsWith('.wav') || fileName.endsWith('.m4a') || fileName.endsWith('.flac')) {
+                if (track.url && track.url.startsWith('blob:')) {
+                    URL.revokeObjectURL(track.url);
+                }
                 const audioUrl = URL.createObjectURL(file);
                 track.url = audioUrl;
                 saveLibraryToDB();

@@ -4,6 +4,18 @@
 
 import { escapeHtml } from './safe-html.js';
 
+const LRCLIB_TIMEOUT_MS = 8000;
+
+async function fetchWithTimeout(url, timeoutMs = LRCLIB_TIMEOUT_MS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { signal: controller.signal });
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 /**
  * Searches LRCLIB for all matching synced lyrics entries.
  * @param {string} title - Track title
@@ -15,25 +27,28 @@ export async function searchLRCLIB(title, artist) {
 
     const cleanTitle = title.trim();
     const cleanArtist = (artist && artist.toLowerCase() !== 'unknown artist') ? artist.trim() : '';
+    const results = [];
 
+    // 1. Try exact match via LRCLIB get API
     try {
-        const results = [];
-
-        // 1. Try exact match via LRCLIB get API
         const params = new URLSearchParams({ track_name: cleanTitle });
         if (cleanArtist) params.append('artist_name', cleanArtist);
 
-        const getRes = await fetch(`https://lrclib.net/api/get?${params.toString()}`);
+        const getRes = await fetchWithTimeout(`https://lrclib.net/api/get?${params.toString()}`);
         if (getRes.ok) {
             const data = await getRes.json();
             if (data && data.syncedLyrics && data.syncedLyrics.trim()) {
                 results.push(data);
             }
         }
+    } catch (err) {
+        console.warn('LRCLIB /api/get request failed:', err);
+    }
 
-        // 2. Search query via LRCLIB search API for multi-version list
+    // 2. Search query via LRCLIB search API for multi-version list
+    try {
         const query = `${cleanTitle} ${cleanArtist}`.trim();
-        const searchRes = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`);
+        const searchRes = await fetchWithTimeout(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`);
         if (searchRes.ok) {
             const searchData = await searchRes.json();
             if (Array.isArray(searchData)) {
@@ -46,13 +61,11 @@ export async function searchLRCLIB(title, artist) {
                 });
             }
         }
-
-        return results;
     } catch (err) {
-        console.warn('LRCLIB API request failed:', err);
+        console.warn('LRCLIB /api/search request failed:', err);
     }
 
-    return [];
+    return results;
 }
 
 /**

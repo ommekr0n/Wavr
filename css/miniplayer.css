@@ -8,8 +8,8 @@
     max-width: 960px;
     height: 84px;
     background: rgba(12, 12, 16, 0.78);
-    backdrop-filter: blur(30px) saturate(190%);
-    -webkit-backdrop-filter: blur(30px) saturate(190%);
+    backdrop-filter: blur(16px) saturate(190%);
+    -webkit-backdrop-filter: blur(16px) saturate(190%);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 24px;
     display: flex;
@@ -157,7 +157,21 @@
     margin: 0;
     opacity: 0;
     cursor: pointer;
+    touch-action: none;
     z-index: 12;
+}
+
+.mini-center:focus-within {
+    outline: 2px solid var(--accent-color, #00E5FF);
+    outline-offset: 4px;
+    border-radius: 8px;
+}
+
+.mini-left:focus-visible,
+.mini-btn:focus-visible {
+    outline: 2px solid var(--accent-color, #00E5FF);
+    outline-offset: 2px;
+    border-radius: 10px;
 }
 
 .mini-center:hover #mini-waveform-canvas {

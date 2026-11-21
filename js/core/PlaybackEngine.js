@@ -60,9 +60,25 @@ export class PlaybackEngine extends EventTarget {
     }
 
     stop() {
-        this.pause();
-        this.seek(0);
         this.#setState(PLAYBACK_STATES.IDLE);
+        this.#audio.pause();
+        this.seek(0);
+    }
+
+    clear() {
+        this.#loadVersion++;
+        this.#currentTrack = null;
+        this.#setState(PLAYBACK_STATES.IDLE);
+        this.#audio.pause();
+        if (typeof this.#audio.removeAttribute === 'function') {
+            this.#audio.removeAttribute('src');
+        } else {
+            this.#audio.src = '';
+        }
+        if (typeof this.#audio.load === 'function') {
+            this.#audio.load();
+        }
+        this.#emit('trackchange', { track: null });
     }
 
     seek(timeSeconds) {
@@ -106,7 +122,11 @@ export class PlaybackEngine extends EventTarget {
         });
         this.#audio.addEventListener('play', () => this.#setState(PLAYBACK_STATES.PLAYING));
         this.#audio.addEventListener('pause', () => {
-            if (this.#state !== PLAYBACK_STATES.LOADING && this.#state !== PLAYBACK_STATES.ENDED) {
+            if (
+                this.#state !== PLAYBACK_STATES.LOADING &&
+                this.#state !== PLAYBACK_STATES.ENDED &&
+                this.#state !== PLAYBACK_STATES.IDLE
+            ) {
                 this.#setState(PLAYBACK_STATES.PAUSED);
             }
         });

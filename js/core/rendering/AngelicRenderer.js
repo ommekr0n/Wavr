@@ -15,17 +15,62 @@ import { activateAngelicLine, clearAngelicLine } from '../../features/angelic/An
 import { renderEmojis } from '../../features/lyrics/EmojiRenderer.js';
 
 let lastLineShowTimestamp = 0;
+let globalStaffResizeBound = false;
 
 export const AngelicRenderer = {
     /** No-op placeholder — assets are embedded inline in the prime. */
     preloadAssets() {},
 
     /**
+     * Updates the persistent Global Staff SVG width and refreshes its cached motion record.
+     */
+    updateGlobalStaffWidth(angelicTextContainer, newWidth = window.innerWidth) {
+        if (!angelicTextContainer || !Number.isFinite(newWidth) || newWidth <= 0) return;
+        const globalWrapper = angelicTextContainer.querySelector('.global-angelic-staff-wrapper');
+        if (!globalWrapper) return;
+        if (Number(globalWrapper.getAttribute('data-w')) === newWidth) return;
+
+        globalWrapper.setAttribute('data-w', newWidth);
+        const svg = globalWrapper.querySelector('.global-angelic-staff-svg');
+        if (svg) {
+            const h = Number(svg.getAttribute('height')) || 550;
+            svg.setAttribute('width', newWidth);
+            svg.setAttribute('viewBox', `0 0 ${newWidth} ${h}`);
+        }
+        const clef = globalWrapper.querySelector('.angelic-clef-symbol');
+        if (clef) {
+            const clefX = Number(clef.getAttribute('x')) || 50;
+            clef.setAttribute('data-t', clefX / newWidth);
+        }
+        const amp = Number(globalWrapper.getAttribute('data-amp')) || 50;
+        globalWrapper.querySelectorAll('.staff-line').forEach(path => {
+            const y = Number(path.getAttribute('data-y'));
+            if (Number.isFinite(y)) {
+                path.setAttribute('d', `M 0,${y} C ${newWidth / 3},${y - amp} ${newWidth * 2 / 3},${y + amp} ${newWidth},${y}`);
+            }
+        });
+        AngelicStaffAnimator.refreshWrapper(globalWrapper);
+    },
+
+    /**
      * Ensures the persistent Global Staff (5 lines) and Khóa Sol exist.
      * Draws L-to-R once with animation and stays persistent waving to the music.
      */
     ensureGlobalStaff(angelicTextContainer) {
-        if (angelicTextContainer.querySelector('.global-angelic-staff-wrapper')) return;
+        if (!globalStaffResizeBound && typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+            globalStaffResizeBound = true;
+            window.addEventListener('resize', () => {
+                const angelicView = document.getElementById('angelic-view');
+                const container = document.getElementById('angelic-text-container');
+                if (angelicView && !angelicView.classList.contains('hidden') && container) {
+                    AngelicRenderer.updateGlobalStaffWidth(container, window.innerWidth);
+                }
+            }, { passive: true });
+        }
+        if (angelicTextContainer.querySelector('.global-angelic-staff-wrapper')) {
+            this.updateGlobalStaffWidth(angelicTextContainer, window.innerWidth);
+            return;
+        }
 
         const w = window.innerWidth;
         const staffLineGap = 50;

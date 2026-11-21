@@ -8,7 +8,7 @@ import { state, persistBoxes } from '../../shared/EditLibraryState.js';
 import { renderEditGrid } from './EditGridRenderer.js';
 import { showSongContextMenu } from './SongContextMenu.js';
 import { showDeleteBoxModal } from './BoxModals.js';
-import { escapeHtml, safeImageUrl } from '../../modules/safe-html.js';
+import { escapeHtml, safeImageUrl, safeHexColor } from '../../modules/safe-html.js';
 import { prepareLibraryDragGhost, releaseLibraryDragGhost } from './LibraryDragBridge.js';
 import { bindLibraryBoxPointer, clearLibraryBoxPointer, restoreLibraryBoxDelete } from './LibraryBoxListenerScope.js';
 import { captureLibraryBoxMarkup } from './LibraryBoxMarkup.js';
@@ -54,11 +54,11 @@ export function toggleEditBoxExpansion(card, boxId) {
     } else {
         boxSongs.forEach(song => {
             songsHTML += `
-                <div class="song-card box-slider-song-card inner-editable-song" data-song-id="${song.id}" data-box-id="${box.id}" draggable="true">
+                <div class="song-card box-slider-song-card inner-editable-song" data-song-id="${escapeHtml(song.id)}" data-box-id="${escapeHtml(box.id)}" draggable="true">
                     <div class="card-drag-handle" draggable="true" title="Drag to reorder or unbox">⋮⋮</div>
                     <div class="song-cover-wrapper" style="position:relative;aspect-ratio:1/1;border-radius:8px;overflow:hidden;margin-bottom:10px;">
                         <img src="${escapeHtml(safeImageUrl(song.cover, coverImgUrl))}" alt="${escapeHtml(song.title)}" draggable="false" style="width:100%;height:100%;object-fit:cover;pointer-events:none;user-select:none;">
-                        <button class="song-options-btn" data-id="${song.id}" title="Options">
+                        <button class="song-options-btn" data-id="${escapeHtml(song.id)}" title="Options">
                             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                                 <circle cx="12" cy="5" r="2"></circle>
                                 <circle cx="12" cy="12" r="2"></circle>
@@ -73,7 +73,7 @@ export function toggleEditBoxExpansion(card, boxId) {
         });
     }
 
-    const boxColor = box.color || '#ffb300';
+    const boxColor = safeHexColor(box.color, '#ffb300');
     card.innerHTML = `
         <div class="box-expansion-content">
             <div class="box-expansion-header">

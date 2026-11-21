@@ -36,17 +36,26 @@ export class ThreeLivingSleeve {
         if (!this.dirty) return;
         this.dirty = false;
         this.rect = readSleeveLayout(this.node, this.view, this.introRect);
-        const url = this.node.src;
+        const url = this.node.src || '';
+        if (!url) {
+            if (this.pending) { this.textures.release(this.pending.url); this.pending = null; }
+            if (this.entry) { this.textures.release(this.entry.url); this.entry = null; }
+            this.face.map = this.disc.labelMaterial.map = null;
+            this.face.needsUpdate = this.disc.labelMaterial.needsUpdate = true;
+            this.reveal = 0;
+            return;
+        }
         if (url !== (this.pending?.url || this.entry?.url)) {
             if (this.pending) this.textures.release(this.pending.url);
-            this.pending = { url, resource: this.textures.acquire(url) };
+            const resource = this.textures.acquire(url);
+            this.pending = resource ? { url, resource } : null;
             this.reveal = this.entry ? 1 : 0;
         }
     }
     update(dt, state, colors, reducedMotion) {
         if (!this.active) return;
         this.sync(); this.animating = false;
-        if (this.pending?.resource.ready) {
+        if (this.pending?.resource?.ready) {
             // A short withdrawal precedes the new sleeve's reveal. Rapid changes reuse the same meshes.
             this.reveal = reducedMotion ? 0 : Math.max(0, this.reveal - dt * 4);
             if (this.reveal <= 0) {
@@ -55,11 +64,11 @@ export class ThreeLivingSleeve {
                 this.face.map = this.entry.resource.texture; this.face.needsUpdate = true;
                 this.disc.labelMaterial.map = this.entry.resource.texture; this.disc.labelMaterial.needsUpdate = true;
             }
-        } else if (this.pending?.resource.failed) {
+        } else if (this.pending?.resource?.failed) {
             if (this.entry) { this.textures.release(this.entry.url); this.entry = null; }
             this.textures.release(this.pending.url); this.pending = null;
         }
-        const visible = Boolean(this.entry?.resource.ready && this.rect?.width > 0);
+        const visible = Boolean(this.entry?.resource?.ready && this.rect?.width > 0);
         this.group.visible = visible; this.root.classList.toggle('living-sleeve-ready', visible);
         if (!visible) return;
         if (!this.pending) this.reveal = reducedMotion ? 1 : Math.min(1, this.reveal + dt * 1.5);
@@ -70,7 +79,7 @@ export class ThreeLivingSleeve {
         this.disc.group.scale.setScalar(.94); this.disc.material.uniforms.uColor.value.copy(colors[0]);
         this.face.opacity = .25 + ease * .75;
         const moving = this.motion.update(dt, state.playing, reducedMotion, r, this.pointer);
-        this.animating = this.reveal < 1 || Boolean(this.pending?.resource.ready) || moving;
+        this.animating = this.reveal < 1 || Boolean(this.pending?.resource?.ready) || moving;
     }
     clear() {
         this.active = false; this.observer.disconnect(); this.resizeObserver.disconnect();

@@ -26,6 +26,7 @@ export function triggerCinematicLine(lyricInput, cinematicTextContainer, deltaSe
     const text = rawText; // keep emoji — Twemoji will render them in cinematic style
     const isEnhanced = isObj && lyricInput.isEnhanced && Array.isArray(lyricInput.words);
     const wordList = isEnhanced ? expandEnhancedDisplayWords(lyricInput.words) : [];
+    const hasEnhancedWords = isEnhanced && wordList.length > 0;
 
     if (!text) return;
 
@@ -49,7 +50,7 @@ export function triggerCinematicLine(lyricInput, cinematicTextContainer, deltaSe
     // Particle sparks
     const sparkContainer = document.createElement('div');
     sparkContainer.className = 'sparkle-container';
-    const wordCount = text.split(' ').length;
+    const wordCount = hasEnhancedWords ? wordList.length : text.split(' ').length;
     const numSparks = Math.min(Math.max(wordCount * 3, 5), 15);
     for (let i = 0; i < numSparks; i++) {
         const spark = document.createElement('div');
@@ -80,18 +81,23 @@ export function triggerCinematicLine(lyricInput, cinematicTextContainer, deltaSe
     newLine.style.fontSize = fluidStyle.fontSize;
     newLine.style.lineHeight = fluidStyle.lineHeight;
 
-    const processedText = preventOrphanWords(text);
-    const textLines = processedText.split('\n');
+    const rows = hasEnhancedWords
+        ? buildEnhancedCinematicRows(wordList)
+        : preventOrphanWords(text).split('\n').map(lineText => {
+            const trimmed = lineText.trim();
+            return {
+                isParenthesis: trimmed.startsWith('('),
+                lineLength: lineText.length,
+                words: trimmed.split(' ').filter(w => w.length > 0).map(word => ({ word }))
+            };
+        });
 
-    let globalWordIdx = 0;
-
-    textLines.forEach((lineText) => {
-        const isParenthesis = lineText.trim().startsWith('(');
+    rows.forEach(({ isParenthesis, lineLength, words }) => {
         const lineContainer = document.createElement('div');
         if (isParenthesis) {
             let scaleVal = 0.65;
-            if (lineText.length > 35) scaleVal = 0.45;
-            else if (lineText.length > 25) scaleVal = 0.55;
+            if (lineLength > 35) scaleVal = 0.45;
+            else if (lineLength > 25) scaleVal = 0.55;
             lineContainer.className = 'cine-parenthesis';
             lineContainer.style.fontSize = `${scaleVal}em`;
             lineContainer.style.opacity = '0.65';
@@ -103,10 +109,9 @@ export function triggerCinematicLine(lyricInput, cinematicTextContainer, deltaSe
             lineContainer.style.lineHeight = '1.1';
         }
 
-        const words = lineText.trim().split(' ').filter(w => w.length > 0);
         const allowGlitch = words.length > 3;
 
-        words.forEach((word, index) => {
+        words.forEach((wObj, index) => {
             const span = document.createElement('span');
             let wordClass = 'cine-word';
             if (allowGlitch && !isParenthesis) {
@@ -114,18 +119,15 @@ export function triggerCinematicLine(lyricInput, cinematicTextContainer, deltaSe
                 setTimeout(() => { if (span.parentNode) span.classList.remove('glitch-immune'); }, 1500);
             }
 
-            // Enhanced LRC timing metadata binding
-            if (isEnhanced && wordList[globalWordIdx]) {
-                const wObj = wordList[globalWordIdx];
+            if (hasEnhancedWords) {
                 span.setAttribute('data-start', wObj.time);
                 span.setAttribute('data-end', wObj.endTime);
                 wordClass += ' has-enhanced-word';
             }
-            globalWordIdx++;
 
             span.className = wordClass;
-            span.textContent = word;
-            span.dataset.text = word;
+            span.textContent = wObj.word;
+            span.dataset.text = wObj.word;
             lineContainer.appendChild(span);
             if (index < words.length - 1) lineContainer.appendChild(document.createTextNode(' '));
         });
@@ -138,6 +140,35 @@ export function triggerCinematicLine(lyricInput, cinematicTextContainer, deltaSe
     applyChromaAberration(newWrapper);
     // Replace OS emoji with cinematic-styled Twemoji SVGs
     renderEmojis(newWrapper, 'cinematic');
+}
+
+export function buildEnhancedCinematicRows(wordList) {
+    const groups = [];
+    for (const item of wordList) {
+        const isParenthesis = Boolean(item.isBackingVocal);
+        if (groups.at(-1)?.isParenthesis !== isParenthesis) {
+            groups.push({ isParenthesis, words: [] });
+        }
+        groups.at(-1).words.push(item);
+    }
+
+    const rows = [];
+    for (const group of groups) {
+        if (group.isParenthesis || group.words.length <= 7) {
+            rows.push({
+                isParenthesis: group.isParenthesis,
+                lineLength: group.words.map(w => w.word).join(' ').length,
+                words: group.words
+            });
+        } else {
+            const mid = Math.ceil(group.words.length / 2);
+            const first = group.words.slice(0, mid);
+            const second = group.words.slice(mid);
+            rows.push({ isParenthesis: false, lineLength: first.map(w => w.word).join(' ').length, words: first });
+            rows.push({ isParenthesis: false, lineLength: second.map(w => w.word).join(' ').length, words: second });
+        }
+    }
+    return rows;
 }
 
 export function preventOrphanWords(text) {

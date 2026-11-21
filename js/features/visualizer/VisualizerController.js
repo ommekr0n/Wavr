@@ -7,12 +7,33 @@ import { LyricEngine } from '../lyrics/LyricEngine.js';
 import { cancelAngelicLyricPreparation, scheduleAngelicLyricPreparation } from '../angelic/AngelicLyricPreparation.js';
 import { AngelicStaffAnimator } from '../angelic/AngelicStaffAnimator.js';
 import { cancelAngelicLineTransitions } from '../angelic/AngelicLineLifecycle.js';
+import { AngelicClimaxFX } from '../angelic/AngelicClimaxFX.js';
 
 // ── Mode State ───────────────────────────────────────────────────────────────
 let isCinematicMode = false;
 let isAngelicMode   = false;
 let isNostalgiaMode = false;
-let mouseTimeout    = null;
+let idleTimeout     = null;
+
+function clearIdleTimer() {
+    if (idleTimeout !== null) {
+        clearTimeout(idleTimeout);
+        idleTimeout = null;
+    }
+}
+
+function scheduleIdleHide(delayMs = 2500) {
+    clearIdleTimer();
+    idleTimeout = setTimeout(() => {
+        idleTimeout = null;
+        const playerView = document.getElementById('player-view');
+        const isPlayerActive = playerView && playerView.classList.contains('player-active') && !playerView.classList.contains('hidden');
+        if (isCinematicMode || isAngelicMode || isNostalgiaMode || isPlayerActive) {
+            document.body.classList.add('user-idle');
+            document.body.classList.remove('mouse-active');
+        }
+    }, delayMs);
+}
 
 export const VisualizerController = {
 
@@ -25,12 +46,15 @@ export const VisualizerController = {
         isNostalgiaMode = true;
         isCinematicMode = false;
         isAngelicMode = false;
+        clearIdleTimer();
         playerView.classList.add('hidden');
         nostalgiaView.classList.remove('hidden');
     },
 
     exitNostalgiaMode(nostalgiaView, playerView) {
         isNostalgiaMode = false;
+        clearIdleTimer();
+        document.body?.classList?.remove('user-idle');
         nostalgiaView.classList.add('hidden');
         playerView.classList.remove('hidden');
         LyricEngine.setActiveLyricIndex(-1);
@@ -55,12 +79,10 @@ export const VisualizerController = {
 
         playerView.classList.add('hidden');
         cinematicView.classList.remove('hidden');
-        document.body.classList.add('mouse-active');
+        document.body?.classList?.remove('user-idle');
+        document.body?.classList?.add('mouse-active');
 
-        clearTimeout(mouseTimeout);
-        mouseTimeout = setTimeout(() => {
-            document.body.classList.remove('mouse-active');
-        }, 2000);
+        scheduleIdleHide(2000);
 
         LyricEngine.setActiveLyricIndex(-1);
 
@@ -80,6 +102,8 @@ export const VisualizerController = {
      */
     exitCinematicMode(cinematicView, playerView, cinematicTextContainer) {
         isCinematicMode = false;
+        clearIdleTimer();
+        document.body?.classList?.remove('user-idle');
         cinematicView.classList.add('hidden');
         playerView.classList.remove('hidden');
         if (cinematicTextContainer) cinematicTextContainer.innerHTML = '';
@@ -102,12 +126,10 @@ export const VisualizerController = {
 
         playerView.classList.add('hidden');
         angelicView.classList.remove('hidden');
-        document.body.classList.add('mouse-active');
+        document.body?.classList?.remove('user-idle');
+        document.body?.classList?.add('mouse-active');
 
-        clearTimeout(mouseTimeout);
-        mouseTimeout = setTimeout(() => {
-            document.body.classList.remove('mouse-active');
-        }, 2000);
+        scheduleIdleHide(2000);
         LyricEngine.setActiveLyricIndex(-1);
 
         if (activeLyricIndex !== -1 && currentLyrics[activeLyricIndex]) {
@@ -132,10 +154,14 @@ export const VisualizerController = {
      */
     exitAngelicMode(angelicView, playerView, angelicTextContainer, angelicParticleContainer) {
         isAngelicMode = false;
+        clearIdleTimer();
+        document.body?.classList?.remove('user-idle');
+        AngelicClimaxFX.cancelPendingClimaxFX();
         cancelAngelicLyricPreparation(angelicTextContainer);
         cancelAngelicLineTransitions(angelicTextContainer);
         AngelicStaffAnimator.stop();
         angelicView.classList.add('hidden');
+        angelicView.querySelectorAll?.('.giant-butterfly').forEach(el => el.remove());
         playerView.classList.remove('hidden');
         if (angelicTextContainer) angelicTextContainer.innerHTML = '';
         if (angelicParticleContainer) angelicParticleContainer.innerHTML = '';
@@ -146,21 +172,10 @@ export const VisualizerController = {
      * Sets up the single unified mouse-idle auto-hide listener for Player View, Cinematic, and Angelic modes.
      */
     setupAutoHide() {
-        let globalIdleTimeout = null;
-
         document.addEventListener('mousemove', () => {
-            document.body.classList.remove('user-idle');
+            document.body?.classList?.remove('user-idle');
             document.body.classList.add('mouse-active');
-
-            clearTimeout(globalIdleTimeout);
-            globalIdleTimeout = setTimeout(() => {
-                const playerView = document.getElementById('player-view');
-                const isPlayerActive = playerView && playerView.classList.contains('player-active') && !playerView.classList.contains('hidden');
-                if (isCinematicMode || isAngelicMode || isNostalgiaMode || isPlayerActive) {
-                    document.body.classList.add('user-idle');
-                    document.body.classList.remove('mouse-active');
-                }
-            }, 2500);
+            scheduleIdleHide(2500);
         }, { passive: true });
     }
 };

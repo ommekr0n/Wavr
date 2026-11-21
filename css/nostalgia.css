@@ -97,9 +97,6 @@ body.is-recording #nostalgia-view .nostalgia-top, body.is-recording #nostalgia-v
     .nostalgia-top { top: 10px; }
     .nostalgia-controls { bottom: 10px; padding: 3px 12px; }
 }
-@media (max-width: 360px) and (orientation: portrait) {
-    #player-top-utilities.header-utilities-bar .icon-btn { width: 24px; }
-}
 @media (prefers-reduced-motion: reduce) {
     #nostalgia-view *, #nostalgia-view *::after { animation: none !important; transition: none !important; }
 }

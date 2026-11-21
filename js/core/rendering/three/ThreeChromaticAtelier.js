@@ -16,6 +16,7 @@ export class ThreeChromaticAtelier {
         this.displayScene.add(new THREE.Mesh(this.geometry, this.displayMaterial));
         this.dirty = true; this.settling = false; this.nextPaint = 0;
     }
+    markDirty() { this.dirty = true; this.nextPaint = 0; }
     resize(width, height) {
         const scale = Math.min(.5, Math.sqrt(360000 / (width * height)));
         this.target.setSize(Math.max(1, Math.round(width * scale)), Math.max(1, Math.round(height * scale)));

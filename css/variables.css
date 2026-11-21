@@ -17,6 +17,24 @@
     --blob-2-color: #5856d6;
     --blob-3-color: #ff9500;
     --blob-4-color: #ff2d55;
+    /* unified z-index scale */
+    --z-player: 100;
+    --z-miniplayer: 900;
+    --z-visualizer: 1000;
+    --z-menu: 2000;
+    --z-modal: 3000;
+    --z-toast: 4000;
+    --z-splash: 5000;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible {
+    outline: 2px solid var(--accent-color, #00E5FF);
+    outline-offset: 2px;
 }
 
 /* Reset and Base */

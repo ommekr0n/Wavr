@@ -14,16 +14,20 @@ export const state = {
     selectedSongIds: new Set(),  // Set of currently selected song IDs
 };
 
+let localMutationVersion = 0;
+
 // ── Setters ───────────────────────────────────────────────────────────────────
 export function setPlaylist(list) {
     state.playlist = list || [];
 }
 
 export function setVinylBoxes(boxes) {
+    localMutationVersion++;
     state.vinylBoxes = boxes || [];
 }
 
 export function setLibraryOrder(order) {
+    localMutationVersion++;
     state.libraryOrder = order || [];
 }
 
@@ -33,14 +37,17 @@ export function clearSelection() {
 
 // ── Persistence helpers (Instant localStorage + Background Cloud Vault) ──────
 export function persistBoxes() {
+    localMutationVersion++;
     updateBoxCache([...state.vinylBoxes], [...state.libraryOrder]);
 }
 
 export function persistOrder() {
+    localMutationVersion++;
     updateBoxCache([...state.vinylBoxes], [...state.libraryOrder]);
 }
 
 export function persistAll() {
+    localMutationVersion++;
     updateBoxCache([...state.vinylBoxes], [...state.libraryOrder]);
 }
 
@@ -66,7 +73,9 @@ export function loadFromStorage() {
 
         // 2. Background check if cloud preferences have newer data
         if (SupabaseService.isConfigured()) {
+            const versionAtStart = localMutationVersion;
             SupabaseService.getUserPreferences().then((prefs) => {
+                if (localMutationVersion !== versionAtStart) return;
                 if (prefs && Array.isArray(prefs.vinyl_boxes) && prefs.vinyl_boxes.length > 0) {
                     state.vinylBoxes = prefs.vinyl_boxes;
                     if (Array.isArray(prefs.library_order)) {

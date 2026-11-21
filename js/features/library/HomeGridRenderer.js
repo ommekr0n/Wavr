@@ -6,7 +6,7 @@
 import coverImgUrl from '../../../assets/images/cover.png';
 import { PlayerController } from '../player/PlayerController.js';
 import { SupabaseService } from '../../services/SupabaseService.js';
-import { escapeHtml, safeImageUrl } from '../../modules/safe-html.js';
+import { escapeHtml, safeImageUrl, safeHexColor } from '../../modules/safe-html.js';
 import { syncLibraryVisualState } from './LibraryVisualState.js';
 
 let cachedVinylBoxes = [];
@@ -94,24 +94,23 @@ export async function renderSongGrid({ homeSongGrid, setupBoxExpansionListeners 
             `;
         } else {
             const box = item.raw;
+            const boxColor = safeHexColor(box.color, '#5a4232');
             card.className = 'song-card vinyl-box-card';
             card.setAttribute('data-box-id', box.id);
-            card.style.setProperty('--box-color', box.color || '#5a4232');
+            card.style.setProperty('--box-color', boxColor);
 
             const boxSongs = (box.songIds || []).map(id => playlist.find(s => s.id === id)).filter(Boolean);
             const recentSongs = [...boxSongs].slice(0, 4);
 
             let sleevesHTML = '';
             for (let i = 0; i < recentSongs.length; i++) {
-                const song = recentSongs[i];
-                const coverUrl = safeImageUrl(song.cover, coverImgUrl);
                 const sleeveClass = `sleeve-${i}`;
-                sleevesHTML += `<div class="peeking-sleeve ${sleeveClass}" style="background-image: url('${coverUrl}')"></div>`;
+                sleevesHTML += `<div class="peeking-sleeve ${sleeveClass}"></div>`;
             }
 
             card.innerHTML = `
                 <div class="song-card-inner box-card-inner" style="aspect-ratio: 1/1; margin-bottom: 15px;">
-                    <div class="vinyl-box-visual" style="--box-color: ${box.color || '#5a4232'};">
+                    <div class="vinyl-box-visual" style="--box-color: ${boxColor};">
                         <div class="vinyl-sleeves-container">
                             ${sleevesHTML}
                             <div class="glass-front"></div>
@@ -119,8 +118,16 @@ export async function renderSongGrid({ homeSongGrid, setupBoxExpansionListeners 
                     </div>
                 </div>
                 <div class="song-card-title">${escapeHtml(box.name)}</div>
-                <div class="song-card-artist">${box.songIds ? box.songIds.length : 0} Tracks</div>
+                <div class="song-card-artist">${boxSongs.length} Tracks</div>
             `;
+
+            const sleeveEls = card.querySelectorAll('.peeking-sleeve');
+            recentSongs.forEach((song, i) => {
+                const coverUrl = safeImageUrl(song.cover, coverImgUrl);
+                if (sleeveEls[i]) {
+                    sleeveEls[i].style.backgroundImage = `url("${coverUrl.replace(/["\\]/g, '\\$&')}")`;
+                }
+            });
         }
         homeSongGrid.appendChild(card);
     });

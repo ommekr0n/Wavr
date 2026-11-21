@@ -111,7 +111,10 @@ export class ThreeRendererController {
             this.sleeve.clear();
             this.mode = null;
             document.getElementById('reactive-dim').style.opacity = 0;
-        } else this.syncMode();
+        } else {
+            this.atelier.markDirty();
+            this.syncMode();
+        }
         this.syncLoop();
     }
 
@@ -194,10 +197,14 @@ export class ThreeRendererController {
         } else if (this.mode === 'player') {
             this.renderer.toneMapping = THREE.NoToneMapping;
             this.tear.beginFrame(this.renderer, now);
-            this.atelier.update(dt, state, this.colors, this.reducedMotion); this.atelier.render(this.renderer, now);
-            this.sleeve.update(dt, state, this.colors, this.reducedMotion);
-            this.renderer.autoClear = false; this.renderer.clearDepth(); this.renderer.render(this.sleeve.scene, this.sleeve.camera);
-            this.tear.endFrame(this.renderer);
+            const tearActive = Boolean(this.tear.capturing);
+            try {
+                this.atelier.update(dt, state, this.colors, this.reducedMotion); this.atelier.render(this.renderer, now);
+                this.sleeve.update(dt, state, this.colors, this.reducedMotion);
+                this.renderer.autoClear = false; this.renderer.clearDepth(); this.renderer.render(this.sleeve.scene, this.sleeve.camera);
+            } finally {
+                if (tearActive || this.tear.capturing) this.tear.endFrame(this.renderer);
+            }
         } else {
             this.renderer.toneMapping = THREE.NoToneMapping;
             this.surfaces.update(dt, this.reducedMotion); this.surfaces.render(this.renderer);

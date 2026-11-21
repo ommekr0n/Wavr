@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { loadImageForColorExtraction } from '../../../modules/color-extractor.js';
+import { resizeArtwork } from './ArtworkResizer.js';
 
 export function libraryArtworkTier(pixels, preview = false) {
     return preview ? 256 : pixels > 512 ? 1024 : pixels > 200 ? 512 : 256;
@@ -11,15 +12,7 @@ export class LibraryArtworkBudget {
         this.invalidate = invalidate;
         this.maxBytes = maxBytes; this.maxInactive = maxInactive;
         this.load = load;
-        this.resize = resize || ((image, size) => {
-            const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size;
-            const context = canvas.getContext('2d');
-            context.imageSmoothingEnabled = true; context.imageSmoothingQuality = 'high';
-            const w = image.naturalWidth || image.width, h = image.naturalHeight || image.height;
-            const side = Math.min(w, h);
-            context.drawImage(image, (w - side) / 2, (h - side) / 2, side, side, 0, 0, size, size);
-            return canvas;
-        });
+        this.resize = resize || ((image, size, options) => resizeArtwork(image, size, { ...options, square: true }));
         this.entries = new Map(); this.bytes = 0; this.disposed = false;
     }
 
@@ -30,11 +23,13 @@ export class LibraryArtworkBudget {
             const texture = new THREE.Texture(); texture.colorSpace = THREE.SRGBColorSpace;
             texture.anisotropy = 4;
             const material = new THREE.MeshBasicMaterial({ map: texture, color: 0xffffff, toneMapped: false });
-            entry = { key, texture, material, ready: false, failed: false, refs: 0, used: 0, bytes: size * size * 4 * 4 / 3 };
+            entry = { key, texture, material, ready: false, failed: false, refs: 0, used: 0, bytes: size * size * 4 * 4 / 3, abort: new AbortController() };
             this.entries.set(key, entry); this.bytes += entry.bytes;
-            this.load(url).then(image => {
+            this.load(url, { signal: entry.abort.signal }).then(async image => {
                 if (this.disposed || this.entries.get(key) !== entry) return;
-                texture.image = this.resize(image, size); texture.needsUpdate = true; entry.ready = true;
+                const resized = await this.resize(image, size, { signal: entry.abort.signal });
+                if (this.disposed || this.entries.get(key) !== entry) { resized.close?.(); return; }
+                texture.image = resized; texture.needsUpdate = true; entry.ready = true;
                 this.invalidate();
             }).catch(() => {
                 if (this.disposed || this.entries.get(key) !== entry) return;
@@ -53,9 +48,10 @@ export class LibraryArtworkBudget {
     trim() {
         const inactive = [...this.entries.values()].filter(entry => !entry.refs).sort((a, b) => a.used - b.used);
         while (inactive.length && (this.bytes > this.maxBytes || inactive.length > this.maxInactive)) {
-            const entry = inactive.shift(); entry.material.dispose(); entry.texture.dispose(); this.entries.delete(entry.key); this.bytes -= entry.bytes;
+            const entry = inactive.shift(); this.destroy(entry); this.entries.delete(entry.key); this.bytes -= entry.bytes;
         }
     }
 
-    dispose() { this.disposed = true; this.entries.forEach(entry => { entry.material.dispose(); entry.texture.dispose(); }); this.entries.clear(); this.bytes = 0; }
+    destroy(entry) { entry.abort.abort(); entry.texture.image?.close?.(); entry.material.dispose(); entry.texture.dispose(); }
+    dispose() { this.disposed = true; this.entries.forEach(entry => this.destroy(entry)); this.entries.clear(); this.bytes = 0; }
 }

@@ -9,6 +9,23 @@ import { searchLRCLIB, autoSelectBestMatch, openLrcPickerModal } from '../../mod
 import { SupabaseService } from '../../services/SupabaseService.js';
 import { escapeHtml, safeImageUrl } from '../../modules/safe-html.js';
 import { removeLibraryTrackFromQueue } from './LibraryQueueMaintenance.js';
+import { getCachedLibraryOrder, setCachedLibraryOrder } from './HomeGridRenderer.js';
+
+const MAX_EDIT_AUDIO_BYTES = 100 * 1024 * 1024;
+const MAX_EDIT_COVER_BYTES = 15 * 1024 * 1024;
+const MAX_EDIT_LRC_BYTES = 2 * 1024 * 1024;
+const ALLOWED_AUDIO_EXTS = ['.mp3', '.flac', '.wav', '.ogg', '.m4a', '.aac'];
+const ALLOWED_IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif'];
+const ALLOWED_LRC_EXTS = ['.lrc', '.txt'];
+
+function readTextFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => resolve(event.target.result || '');
+        reader.onerror = () => reject(reader.error || new Error('Failed to read lyrics file'));
+        reader.readAsText(file);
+    });
+}
 
 // ── Modal State ──────────────────────────────────────────────────────────────
 // These mirror the exact variables scattered in main.js
@@ -32,6 +49,8 @@ let _updateMiniPlayerUI    = null;
 let _getIsPlaying          = null;
 let _playAudio             = null;
 let _showToast             = null;
+let _clearPlayback         = null;
+let _resetMediaGate        = null;
 
 export const LibraryModals = {
 
@@ -55,6 +74,8 @@ export const LibraryModals = {
         _getIsPlaying           = deps.getIsPlaying;
         _playAudio              = deps.playAudio;
         _showToast              = deps.showToast;
+        _clearPlayback          = deps.clearPlayback;
+        _resetMediaGate         = deps.resetMediaGate;
 
         // ── window.appMainContext bridge ─────────────────────────────────────
         // MUST expose these exact keys to preserve compatibility with edit-library.js
@@ -108,7 +129,40 @@ export const LibraryModals = {
                     if (playlist[idx].cover && playlist[idx].cover.startsWith('blob:')) URL.revokeObjectURL(playlist[idx].cover);
 
                     playlist.splice(idx, 1);
-                    removeLibraryTrackFromQueue(song, { pauseAudio: _pauseAudio, loadTrack: _loadTrack, updateMiniPlayerUI: _updateMiniPlayerUI });
+
+                    // Scrub deleted song ID from vinylBoxes and libraryOrder
+                    if (song && song.id) {
+                        const boxes = _getCachedVinylBoxes ? _getCachedVinylBoxes() : null;
+                        if (Array.isArray(boxes)) {
+                            let boxesChanged = false;
+                            const cleanedBoxes = boxes.map((box) => {
+                                if (Array.isArray(box.songIds) && box.songIds.includes(song.id)) {
+                                    boxesChanged = true;
+                                    return { ...box, songIds: box.songIds.filter((id) => id !== song.id) };
+                                }
+                                return box;
+                            });
+                            if (boxesChanged) {
+                                if (_setCachedVinylBoxes) _setCachedVinylBoxes(cleanedBoxes);
+                                if (window.appEditLibraryContext?.syncBoxes) {
+                                    window.appEditLibraryContext.syncBoxes([...cleanedBoxes]);
+                                }
+                            }
+                        }
+
+                        const currentOrder = getCachedLibraryOrder();
+                        if (Array.isArray(currentOrder) && currentOrder.includes(song.id)) {
+                            setCachedLibraryOrder(currentOrder.filter((id) => id !== song.id));
+                        }
+                    }
+
+                    removeLibraryTrackFromQueue(song, {
+                        pauseAudio: _pauseAudio,
+                        loadTrack: _loadTrack,
+                        updateMiniPlayerUI: _updateMiniPlayerUI,
+                        clearPlayback: _clearPlayback,
+                        resetMediaGate: _resetMediaGate
+                    });
 
                     _renderSongGrid();
                     await _saveLibraryToDB();
@@ -219,111 +273,183 @@ export const LibraryModals = {
         });
 
         const editForm = document.getElementById('edit-form');
+        let isEditing = false;
         if (editForm) {
             editForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                if (trackToEditIndex !== null) {
-                    const idx       = parseInt(trackToEditIndex);
-                    const playlist  = _getPlaylist();
-                    const newTitle  = document.getElementById('edit-title').value.trim();
-                    const newArtist = document.getElementById('edit-artist').value.trim();
-                    const audioFile = document.getElementById('edit-audio').files[0];
-                    const lrcFile   = document.getElementById('edit-lrc').files[0];
-                    const coverFile = document.getElementById('edit-cover').files[0];
+                if (isEditing) return;
+                if (trackToEditIndex === null) return;
 
-                    if (newTitle && newArtist) {
-                        const song   = playlist[idx];
-                        song.title   = newTitle;
-                        song.artist  = newArtist;
+                const idx       = parseInt(trackToEditIndex);
+                const playlist  = _getPlaylist();
+                const newTitle  = document.getElementById('edit-title').value.trim();
+                const newArtist = document.getElementById('edit-artist').value.trim();
+                const audioFile = document.getElementById('edit-audio').files[0];
+                const lrcFile   = document.getElementById('edit-lrc').files[0];
+                const coverFile = document.getElementById('edit-cover').files[0];
 
-                        if (audioFile) {
-                            if (song.url && song.url.startsWith('blob:')) URL.revokeObjectURL(song.url);
-                            song.audioBlob = audioFile;
-                            song.url       = URL.createObjectURL(audioFile);
-                            if (_getCurrentTrackIndex() === idx) {
-                                const wasPlaying = _getIsPlaying();
-                                _loadTrack(idx);
-                                if (wasPlaying) _playAudio();
-                            }
-                        }
+                if (!newTitle || !newArtist) {
+                    alert('Please fill in Title and Artist fields.');
+                    return;
+                }
 
-                        if (coverFile) {
-                            if (song.cover && song.cover.startsWith('blob:')) URL.revokeObjectURL(song.cover);
-                            song.coverBlob = coverFile;
-                            song.cover     = URL.createObjectURL(coverFile);
-                        }
+                const notifyError = (msg) => {
+                    if (_showToast) _showToast(msg, 'error');
+                    else alert(msg);
+                };
 
-                        const finishEdit = async () => {
-                            // If song is stored in Supabase Cloud Vault, update the cloud database record
-                            if (SupabaseService.isConfigured() && song && song.id) {
-                                try {
-                                    const currentUser = await SupabaseService.getCurrentUser();
-                                    if (currentUser) {
-                                        let updatedAudioUrl = song.url;
-                                        let updatedCoverUrl = song.cover;
-
-                                        // Upload new audio file if replaced
-                                        if (audioFile) {
-                                            const fileNameSanitized = audioFile.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-                                            updatedAudioUrl = await SupabaseService.uploadMediaFile(audioFile, `tracks/${Date.now()}_${fileNameSanitized}`);
-                                            song.url = await SupabaseService.resolveMediaUrl(updatedAudioUrl);
-                                        }
-
-                                        // Upload new cover file if replaced
-                                        if (coverFile) {
-                                            updatedCoverUrl = await SupabaseService.uploadMediaFile(coverFile, `covers/${Date.now()}.webp`);
-                                            song.cover = await SupabaseService.resolveMediaUrl(updatedCoverUrl);
-                                        }
-
-                                        await SupabaseService.updateTrack(song.id, {
-                                            title: song.title,
-                                            artist: song.artist,
-                                            audioUrl: updatedAudioUrl,
-                                            coverUrl: updatedCoverUrl,
-                                            lrcText: song.lyrics || '',
-                                            fileSize: audioFile ? audioFile.size : song.fileSize
-                                        });
-
-                                        if (_showToast) _showToast('Track updated in Personal Cloud Vault!');
-                                    }
-                                } catch (cloudErr) {
-                                    console.error('Supabase cloud track update error:', cloudErr);
-                                    if (_showToast) _showToast('Cloud update error: ' + cloudErr.message, 'error');
-                                }
-                            }
-
-                            _renderSongGrid();
-                            _updateMiniPlayerUI();
-                            await _saveLibraryToDB();
-                            document.dispatchEvent(new CustomEvent('wavr:libraryChanged'));
-                            document.getElementById('edit-modal').classList.add('hidden');
-                            trackToEditIndex = null;
-                            pendingEditLrcText = null;
-                            if (editLrcStatus) editLrcStatus.textContent = '';
-                        };
-
-                        if (lrcFile) {
-                            const reader = new FileReader();
-                            reader.onload = function(event) {
-                                song.lyrics = event.target.result;
-                                if (_parseLyrics && _getCurrentTrackIndex() === idx) {
-                                    _parseLyrics(song.lyrics);
-                                }
-                                finishEdit();
-                            };
-                            reader.readAsText(lrcFile);
-                        } else if (pendingEditLrcText) {
-                            song.lyrics = pendingEditLrcText;
-                            if (_parseLyrics && _getCurrentTrackIndex() === idx) {
-                                _parseLyrics(song.lyrics);
-                            }
-                            finishEdit();
-                        } else {
-                            finishEdit();
-                        }
-                    } else {
-                        alert('Please fill in Title and Artist fields.');
+                if (audioFile) {
+                    const audioExt = '.' + (audioFile.name || '').split('.').pop().toLowerCase();
+                    const validAudioMime = audioFile.type ? audioFile.type.startsWith('audio/') : false;
+                    const validAudioExt = ALLOWED_AUDIO_EXTS.includes(audioExt);
+                    if ((audioFile.type && !validAudioMime) || (!validAudioMime && !validAudioExt)) {
+                        notifyError(`Invalid audio format (${audioExt}). Only MP3, FLAC, WAV, OGG, M4A, AAC allowed.`);
+                        return;
                     }
+                    if (audioFile.size > MAX_EDIT_AUDIO_BYTES) {
+                        notifyError(`Audio file too large (${(audioFile.size / 1024 / 1024).toFixed(1)}MB). Max 100MB allowed.`);
+                        return;
+                    }
+                }
+
+                if (coverFile) {
+                    const coverExt = '.' + (coverFile.name || '').split('.').pop().toLowerCase();
+                    const validCoverMime = coverFile.type ? (coverFile.type.startsWith('image/') && coverFile.type !== 'image/svg+xml') : false;
+                    const validCoverExt = ALLOWED_IMAGE_EXTS.includes(coverExt);
+                    if ((coverFile.type && !validCoverMime) || (!validCoverMime && !validCoverExt)) {
+                        notifyError('Invalid cover image format. Only PNG, JPG, WEBP, GIF allowed.');
+                        return;
+                    }
+                    if (coverFile.size > MAX_EDIT_COVER_BYTES) {
+                        notifyError(`Cover image too large (${(coverFile.size / 1024 / 1024).toFixed(1)}MB). Max 15MB allowed.`);
+                        return;
+                    }
+                }
+
+                if (lrcFile) {
+                    const lrcExt = '.' + (lrcFile.name || '').split('.').pop().toLowerCase();
+                    if (!ALLOWED_LRC_EXTS.includes(lrcExt)) {
+                        notifyError(`Invalid lyrics format (${lrcExt}). Only .lrc or .txt allowed.`);
+                        return;
+                    }
+                    if (lrcFile.size > MAX_EDIT_LRC_BYTES) {
+                        notifyError(`Lyrics file too large (${(lrcFile.size / 1024 / 1024).toFixed(1)}MB). Max 2MB allowed.`);
+                        return;
+                    }
+                }
+
+                const submitBtn = editForm.querySelector?.('button[type="submit"], input[type="submit"]');
+                isEditing = true;
+                if (submitBtn) submitBtn.disabled = true;
+
+                let tempAudioBlobUrl = null;
+                let tempCoverBlobUrl = null;
+                const song = playlist[idx];
+
+                try {
+                    song.title  = newTitle;
+                    song.artist = newArtist;
+
+                    if (audioFile) {
+                        if (song.url && song.url.startsWith('blob:')) URL.revokeObjectURL(song.url);
+                        song.audioBlob = audioFile;
+                        tempAudioBlobUrl = URL.createObjectURL(audioFile);
+                        song.url = tempAudioBlobUrl;
+                        if (_getCurrentTrackIndex() === idx) {
+                            const wasPlaying = _getIsPlaying();
+                            _loadTrack(idx);
+                            if (wasPlaying) _playAudio();
+                        }
+                    }
+
+                    if (coverFile) {
+                        if (song.cover && song.cover.startsWith('blob:')) URL.revokeObjectURL(song.cover);
+                        song.coverBlob = coverFile;
+                        tempCoverBlobUrl = URL.createObjectURL(coverFile);
+                        song.cover = tempCoverBlobUrl;
+                    }
+
+                    if (lrcFile) {
+                        song.lyrics = await readTextFile(lrcFile);
+                        if (_parseLyrics && _getCurrentTrackIndex() === idx) {
+                            _parseLyrics(song.lyrics);
+                        }
+                    } else if (pendingEditLrcText) {
+                        song.lyrics = pendingEditLrcText;
+                        if (_parseLyrics && _getCurrentTrackIndex() === idx) {
+                            _parseLyrics(song.lyrics);
+                        }
+                    }
+
+                    // If song is stored in Supabase Cloud Vault, update the cloud database record
+                    if (SupabaseService.isConfigured() && song && song.id) {
+                        try {
+                            const currentUser = await SupabaseService.getCurrentUser();
+                            if (currentUser) {
+                                let updatedAudioUrl = song.url;
+                                let updatedCoverUrl = song.cover;
+
+                                // Upload new audio file if replaced
+                                if (audioFile) {
+                                    const fileNameSanitized = audioFile.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                                    updatedAudioUrl = await SupabaseService.uploadMediaFile(audioFile, `tracks/${Date.now()}_${fileNameSanitized}`);
+                                    const resolvedAudioUrl = await SupabaseService.resolveMediaUrl(updatedAudioUrl);
+                                    song.url = resolvedAudioUrl;
+                                    if (_getCurrentTrackIndex() === idx) {
+                                        const wasPlaying = _getIsPlaying();
+                                        _loadTrack(idx);
+                                        if (wasPlaying) _playAudio();
+                                    }
+                                    if (tempAudioBlobUrl && resolvedAudioUrl !== tempAudioBlobUrl) {
+                                        URL.revokeObjectURL(tempAudioBlobUrl);
+                                        tempAudioBlobUrl = null;
+                                    }
+                                }
+
+                                // Upload new cover file if replaced
+                                if (coverFile) {
+                                    updatedCoverUrl = await SupabaseService.uploadMediaFile(coverFile, `covers/${Date.now()}.webp`);
+                                    const resolvedCoverUrl = await SupabaseService.resolveMediaUrl(updatedCoverUrl);
+                                    if (tempCoverBlobUrl && resolvedCoverUrl !== tempCoverBlobUrl) {
+                                        URL.revokeObjectURL(tempCoverBlobUrl);
+                                        tempCoverBlobUrl = null;
+                                    }
+                                    song.cover = resolvedCoverUrl;
+                                }
+
+                                await SupabaseService.updateTrack(song.id, {
+                                    title: song.title,
+                                    artist: song.artist,
+                                    audioUrl: updatedAudioUrl,
+                                    coverUrl: updatedCoverUrl,
+                                    lrcText: song.lyrics || '',
+                                    fileSize: audioFile ? audioFile.size : song.fileSize
+                                });
+
+                                if (_showToast) _showToast('Track updated in Personal Cloud Vault!');
+                            }
+                        } catch (cloudErr) {
+                            console.error('Supabase cloud track update error:', cloudErr);
+                            if (_showToast) _showToast('Cloud update error: ' + cloudErr.message, 'error');
+                        }
+                    }
+
+                    _renderSongGrid();
+                    _updateMiniPlayerUI();
+                    await _saveLibraryToDB();
+                    document.dispatchEvent(new CustomEvent('wavr:libraryChanged'));
+                    document.getElementById('edit-modal').classList.add('hidden');
+                    trackToEditIndex = null;
+                    pendingEditLrcText = null;
+                    if (editLrcStatus) editLrcStatus.textContent = '';
+                } catch (err) {
+                    if (tempAudioBlobUrl && song.url !== tempAudioBlobUrl) URL.revokeObjectURL(tempAudioBlobUrl);
+                    if (tempCoverBlobUrl && song.cover !== tempCoverBlobUrl) URL.revokeObjectURL(tempCoverBlobUrl);
+                    console.error('Edit track error:', err);
+                    notifyError('Edit failed: ' + (err.message || err));
+                } finally {
+                    isEditing = false;
+                    if (submitBtn) submitBtn.disabled = false;
                 }
             });
         }
@@ -425,8 +551,8 @@ export const LibraryModals = {
                         <div class="title">${escapeHtml(song.title)}</div>
                         <div class="artist">${escapeHtml(song.artist)}</div>
                     </div>
-                    <button class="add-song-quick-btn glass-icon-btn primary" title="Add to Box">
-                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <button type="button" class="add-song-quick-btn glass-icon-btn primary" title="Add to Box" aria-label="Add ${escapeHtml(song.title)} to box">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <line x1="12" y1="5" x2="12" y2="19"></line>
                             <line x1="5" y1="12" x2="19" y2="12"></line>
                         </svg>
@@ -441,8 +567,9 @@ export const LibraryModals = {
                         if (!b.songIds) b.songIds = [];
                         b.songIds.push(song.id);
 
-                        // Update in-memory cache immediately
+                        // Update in-memory cache immediately and persist/sync to DB
                         _setCachedVinylBoxes(currentVinylBoxesArray);
+                        if (_saveLibraryToDB) _saveLibraryToDB();
 
                         _renderSongGrid();
                         if (window.appEditLibraryContext && window.appEditLibraryContext.syncBoxes) {

@@ -107,7 +107,7 @@ body:has(#app-custom-bg-layer.active) :is(#home-view, #edit-library-view) {
 }
 :is(#home-song-grid, #edit-song-grid) .vinyl-box-card.expanded-active {
     background: #ffffff03;
-    border: 1px solid color-mix(in srgb, var(--box-color) 40%, #ffffff15);
+    border: 1px solid color-mix(in srgb, var(--box-color, #d8c3a7) 40%, #ffffff15);
     padding: 22px;
     border-radius: 14px;
     box-shadow: none;

@@ -53,6 +53,27 @@ export function setupRecordingController({
     ];
 
     let selectedRecordingMode = null;
+    let hidePopoverTimer = null;
+
+    const clearHidePopoverTimer = () => {
+        if (hidePopoverTimer !== null) {
+            clearTimeout(hidePopoverTimer);
+            hidePopoverTimer = null;
+        }
+    };
+
+    const hidePopover = (immediate = false) => {
+        clearHidePopoverTimer();
+        recordPopover.classList.remove('active');
+        if (immediate) {
+            recordPopover.classList.add('hidden');
+        } else {
+            hidePopoverTimer = setTimeout(() => {
+                hidePopoverTimer = null;
+                recordPopover.classList.add('hidden');
+            }, 200);
+        }
+    };
 
     if (btnRecord && recordPopover) {
         recordPopover.innerHTML = recordingModes.map(mode => `
@@ -64,22 +85,19 @@ export function setupRecordingController({
 
         btnRecord.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (recordPopover.classList.contains('hidden')) {
+            if (recordPopover.classList.contains('hidden') || !recordPopover.classList.contains('active')) {
+                clearHidePopoverTimer();
                 recordPopover.classList.remove('hidden');
                 void recordPopover.offsetWidth;
                 recordPopover.classList.add('active');
             } else {
-                recordPopover.classList.remove('active');
-                setTimeout(() => {
-                    recordPopover.classList.add('hidden');
-                }, 200);
+                hidePopover(false);
             }
         });
 
         document.addEventListener('click', (e) => {
             if (!recordPopover.classList.contains('hidden') && !e.target.closest('.record-container')) {
-                recordPopover.classList.remove('active');
-                setTimeout(() => recordPopover.classList.add('hidden'), 200);
+                hidePopover(false);
             }
         });
 
@@ -87,8 +105,7 @@ export function setupRecordingController({
             const btn = e.target.closest('.record-option-item');
             if (btn) {
                 selectedRecordingMode = btn.getAttribute('data-mode');
-                recordPopover.classList.remove('active');
-                recordPopover.classList.add('hidden');
+                hidePopover(true);
                 if (recordingSetupModal) recordingSetupModal.classList.remove('hidden');
             }
         });

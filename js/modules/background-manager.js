@@ -49,10 +49,10 @@ async function getStoredBackground() {
     }
 }
 
-async function setStoredBackground(blob) {
+export async function setStoredBackground(blob) {
     try {
         const db = await openBackgroundDB();
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             const tx = db.transaction(STORE_NAME, 'readwrite');
             const store = tx.objectStore(STORE_NAME);
             const req = store.put(blob, 'wavr_custom_bg');
@@ -66,6 +66,7 @@ async function setStoredBackground(blob) {
 }
 
 async function removeStoredBackground() {
+    if (typeof indexedDB === 'undefined') return;
     try {
         const db = await openBackgroundDB();
         return new Promise((resolve) => {
@@ -78,6 +79,11 @@ async function removeStoredBackground() {
     } catch (e) {
         console.error('Failed to remove background from IndexedDB:', e);
     }
+}
+
+export async function clearStoredBackground(doc = typeof document !== 'undefined' ? document : null) {
+    applyBackgroundImage(null, doc);
+    await removeStoredBackground();
 }
 
 function showNotification(message) {
@@ -164,32 +170,37 @@ async function saveAndApplyBackground(blob) {
 }
 
 // Set background image on target layers (supports Blob or direct URL string)
-function applyBackgroundImage(source) {
-    const bgLayer = document.getElementById('app-custom-bg-layer');
+export function applyBackgroundImage(source, doc = typeof document !== 'undefined' ? document : null) {
+    const bgLayer = doc?.getElementById('app-custom-bg-layer');
     if (!bgLayer) return;
+
+    const revokePreviousBlobUrl = () => {
+        if (bgLayer.dataset?.bgUrl && bgLayer.dataset.bgUrl.startsWith('blob:')) {
+            if (typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+                URL.revokeObjectURL(bgLayer.dataset.bgUrl);
+            }
+            delete bgLayer.dataset.bgUrl;
+        }
+    };
 
     if (source) {
         let url = '';
         if (typeof source === 'string') {
+            revokePreviousBlobUrl();
             url = source;
+            if (bgLayer.dataset) bgLayer.dataset.bgUrl = url;
         } else if (source instanceof Blob) {
             url = URL.createObjectURL(source);
-            // Clean up old object URLs if any
-            if (bgLayer.dataset.bgUrl && bgLayer.dataset.bgUrl.startsWith('blob:')) {
-                URL.revokeObjectURL(bgLayer.dataset.bgUrl);
-            }
-            bgLayer.dataset.bgUrl = url;
+            revokePreviousBlobUrl();
+            if (bgLayer.dataset) bgLayer.dataset.bgUrl = url;
         }
 
-        bgLayer.style.backgroundImage = `url('${url}')`;
-        bgLayer.classList.add('active');
+        if (bgLayer.style) bgLayer.style.backgroundImage = `url('${url}')`;
+        bgLayer.classList?.add('active');
     } else {
-        if (bgLayer.dataset.bgUrl && bgLayer.dataset.bgUrl.startsWith('blob:')) {
-            URL.revokeObjectURL(bgLayer.dataset.bgUrl);
-            delete bgLayer.dataset.bgUrl;
-        }
-        bgLayer.style.backgroundImage = '';
-        bgLayer.classList.remove('active');
+        revokePreviousBlobUrl();
+        if (bgLayer.style) bgLayer.style.backgroundImage = '';
+        bgLayer.classList?.remove('active');
     }
 }
 
@@ -479,4 +490,6 @@ export const BackgroundManager = {
     }
 };
 
-window.appMainContext = window.appMainContext || {};
+if (typeof window !== 'undefined') {
+    window.appMainContext = window.appMainContext || {};
+}

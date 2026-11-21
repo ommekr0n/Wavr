@@ -6,6 +6,7 @@
 
 import { splitSyllables } from '../visualizer/VisualFX.js';
 import { buildAngelicEnhancedWords } from './AngelicEnhancedWords.js';
+import { escapeLyricText } from '../lyrics/EnhancedLrcText.js';
 
 export const AngelicLyricBuilder = {
     /**
@@ -84,7 +85,7 @@ export const AngelicLyricBuilder = {
 
                 if (syllables.length <= 1) {
                     wordsHTML += `<span class="angelic-word-sway" style="animation-delay: ${wordPopDelay}s">
-                        <span class="angelic-word-pop" style="animation-delay: ${wordPopDelay}s">${word}</span>
+                        <span class="angelic-word-pop" style="animation-delay: ${wordPopDelay}s">${escapeLyricText(word)}</span>
                         ${bFly}
                     </span> `;
                     globalSyllableIdx++;
@@ -92,7 +93,7 @@ export const AngelicLyricBuilder = {
                     wordsHTML += `<span class="angelic-word-sway" style="animation-delay: ${wordPopDelay}s">`;
                     syllables.forEach((syl) => {
                         const sylDelay = STAFF_DRAW_DURATION + globalSyllableIdx * syllableStep;
-                        wordsHTML += `<span class="angelic-word-pop" style="animation-delay: ${sylDelay}s">${syl}</span>`;
+                        wordsHTML += `<span class="angelic-word-pop" style="animation-delay: ${sylDelay}s">${escapeLyricText(syl)}</span>`;
                         globalSyllableIdx++;
                     });
                     wordsHTML += `${bFly}</span> `;

@@ -4,7 +4,7 @@
  */
 import coverImgUrl from '../../../assets/images/cover.png';
 import { PlayerController } from '../player/PlayerController.js';
-import { escapeHtml, safeImageUrl } from '../../modules/safe-html.js';
+import { escapeHtml, safeImageUrl, safeHexColor } from '../../modules/safe-html.js';
 import { captureLibraryBoxMarkup } from './LibraryBoxMarkup.js';
 import { syncLibraryVisualState } from './LibraryVisualState.js';
 import { playLibraryTrack } from './LibraryTrackSelection.js';
@@ -54,7 +54,7 @@ export function toggleBoxExpansion(card, boxId, vinylBoxes, openPlayer, syncPlay
         });
     }
 
-    const boxColor = box.color || '#ffb300';
+    const boxColor = safeHexColor(box.color, '#ffb300');
     card.innerHTML = `
         <div class="box-expansion-content">
             <div class="box-expansion-header">

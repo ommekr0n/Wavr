@@ -161,6 +161,8 @@ export const LyricEngine = {
             const lineEl = document.createElement('div');
             lineEl.className = 'am-lyric-line';
             lineEl.setAttribute('data-index', index);
+            lineEl.setAttribute('role', 'button');
+            lineEl.setAttribute('tabindex', '0');
 
             if (lyric.isEnhanced && lyric.words && lyric.words.length > 0) {
                 lineEl.className = 'am-lyric-line has-enhanced';
@@ -192,7 +194,7 @@ export const LyricEngine = {
 
                 lineEl.innerHTML = htmlContent;
             } else {
-                let htmlText = preventOrphanWords(lyric.text);
+                let htmlText = preventOrphanWords(escapeLyricText(lyric.text ?? ''));
                 htmlText = wrapEmojis(htmlText, 'normal');
                 htmlText = htmlText.replace(/\n\([^)]*\)(\n)?/g, (match) => {
                     const cleanMatch = match.replace(/\n/g, '');

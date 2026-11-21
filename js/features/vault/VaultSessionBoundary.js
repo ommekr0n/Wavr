@@ -31,5 +31,16 @@ export function clearVaultBrowserState(doc = document, storage = localStorage) {
     for (const key of ['wavr_vinyl_boxes', 'wavr_library_order']) {
         try { storage.removeItem(key); } catch { /* Storage may be disabled. */ }
     }
+    const bgLayer = doc.getElementById('app-custom-bg-layer');
+    if (bgLayer) {
+        if (bgLayer.dataset?.bgUrl?.startsWith('blob:')) {
+            if (typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+                URL.revokeObjectURL(bgLayer.dataset.bgUrl);
+            }
+            delete bgLayer.dataset.bgUrl;
+        }
+        if (bgLayer.style) bgLayer.style.backgroundImage = '';
+        bgLayer.classList?.remove('active');
+    }
     if (navigator.mediaSession) navigator.mediaSession.metadata = null;
 }

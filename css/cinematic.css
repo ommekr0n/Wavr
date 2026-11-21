@@ -234,7 +234,6 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 }
 
 @media (max-height: 800px) {
-    .am-album-art-container { margin-bottom: 25px; }
     .am-song-meta { margin-bottom: 20px; }
     .am-song-meta h2 { font-size: 1.5rem; }
     .am-controls-container { margin-bottom: 25px; gap: 20px; }
@@ -243,11 +242,7 @@ body.mouse-active .auto-hide-btn { opacity: 1; }
 
 @media (max-width: 900px) and (orientation: portrait) {
     .am-layout { flex-direction: column; }
-    .am-player-section { max-width: 100%; padding: 20px 40px; }
-    .am-player-inner { display: flex; gap: 30px; align-items: center; max-width: 100%; }
-    .am-album-art-container { width: 150px; margin-bottom: 0; }
     .am-song-meta { margin-bottom: 15px; }
-    .player-controls-wrap { flex: 1; }
     .am-lyrics-section { height: 50vh; }
 }
 
@@ -412,4 +407,22 @@ img.lyric-emoji--cinematic {
     filter: grayscale(1) brightness(2.0) contrast(1.1)
             drop-shadow(0 0 5px rgba(255,255,255,0.9))
             drop-shadow(0 0 12px var(--blob-1-color, rgba(255,255,255,0.6)));
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .crt-screen-container,
+    .crt-noise,
+    .glitch-word-anim::before,
+    .glitch-word-anim::after,
+    .sparkle,
+    .cine-enter,
+    .cine-exit,
+    .cine-enter img.lyric-emoji--cinematic,
+    .cinematic-line-wrapper.chroma-enter::before,
+    .cinematic-line-wrapper.chroma-enter::after {
+        animation: none !important;
+    }
+    #cinematic-text-container {
+        transition: none !important;
+    }
 }

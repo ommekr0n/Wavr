@@ -65,7 +65,7 @@ export function extractColorsFromImage(imgEl, updateCSSVariables) {
         const spotlightColors = selectedColors.slice(4, 8);
         uiColors.sort(() => Math.random() - 0.5);
         
-        updateCSSVariables(uiColors, spotlightColors);
+        if (updateCSSVariables) updateCSSVariables(uiColors, spotlightColors);
         return spotlightColors;
     } catch (e) {
         // Fallback 8 default vibrant theme colors if cross-origin image canvas is tainted

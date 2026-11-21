@@ -9,10 +9,10 @@ import { vaultClientAuthOptions } from '../features/vault/VaultClientOptions.js'
 import { createPrivateMediaResolver, mediaUrlNeedsRefresh, privateMediaUri } from '../features/vault/PrivateMediaUrls.js';
 import { setMediaUrlResolver } from '../features/vault/MediaUrlAccess.js';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://stbzeroodquuevmrwfyi.supabase.co';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_DTIzsD_0Qwotf4MZWsHs4w_N6uj-UQh';
+const SUPABASE_URL = import.meta.env?.VITE_SUPABASE_URL || 'https://stbzeroodquuevmrwfyi.supabase.co';
+const SUPABASE_ANON_KEY = import.meta.env?.VITE_SUPABASE_ANON_KEY || import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_DTIzsD_0Qwotf4MZWsHs4w_N6uj-UQh';
 const R2_URI_PREFIX = 'r2://';
-const MEDIA_WORKER_URL = (import.meta.env.VITE_MEDIA_WORKER_URL || 'https://wavr-media-gateway.vinhvy-vn.workers.dev').replace(/\/$/, '');
+const MEDIA_WORKER_URL = (import.meta.env?.VITE_MEDIA_WORKER_URL || 'https://wavr-media-gateway.vinhvy-vn.workers.dev').replace(/\/$/, '');
 const resolvePrivateMedia = createPrivateMediaResolver(MEDIA_WORKER_URL, (...args) => SupabaseService.requestMediaWorker(...args));
 setMediaUrlResolver(resolvePrivateMedia);
 
@@ -29,7 +29,7 @@ export const supabase = isSupabaseConfigured
     : null;
 
 const vaultAuth = createVaultAuthOperations(supabase, {
-    captchaRequired: Boolean(import.meta.env.VITE_TURNSTILE_SITE_KEY)
+    captchaRequired: Boolean(import.meta.env?.VITE_TURNSTILE_SITE_KEY)
 });
 
 export const SupabaseService = {
@@ -50,6 +50,12 @@ export const SupabaseService = {
         if (!supabase) return;
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
+    },
+
+    async getSession() {
+        if (!supabase) return null;
+        const { data: { session } } = await supabase.auth.getSession();
+        return session;
     },
 
     async getCurrentUser() {
@@ -77,11 +83,25 @@ export const SupabaseService = {
             console.error('Error fetching user tracks:', error);
             throw error;
         }
-        return Promise.all((data || []).map(async (track) => ({
-            ...track,
-            audio_url: await this.resolveMediaUrl(track.audio_url),
-            cover_url: await this.resolveMediaUrl(track.cover_url)
-        })));
+        return Promise.all((data || []).map(async (track) => {
+            let audioUrl = track.audio_url;
+            let coverUrl = track.cover_url;
+            try {
+                audioUrl = await this.resolveMediaUrl(track.audio_url);
+            } catch (resolveErr) {
+                console.warn('Failed to resolve track audio URL:', resolveErr);
+            }
+            try {
+                coverUrl = await this.resolveMediaUrl(track.cover_url);
+            } catch (resolveErr) {
+                console.warn('Failed to resolve track cover URL:', resolveErr);
+            }
+            return {
+                ...track,
+                audio_url: audioUrl,
+                cover_url: coverUrl
+            };
+        }));
     },
 
     async getUserStorageBytes() {
@@ -197,42 +217,48 @@ export const SupabaseService = {
         const user = await this.getCurrentUser();
         if (!user) throw new Error('User not authenticated.');
 
-        // Get track info first to clean up media files
-        const { data: track } = await supabase
-            .from('tracks')
-            .select('audio_url, cover_url')
-            .eq('id', trackId)
-            .single();
-
-        if (track) {
-            const filesToRemove = [];
-            if (track.audio_url?.startsWith(R2_URI_PREFIX)) {
-                filesToRemove.push(track.audio_url.slice(R2_URI_PREFIX.length));
-            } else if (track.audio_url && track.audio_url.includes('/wavr-media/')) {
-                const parts = track.audio_url.split('/wavr-media/');
-                if (parts[1]) filesToRemove.push(decodeURIComponent(parts[1]));
-            }
-            if (track.cover_url?.startsWith(R2_URI_PREFIX)) {
-                filesToRemove.push(track.cover_url.slice(R2_URI_PREFIX.length));
-            } else if (track.cover_url && track.cover_url.includes('/wavr-media/')) {
-                const parts = track.cover_url.split('/wavr-media/');
-                if (parts[1]) filesToRemove.push(decodeURIComponent(parts[1]));
-            }
-            if (filesToRemove.length > 0) {
-                await Promise.all(filesToRemove.map(async (path) => {
-                    const response = await this.requestMediaWorker(`/v1/media/${this.encodeMediaPath(path)}`, { method: 'DELETE' });
-                    if (!response.ok) console.warn('Cloud media file cleanup failed.');
-                }));
-            }
-        }
-
-        const { error } = await supabase
+        // Delete DB row first (enforcing ownership) and capture media refs for best-effort R2 cleanup
+        const { data: track, error } = await supabase
             .from('tracks')
             .delete()
             .eq('id', trackId)
-            .eq('user_id', user.id);
+            .eq('user_id', user.id)
+            .select('audio_url, cover_url')
+            .maybeSingle();
 
         if (error) throw error;
+
+        if (track) {
+            const filesToRemove = [];
+            for (const rawUrl of [track.audio_url, track.cover_url]) {
+                if (!rawUrl) continue;
+                if (rawUrl.startsWith(R2_URI_PREFIX)) {
+                    filesToRemove.push(rawUrl.slice(R2_URI_PREFIX.length));
+                } else if (rawUrl.includes('/wavr-media/')) {
+                    const parts = rawUrl.split('/wavr-media/');
+                    if (parts[1]) {
+                        const cleanPath = parts[1].split(/[?#]/)[0];
+                        if (cleanPath) {
+                            try {
+                                filesToRemove.push(decodeURIComponent(cleanPath));
+                            } catch {
+                                filesToRemove.push(cleanPath);
+                            }
+                        }
+                    }
+                }
+            }
+            if (filesToRemove.length > 0) {
+                await Promise.allSettled(filesToRemove.map(async (path) => {
+                    try {
+                        const response = await this.requestMediaWorker(`/v1/media/${this.encodeMediaPath(path)}`, { method: 'DELETE' });
+                        if (!response.ok) console.warn('Cloud media file cleanup failed.');
+                    } catch (cleanupErr) {
+                        console.warn('Cloud media file cleanup error:', cleanupErr);
+                    }
+                }));
+            }
+        }
     },
 
     // ── User Cloud Preferences & Wallpaper ─────────────────────────────────────
