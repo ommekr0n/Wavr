@@ -6,16 +6,43 @@ export function initMediaUrlLifecycle({ getTracks, resolve, needsRefresh, doc = 
         running = true;
         try {
             const replacements = new Map();
-            await Promise.all(getTracks().flatMap(track => ['url', 'cover'].map(async field => {
-                const old = track[field];
-                if (!needsRefresh(old)) return;
+            const targets = [];
+            for (const track of getTracks()) {
+                for (const field of ['url', 'cover']) {
+                    const old = track[field];
+                    if (needsRefresh(old)) {
+                        targets.push({ track, field, old });
+                    }
+                }
+            }
+            if (!targets.length) return;
+
+            if (typeof resolve.batch === 'function') {
                 try {
-                    const fresh = await resolve(old);
-                    if (track[field] !== old) return;
-                    track[field] = fresh;
-                    replacements.set(old, fresh);
-                } catch { /* Retry next tick; playback surfaces errors when requested. */ }
-            })));
+                    const freshUrls = await resolve.batch(targets.map(t => t.old));
+                    targets.forEach(({ track, field, old }, idx) => {
+                        const fresh = freshUrls[idx];
+                        if (fresh && fresh !== old && track[field] === old) {
+                            track[field] = fresh;
+                            replacements.set(old, fresh);
+                        }
+                    });
+                } catch {
+                    // Fallback to individual resolution if batch failed
+                }
+            }
+
+            if (!replacements.size) {
+                await Promise.all(targets.map(async ({ track, field, old }) => {
+                    try {
+                        const fresh = await resolve(old);
+                        if (track[field] !== old) return;
+                        track[field] = fresh;
+                        replacements.set(old, fresh);
+                    } catch { /* Retry next tick; playback surfaces errors when requested. */ }
+                }));
+            }
+
             if (!replacements.size) return;
             for (const image of doc.querySelectorAll('img[src]')) {
                 const fresh = replacements.get(image.getAttribute('src'));

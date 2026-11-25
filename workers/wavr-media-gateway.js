@@ -10,6 +10,12 @@ const ALLOWED_IMAGE_TYPES = new Set([
 const SAFE_AUDIO_TYPE_RE = /^audio\/[a-z0-9.+-]+$/;
 const MAX_AUDIO_UPLOAD_BYTES = 100 * 1024 * 1024;
 const MAX_IMAGE_UPLOAD_BYTES = 15 * 1024 * 1024;
+const AUTH_CACHE_TTL_MS = 60_000;
+const AUTH_CACHE_MAX_ENTRIES = 256;
+const MAX_BATCH_SIGN_KEYS = 200;
+
+const authTokenCache = new Map();
+const signingKeyCache = new Map();
 
 function cors(request, env) {
   const origin = request.headers.get('Origin');
@@ -17,8 +23,8 @@ function cors(request, env) {
   if (!origin || !allowed.includes(origin)) return {};
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Headers': 'Authorization, Content-Type, Range',
-    'Access-Control-Expose-Headers': 'Content-Range, Accept-Ranges, Content-Length',
+    'Access-Control-Allow-Headers': 'Authorization, Content-Type, Range, If-None-Match',
+    'Access-Control-Expose-Headers': 'Content-Range, Accept-Ranges, Content-Length, ETag',
     'Access-Control-Allow-Methods': 'GET, HEAD, POST, PUT, DELETE, OPTIONS',
     'Vary': 'Origin'
   };
@@ -31,11 +37,38 @@ function response(body, status, headers) {
 async function authenticatedUser(request, env) {
   const authorization = request.headers.get('Authorization');
   if (!authorization?.startsWith('Bearer ')) return null;
+  const now = Date.now();
+  const cacheKey = `${env.SUPABASE_URL || ''}\n${authorization}`;
+  const cached = authTokenCache.get(cacheKey);
+  if (cached && now < cached.expiresAt) {
+    return cached.user;
+  }
+  if (cached) authTokenCache.delete(cacheKey);
+
   const authResponse = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
     headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY, Authorization: authorization }
   });
   if (!authResponse.ok) return null;
-  return authResponse.json();
+  const user = await authResponse.json();
+  if (user?.id) {
+    if (authTokenCache.size >= AUTH_CACHE_MAX_ENTRIES) {
+      const oldestKey = authTokenCache.keys().next().value;
+      if (oldestKey !== undefined) authTokenCache.delete(oldestKey);
+    }
+    authTokenCache.set(cacheKey, { user, expiresAt: now + AUTH_CACHE_TTL_MS });
+  }
+  return user;
+}
+
+function normalizeMediaKey(rawKey) {
+  if (typeof rawKey !== 'string' || !rawKey) return null;
+  const segments = rawKey.split('/');
+  for (const segment of segments) {
+    if (!segment || segment === '.' || segment === '..' || segment.includes('/') || segment.includes('\\') || /[\x00-\x1f\x7f]/.test(segment)) {
+      return null;
+    }
+  }
+  return segments.join('/') || null;
 }
 
 function pathFromRequest(url, prefix) {
@@ -53,12 +86,11 @@ function pathFromRequest(url, prefix) {
     }
     decodedSegments.push(decoded);
   }
-  const value = decodedSegments.join('/');
-  return value || null;
+  return normalizeMediaKey(decodedSegments.join('/'));
 }
 
 function ownsPath(user, key) {
-  return key.startsWith(`${user.id}/`);
+  return Boolean(user?.id && key && key.startsWith(`${user.id}/`));
 }
 
 function normalizeUploadMediaType(headerValue) {
@@ -83,8 +115,28 @@ function base64UrlToBytes(value) {
   }
 }
 
+async function getHmacKey(rawSecret) {
+  const secret = String(rawSecret || '');
+  let keyPromise = signingKeyCache.get(secret);
+  if (!keyPromise) {
+    keyPromise = crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign', 'verify']
+    );
+    if (signingKeyCache.size >= 16) {
+      const oldest = signingKeyCache.keys().next().value;
+      if (oldest !== undefined) signingKeyCache.delete(oldest);
+    }
+    signingKeyCache.set(secret, keyPromise);
+  }
+  return keyPromise;
+}
+
 async function sign(key, expires, env) {
-  const cryptoKey = await crypto.subtle.importKey('raw', encoder.encode(env.MEDIA_SIGNING_KEY), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const cryptoKey = await getHmacKey(env.MEDIA_SIGNING_KEY);
   return base64Url(await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(`${key}\n${expires}`)));
 }
 
@@ -95,8 +147,12 @@ async function validSignature(key, expires, signature, env) {
   if (!Number.isSafeInteger(exp) || exp < now || exp > now + 3600) return false;
   const sigBytes = base64UrlToBytes(signature);
   if (!sigBytes) return false;
-  const cryptoKey = await crypto.subtle.importKey('raw', encoder.encode(env.MEDIA_SIGNING_KEY), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+  const cryptoKey = await getHmacKey(env.MEDIA_SIGNING_KEY);
   return crypto.subtle.verify('HMAC', cryptoKey, sigBytes, encoder.encode(`${key}\n${expires}`));
+}
+
+function formatSignedMediaUrl(origin, key, expires, signature) {
+  return `${origin}/v1/media/${key.split('/').map(encodeURIComponent).join('/')}?expires=${expires}&signature=${encodeURIComponent(signature)}`;
 }
 
 export default {
@@ -136,13 +192,50 @@ export default {
         return response(null, 204, headers);
       }
 
+      if (request.method === 'POST' && url.pathname === '/v1/signed-batch') {
+        const user = await authenticatedUser(request, env);
+        if (!user) return response('Unauthorized', 401, headers);
+
+        let body;
+        try {
+          body = await request.json();
+        } catch {
+          return response('Bad Request', 400, headers);
+        }
+        const rawKeys = body?.keys;
+        if (!Array.isArray(rawKeys) || rawKeys.length > MAX_BATCH_SIGN_KEYS) {
+          return response('Bad Request', 400, headers);
+        }
+
+        const uniqueKeys = [];
+        const seen = new Set();
+        for (const rawKey of rawKeys) {
+          const normalized = normalizeMediaKey(rawKey);
+          if (!normalized || !ownsPath(user, normalized)) {
+            return response('Unauthorized', 401, headers);
+          }
+          if (!seen.has(normalized)) {
+            seen.add(normalized);
+            uniqueKeys.push(normalized);
+          }
+        }
+
+        const expires = String(Math.floor(Date.now() / 1000) + 900);
+        const urls = {};
+        await Promise.all(uniqueKeys.map(async (key) => {
+          const signature = await sign(key, expires, env);
+          urls[key] = formatSignedMediaUrl(url.origin, key, expires, signature);
+        }));
+        return response(JSON.stringify({ urls }), 200, { ...headers, 'Content-Type': 'application/json' });
+      }
+
       if (request.method === 'POST' && url.pathname.startsWith('/v1/signed/')) {
         const key = pathFromRequest(url, '/v1/signed/');
         const user = key && await authenticatedUser(request, env);
         if (!user || !ownsPath(user, key)) return response('Unauthorized', 401, headers);
         const expires = String(Math.floor(Date.now() / 1000) + 900);
         const signature = await sign(key, expires, env);
-        return response(JSON.stringify({ url: `${url.origin}/v1/media/${key.split('/').map(encodeURIComponent).join('/')}?expires=${expires}&signature=${encodeURIComponent(signature)}` }), 200, { ...headers, 'Content-Type': 'application/json' });
+        return response(JSON.stringify({ url: formatSignedMediaUrl(url.origin, key, expires, signature) }), 200, { ...headers, 'Content-Type': 'application/json' });
       }
 
       if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname.startsWith('/v1/media/')) {
@@ -156,15 +249,21 @@ export default {
           'X-Content-Type-Options': 'nosniff',
           'Content-Security-Policy': "default-src 'none'; sandbox"
         };
+        const ifNoneMatch = request.headers.get('If-None-Match');
 
         if (request.method === 'HEAD') {
           const object = await env.MEDIA.head(key);
           if (!object) return response('Not found', 404, headers);
-          return response(null, 200, {
+          const headHeaders = {
             ...baseMediaHeaders,
             'Content-Type': object.httpMetadata?.contentType || 'application/octet-stream',
             'Content-Length': String(object.size)
-          });
+          };
+          if (object.httpEtag) headHeaders['ETag'] = object.httpEtag;
+          if (object.httpEtag && ifNoneMatch === object.httpEtag) {
+            return response(null, 304, headHeaders);
+          }
+          return response(null, 200, headHeaders);
         }
 
         const rangeHeader = request.headers.get('Range');
@@ -177,6 +276,12 @@ export default {
           ...baseMediaHeaders,
           'Content-Type': object.httpMetadata?.contentType || 'application/octet-stream'
         };
+        if (object.httpEtag) responseHeaders['ETag'] = object.httpEtag;
+
+        if (!rangeHeader && object.httpEtag && ifNoneMatch === object.httpEtag) {
+          object.body?.cancel?.();
+          return response(null, 304, responseHeaders);
+        }
 
         if (rangeHeader) {
           if (object.size === 0) {

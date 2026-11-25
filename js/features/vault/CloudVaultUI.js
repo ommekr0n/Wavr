@@ -42,9 +42,9 @@ export function initCloudVaultUI(showToast) {
                 if (vaultAuthSection) vaultAuthSection.classList.add('hidden');
                 if (vaultStatusSection) vaultStatusSection.classList.remove('hidden');
                 if (vaultUserEmail) vaultUserEmail.textContent = user.email;
-                const tracks = await SupabaseService.fetchUserTracks();
+                const trackCount = await SupabaseService.getUserTrackCount();
                 if (revision !== uiRevision) return;
-                if (vaultTrackCount) vaultTrackCount.textContent = tracks.length;
+                if (vaultTrackCount) vaultTrackCount.textContent = trackCount;
                 if (homeVaultText) homeVaultText.textContent = '☁️ Cloud Vault';
                 if (btnAuthVault) btnAuthVault.title = `Cloud Vault (${user.email})`;
             } else {

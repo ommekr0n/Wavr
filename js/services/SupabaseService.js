@@ -32,6 +32,33 @@ const vaultAuth = createVaultAuthOperations(supabase, {
     captchaRequired: Boolean(import.meta.env?.VITE_TURNSTILE_SITE_KEY)
 });
 
+const TRANSIENT_STATUS_CODES = new Set([502, 503, 504]);
+
+export async function withNetworkRetry(fn, retries = 2, delayMs = 60) {
+    let lastError;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            const result = await fn();
+            if (result && typeof result.status === 'number' && TRANSIENT_STATUS_CODES.has(result.status) && attempt < retries) {
+                await new Promise(r => setTimeout(r, delayMs * (attempt + 1)));
+                continue;
+            }
+            return result;
+        } catch (err) {
+            lastError = err;
+            const status = err?.status || err?.statusCode;
+            const isTransient = !status || TRANSIENT_STATUS_CODES.has(status) || /network|fetch|timeout|502|503|504/i.test(String(err?.message || err));
+            if (!isTransient || attempt >= retries) throw err;
+            await new Promise(r => setTimeout(r, delayMs * (attempt + 1)));
+        }
+    }
+    throw lastError;
+}
+
+const defaultResolveMediaUrl = async function resolveMediaUrl(uri) {
+    return resolvePrivateMedia(uri);
+};
+
 export const SupabaseService = {
     isConfigured() {
         return isSupabaseConfigured;
@@ -60,8 +87,25 @@ export const SupabaseService = {
 
     async getCurrentUser() {
         if (!supabase) return null;
-        const { data: { user } } = await supabase.auth.getUser();
-        return user;
+        if (typeof supabase.auth?.getSession === 'function') {
+            try {
+                const sessionRes = await supabase.auth.getSession();
+                const session = sessionRes?.data?.session;
+                if (session?.user) {
+                    const expiresAtMs = session.expires_at ? Number(session.expires_at) * 1000 : Infinity;
+                    if (expiresAtMs > Date.now() + 5_000) {
+                        return session.user;
+                    }
+                }
+            } catch {
+                // Fall back to auth.getUser()
+            }
+        }
+        if (typeof supabase.auth?.getUser === 'function') {
+            const { data: { user } } = await supabase.auth.getUser();
+            return user;
+        }
+        return null;
     },
 
     onAuthStateChange(callback) {
@@ -69,21 +113,62 @@ export const SupabaseService = {
     },
 
     // ── Private Track Storage & Database ──────────────────────────────────────
+    async getUserTrackCount() {
+        if (!supabase) return 0;
+        const user = await this.getCurrentUser();
+        if (!user) return 0;
+
+        try {
+            const query = supabase.from('tracks').select('id', { count: 'exact', head: true });
+            const res = typeof query?.eq === 'function' ? await query.eq('user_id', user.id) : await query;
+            if (res && !res.error && typeof res.count === 'number') {
+                return res.count;
+            }
+        } catch {
+            // Fall back to fetchUserTracks length if count head query is unsupported
+        }
+        const tracks = await this.fetchUserTracks();
+        return tracks.length;
+    },
+
     async fetchUserTracks() {
         if (!supabase) return [];
         const user = await this.getCurrentUser();
         if (!user) return [];
 
-        const { data, error } = await supabase
-            .from('tracks')
-            .select('*')
-            .order('created_at', { ascending: false });
+        const { data, error } = await withNetworkRetry(() =>
+            supabase
+                .from('tracks')
+                .select('*')
+                .order('created_at', { ascending: false })
+        );
 
         if (error) {
             console.error('Error fetching user tracks:', error);
             throw error;
         }
-        return Promise.all((data || []).map(async (track) => {
+        const rows = data || [];
+        if (rows.length === 0) return [];
+
+        // Batch-resolve all tracks' audio_url & cover_url in 1 single /v1/signed-batch request when using default resolver
+        if (this.resolveMediaUrl === defaultResolveMediaUrl && typeof resolvePrivateMedia.batch === 'function') {
+            try {
+                const allUris = [];
+                for (const track of rows) {
+                    allUris.push(track.audio_url, track.cover_url);
+                }
+                const resolvedUris = await resolvePrivateMedia.batch(allUris);
+                return rows.map((track, idx) => ({
+                    ...track,
+                    audio_url: resolvedUris[idx * 2] ?? track.audio_url,
+                    cover_url: resolvedUris[idx * 2 + 1] ?? track.cover_url
+                }));
+            } catch {
+                // Fall back to per-track resolution so partial failures are isolated
+            }
+        }
+
+        return Promise.all(rows.map(async (track) => {
             let audioUrl = track.audio_url;
             let coverUrl = track.cover_url;
             try {
@@ -145,12 +230,20 @@ export const SupabaseService = {
         if (!session?.access_token) throw new Error('User not authenticated. Please sign in to your Cloud Vault.');
         const headers = new Headers(options.headers);
         headers.set('Authorization', `Bearer ${session.access_token}`);
-        return fetch(`${MEDIA_WORKER_URL}${path}`, { ...options, headers });
+        const method = (options.method || 'GET').toUpperCase();
+        const isRetryable = method === 'GET' || method === 'HEAD' || path.startsWith('/v1/signed');
+        const execFetch = () => fetch(`${MEDIA_WORKER_URL}${path}`, { ...options, headers });
+        return isRetryable ? withNetworkRetry(execFetch) : execFetch();
     },
 
     /** Returns a short-lived Worker URL only for media owned by the signed-in user. */
-    async resolveMediaUrl(uri) {
-        return resolvePrivateMedia(uri);
+    resolveMediaUrl: defaultResolveMediaUrl,
+
+    async resolveMediaUrlsBatch(uris) {
+        if (typeof resolvePrivateMedia.batch === 'function') {
+            return resolvePrivateMedia.batch(uris);
+        }
+        return Promise.all((uris || []).map(u => this.resolveMediaUrl(u)));
     },
 
     mediaUrlNeedsRefresh(uri) { return mediaUrlNeedsRefresh(uri, MEDIA_WORKER_URL); },
@@ -261,15 +354,34 @@ export const SupabaseService = {
         }
     },
 
-    // ── User Cloud Preferences & Wallpaper ─────────────────────────────────────
+    // ── User Cloud Preferences (Dedicated Table + user_metadata Fallback) ──────
     async updateUserPreferences(prefs) {
-        if (!supabase) return;
+        if (!supabase || !prefs || typeof prefs !== 'object') return;
         const user = await this.getCurrentUser();
         if (!user) return;
 
+        const rowPayload = {
+            user_id: user.id,
+            updated_at: new Date().toISOString()
+        };
+        if (prefs.vinyl_boxes !== undefined) rowPayload.vinyl_boxes = prefs.vinyl_boxes;
+        if (prefs.library_order !== undefined) rowPayload.library_order = prefs.library_order;
+
+        try {
+            const table = supabase.from('user_preferences');
+            if (table && typeof table.upsert === 'function') {
+                const { data, error } = await table
+                    .upsert(rowPayload, { onConflict: 'user_id' })
+                    .select('vinyl_boxes, library_order')
+                    .maybeSingle();
+                if (!error) return data || rowPayload;
+            }
+        } catch {
+            // Fall back to user_metadata if table is not migrated yet
+        }
+
         const currentMeta = user.user_metadata || {};
         const updatedMeta = { ...currentMeta, ...prefs };
-
         const { data, error } = await supabase.auth.updateUser({
             data: updatedMeta
         });
@@ -282,6 +394,34 @@ export const SupabaseService = {
     async getUserPreferences() {
         if (!supabase) return null;
         const user = await this.getCurrentUser();
+        if (!user) return null;
+
+        try {
+            const table = supabase.from('user_preferences');
+            if (table && typeof table.select === 'function') {
+                const { data, error } = await table
+                    .select('vinyl_boxes, library_order')
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+                if (!error && data) {
+                    return data;
+                }
+                // Opportunistically migrate existing user_metadata preferences to public.user_preferences
+                const meta = user.user_metadata;
+                if (!error && !data && meta && (meta.vinyl_boxes !== undefined || meta.library_order !== undefined) && typeof table.upsert === 'function') {
+                    const migrated = {
+                        user_id: user.id,
+                        vinyl_boxes: meta.vinyl_boxes ?? [],
+                        library_order: meta.library_order ?? [],
+                        updated_at: new Date().toISOString()
+                    };
+                    await table.upsert(migrated, { onConflict: 'user_id' });
+                    return { vinyl_boxes: migrated.vinyl_boxes, library_order: migrated.library_order };
+                }
+            }
+        } catch {
+            // Fall back to user_metadata if table query fails
+        }
         return user?.user_metadata || null;
     }
 };

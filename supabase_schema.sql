@@ -248,3 +248,59 @@ CREATE POLICY "Users can update own media"
         bucket_id = 'wavr-media'
         AND (storage.foldername(name))[1] = auth.uid()::text
     );
+
+-- 6. User Preferences Table (public.user_preferences)
+CREATE TABLE IF NOT EXISTS public.user_preferences (
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    vinyl_boxes JSONB DEFAULT '[]'::jsonb,
+    library_order JSONB DEFAULT '[]'::jsonb,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+REVOKE ALL ON TABLE public.user_preferences FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.user_preferences TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.user_preferences TO service_role;
+
+ALTER TABLE public.user_preferences ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can manage own preferences" ON public.user_preferences;
+CREATE POLICY "Users can manage own preferences"
+    ON public.user_preferences FOR ALL
+    TO authenticated
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+-- 7. Server-Side 500 MB Storage Quota Enforcement Trigger (public.enforce_user_storage_quota)
+CREATE OR REPLACE FUNCTION public.enforce_user_storage_quota()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+DECLARE
+    v_existing BIGINT;
+    v_max_bytes CONSTANT BIGINT := 524288000; -- 500 MB
+BEGIN
+    SELECT COALESCE(SUM(file_size), 0) INTO v_existing
+    FROM public.tracks
+    WHERE user_id = NEW.user_id
+      AND (TG_OP = 'INSERT' OR id <> NEW.id);
+
+    IF v_existing + COALESCE(NEW.file_size, 0) > v_max_bytes THEN
+        RAISE EXCEPTION 'Storage quota exceeded (500 MB limit)'
+            USING ERRCODE = 'check_violation';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.enforce_user_storage_quota() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.enforce_user_storage_quota() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.enforce_user_storage_quota() TO service_role;
+
+DROP TRIGGER IF EXISTS trg_enforce_user_storage_quota ON public.tracks;
+CREATE TRIGGER trg_enforce_user_storage_quota
+    BEFORE INSERT OR UPDATE OF file_size ON public.tracks
+    FOR EACH ROW
+    EXECUTE FUNCTION public.enforce_user_storage_quota();

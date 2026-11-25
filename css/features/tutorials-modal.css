@@ -21,6 +21,7 @@
     font-style: normal;
     font-weight: 400;
     font-display: swap;
+    unicode-range: U+3000-30FF, U+31F0-31FF, U+4E00-9FFF, U+FF00-FFEF;
 }
 
 #modal-tutorials {

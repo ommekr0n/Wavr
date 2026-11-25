@@ -26,9 +26,11 @@ export function privateMediaUri(uri, gateway) {
     return path ? `r2://${path}` : uri;
 }
 
+const MAX_BATCH_SIZE = 200;
+
 export function createPrivateMediaResolver(gateway, request, now = Date.now) {
     const pending = new Map();
-    return async uri => {
+    const resolve = async uri => {
         const path = privateMediaPath(uri, gateway);
         if (!path || !mediaUrlNeedsRefresh(uri, gateway, now())) return uri;
         if (!pending.has(path)) {
@@ -47,4 +49,56 @@ export function createPrivateMediaResolver(gateway, request, now = Date.now) {
         }
         return pending.get(path);
     };
+
+    resolve.batch = async uris => {
+        if (!Array.isArray(uris) || uris.length === 0) return [];
+        const currentNow = now();
+        const uniquePaths = [];
+        const pathSet = new Set();
+
+        for (const uri of uris) {
+            const path = privateMediaPath(uri, gateway);
+            if (path && mediaUrlNeedsRefresh(uri, gateway, currentNow) && !pathSet.has(path)) {
+                pathSet.add(path);
+                uniquePaths.push(path);
+            }
+        }
+
+        if (uniquePaths.length === 0) return [...uris];
+
+        const resolvedByPath = new Map();
+        for (let i = 0; i < uniquePaths.length; i += MAX_BATCH_SIZE) {
+            const chunk = uniquePaths.slice(i, i + MAX_BATCH_SIZE);
+            const response = await request('/v1/signed-batch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keys: chunk }),
+                cache: 'no-store'
+            });
+            if (response.status === 404) {
+                return Promise.all(uris.map(u => resolve(u)));
+            }
+            if (!response.ok) {
+                throw new Error(`Could not batch-sign private cloud media (${response.status}).`);
+            }
+            const data = await response.json();
+            const urls = data?.urls || {};
+            const checkNow = now();
+            for (const path of chunk) {
+                const signedUrl = urls[path];
+                if (typeof signedUrl !== 'string' || privateMediaPath(signedUrl, gateway) !== path || mediaUrlNeedsRefresh(signedUrl, gateway, checkNow)) {
+                    throw new Error('The media gateway returned an invalid or expired batch URL.');
+                }
+                resolvedByPath.set(path, signedUrl);
+            }
+        }
+
+        return uris.map(uri => {
+            const path = privateMediaPath(uri, gateway);
+            if (!path || !mediaUrlNeedsRefresh(uri, gateway, currentNow)) return uri;
+            return resolvedByPath.get(path) || uri;
+        });
+    };
+
+    return resolve;
 }

@@ -7,6 +7,7 @@ import { PlayerController } from '../player/PlayerController.js';
 import { saveLibraryToDB, renderSongGrid } from './HomeGridRenderer.js';
 import { searchLRCLIB, autoSelectBestMatch, createLrcBlob, openLrcPickerModal } from '../../modules/lrc-fetcher.js';
 import { SupabaseService } from '../../services/SupabaseService.js';
+import { verifyAudioFileSignature, verifyImageFileSignature } from '../../modules/file-signature.js';
 
 let pendingUploadLrcBlob = null;
 
@@ -95,8 +96,13 @@ export function setupUploadHandler({ uploadModal, uploadForm, uploadAudio, uploa
         }
 
         const submitBtn = uploadForm.querySelector?.('button[type="submit"], input[type="submit"]');
+        const originalBtnText = submitBtn?.textContent || 'Upload & Save to Library';
+        const setUploadStage = (stageText) => {
+            if (submitBtn) submitBtn.textContent = stageText;
+        };
         isUploading = true;
         if (submitBtn) submitBtn.disabled = true;
+        setUploadStage('Verifying files...');
 
         let tempAudioBlobUrl = null;
         let tempCoverBlobUrl = null;
@@ -104,6 +110,20 @@ export function setupUploadHandler({ uploadModal, uploadForm, uploadAudio, uploa
         let keptCoverBlobUrl = false;
 
         try {
+            // ── Security Shield Layer 2.5: Magic-byte binary signature verification ──
+            const audioSig = await verifyAudioFileSignature(audioFile);
+            if (!audioSig.valid) {
+                showToast(`Security Shield: File signature check failed for audio (${audioSig.reason || 'Invalid binary header'}).`, 'error');
+                return;
+            }
+            if (coverFile) {
+                const coverSig = await verifyImageFileSignature(coverFile);
+                if (!coverSig.valid) {
+                    showToast(`Security Shield: File signature check failed for cover image (${coverSig.reason || 'Invalid binary header'}).`, 'error');
+                    return;
+                }
+            }
+
             // ── Security Shield Layer 3: Auth & Vault Quota check ──
             const isCloudConfigured = SupabaseService.isConfigured();
             let currentUser = null;
@@ -148,13 +168,16 @@ export function setupUploadHandler({ uploadModal, uploadForm, uploadAudio, uploa
             let coverUrl = defaultCoverUrl;
 
             if (isCloudConfigured && currentUser) {
+                setUploadStage('Uploading audio...');
                 const fileNameSanitized = audioFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
                 audioUrl = await SupabaseService.uploadMediaFile(audioFile, `tracks/${Date.now()}_${fileNameSanitized}`);
                 if (coverBlob instanceof Blob || coverBlob instanceof File) {
+                    setUploadStage('Uploading cover...');
                     coverUrl = await SupabaseService.uploadMediaFile(coverBlob, `covers/${Date.now()}.webp`);
                 }
             }
 
+            setUploadStage('Saving to library...');
             const newSong = {
                 id: 'song-' + Date.now() + '-' + Math.floor(Math.random() * 100000),
                 title, artist, url: audioUrl, cover: coverUrl, lyrics: lrcText || '',
@@ -191,7 +214,10 @@ export function setupUploadHandler({ uploadModal, uploadForm, uploadAudio, uploa
             if (tempAudioBlobUrl && !keptAudioBlobUrl) URL.revokeObjectURL(tempAudioBlobUrl);
             if (tempCoverBlobUrl && !keptCoverBlobUrl) URL.revokeObjectURL(tempCoverBlobUrl);
             isUploading = false;
-            if (submitBtn) submitBtn.disabled = false;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalBtnText;
+            }
         }
     };
 

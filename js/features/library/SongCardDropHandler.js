@@ -5,6 +5,7 @@
 
 import { saveLibraryToDB, renderSongGrid } from './HomeGridRenderer.js';
 import { setupBoxExpansionListeners } from './HomeBoxExpansion.js';
+import { verifyAudioFileSignature, verifyImageFileSignature } from '../../modules/file-signature.js';
 
 export function setupSongCardDropHandler({
     PlayerController,
@@ -55,6 +56,11 @@ export function setupSongCardDropHandler({
                     showToast(`Image too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max 15MB allowed!`, 'error');
                     continue;
                 }
+                const coverSig = await verifyImageFileSignature(file);
+                if (!coverSig.valid) {
+                    showToast(`Security Shield: Invalid cover image signature (${coverSig.reason || 'Corrupted or spoofed file'}).`, 'error');
+                    continue;
+                }
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const dataUrl = e.target.result;
@@ -87,6 +93,11 @@ export function setupSongCardDropHandler({
             }
             // 3. Audio File (.mp3, .wav, .m4a, .flac)
             else if (file.type.startsWith('audio/') || fileName.endsWith('.mp3') || fileName.endsWith('.wav') || fileName.endsWith('.m4a') || fileName.endsWith('.flac')) {
+                const audioSig = await verifyAudioFileSignature(file);
+                if (!audioSig.valid) {
+                    showToast(`Security Shield: Invalid audio file signature (${audioSig.reason || 'Corrupted or spoofed file'}).`, 'error');
+                    continue;
+                }
                 if (track.url && track.url.startsWith('blob:')) {
                     URL.revokeObjectURL(track.url);
                 }

@@ -10,6 +10,7 @@ import { SupabaseService } from '../../services/SupabaseService.js';
 import { escapeHtml, safeImageUrl } from '../../modules/safe-html.js';
 import { removeLibraryTrackFromQueue } from './LibraryQueueMaintenance.js';
 import { getCachedLibraryOrder, setCachedLibraryOrder } from './HomeGridRenderer.js';
+import { verifyAudioFileSignature, verifyImageFileSignature } from '../../modules/file-signature.js';
 
 const MAX_EDIT_AUDIO_BYTES = 100 * 1024 * 1024;
 const MAX_EDIT_COVER_BYTES = 15 * 1024 * 1024;
@@ -339,14 +340,34 @@ export const LibraryModals = {
                 }
 
                 const submitBtn = editForm.querySelector?.('button[type="submit"], input[type="submit"]');
+                const originalBtnText = submitBtn?.textContent || 'Save Changes';
+                const setEditStage = (stageText) => {
+                    if (submitBtn) submitBtn.textContent = stageText;
+                };
                 isEditing = true;
                 if (submitBtn) submitBtn.disabled = true;
+                setEditStage('Verifying files...');
 
                 let tempAudioBlobUrl = null;
                 let tempCoverBlobUrl = null;
                 const song = playlist[idx];
 
                 try {
+                    if (audioFile) {
+                        const audioSig = await verifyAudioFileSignature(audioFile);
+                        if (!audioSig.valid) {
+                            notifyError(`Invalid audio file signature (${audioSig.reason || 'Corrupted or spoofed file'}).`);
+                            return;
+                        }
+                    }
+                    if (coverFile) {
+                        const coverSig = await verifyImageFileSignature(coverFile);
+                        if (!coverSig.valid) {
+                            notifyError(`Invalid cover image signature (${coverSig.reason || 'Corrupted or spoofed file'}).`);
+                            return;
+                        }
+                    }
+
                     song.title  = newTitle;
                     song.artist = newArtist;
 
@@ -389,6 +410,10 @@ export const LibraryModals = {
                                 let updatedAudioUrl = song.url;
                                 let updatedCoverUrl = song.cover;
 
+                                if (audioFile || coverFile) {
+                                    setEditStage('Uploading media...');
+                                }
+
                                 // Upload new audio file if replaced
                                 if (audioFile) {
                                     const fileNameSanitized = audioFile.name.replace(/[^a-zA-Z0-9.-]/g, '_');
@@ -417,6 +442,7 @@ export const LibraryModals = {
                                     song.cover = resolvedCoverUrl;
                                 }
 
+                                setEditStage('Saving changes...');
                                 await SupabaseService.updateTrack(song.id, {
                                     title: song.title,
                                     artist: song.artist,
@@ -434,6 +460,7 @@ export const LibraryModals = {
                         }
                     }
 
+                    setEditStage('Saving changes...');
                     _renderSongGrid();
                     _updateMiniPlayerUI();
                     await _saveLibraryToDB();
@@ -449,7 +476,10 @@ export const LibraryModals = {
                     notifyError('Edit failed: ' + (err.message || err));
                 } finally {
                     isEditing = false;
-                    if (submitBtn) submitBtn.disabled = false;
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = originalBtnText;
+                    }
                 }
             });
         }

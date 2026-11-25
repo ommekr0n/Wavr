@@ -15,6 +15,12 @@
     font-style: normal; font-weight: 400; font-display: swap;
     unicode-range: U+3000-30FF, U+31F0-31FF, U+3400-9FFF, U+F900-FAFF, U+FF00-FFEF, U+20000-2FA1F;
 }
+@font-face {
+    font-family: 'Yomogi';
+    src: url('../assets/fonts/yomogi/Yomogi-Regular.woff2') format('woff2');
+    font-style: normal; font-weight: 400; font-display: swap;
+    unicode-range: U+3000-30FF, U+31F0-31FF, U+4E00-9FFF, U+FF00-FFEF;
+}
 
 #nostalgia-view {
     z-index: 1000; overflow: hidden; color: #fff; isolation: isolate; outline: none;
