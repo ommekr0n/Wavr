@@ -289,6 +289,9 @@ export function bindPlayerEvents(deps) {
     });
 
     btnCinematic.addEventListener('click', () => {
+        if (VisualizerController.getIsAngelicMode()) {
+            VisualizerController.exitAngelicMode(angelicView, playerView, angelicTextContainer, angelicParticleContainer);
+        }
         VisualizerController.enterCinematicMode(
             playerView,
             cinematicView,
@@ -306,6 +309,10 @@ export function bindPlayerEvents(deps) {
     });
 
     btnAngelic.addEventListener('click', () => {
+        if (VisualizerController.getIsCinematicMode()) {
+            VisualizerController.exitCinematicMode(cinematicView, playerView, cinematicTextContainer);
+            removeVignetteOverlay();
+        }
         const currentLyrics = LyricEngine.getCurrentLyrics();
         VisualizerController.enterAngelicMode(
             playerView,

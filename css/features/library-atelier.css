@@ -3,10 +3,8 @@
     --library-base-surface: linear-gradient(145deg, #16171b, #0d0e12 65%);
     background-image:
         conic-gradient(#ffffff09 90deg, #ffffff01 90deg 180deg, #ffffff09 180deg 270deg, #ffffff01 270deg),
-        radial-gradient(ellipse at 12% 6%, color-mix(in srgb, var(--blob-1-color, #987664) 9%, transparent), transparent 58%),
-        radial-gradient(ellipse at 85% 75%, color-mix(in srgb, var(--blob-2-color, #6d728d) 7%, transparent), transparent 62%),
         var(--library-base-surface);
-    background-size: 240px 240px, 100% 100%, 100% 100%, 100% 100%;
+    background-size: 240px 240px, 100% 100%;
 }
 /* The saved wallpaper sits behind these views; its blur/tint must stay visible. */
 body:has(#app-custom-bg-layer.active) :is(#home-view, #edit-library-view) {

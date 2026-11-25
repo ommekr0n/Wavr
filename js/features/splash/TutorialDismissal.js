@@ -3,7 +3,7 @@ export function setupTutorialDismissal(modal) {
     if (!modal) return;
     const close = () => modal.classList.add('hidden');
     modal.addEventListener('click', (event) => {
-        if (event.target === modal || event.target.closest('#btn-close-tutorials, #btn-dismiss-tutorials')) {
+        if (event.target === modal || event.target.closest('#btn-close-tutorials, #btn-dismiss-tutorials, #btn-finish-tutorials')) {
             close();
         }
     });

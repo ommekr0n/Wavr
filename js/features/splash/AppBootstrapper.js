@@ -4,6 +4,7 @@
  */
 
 import { setupTutorialDismissal } from './TutorialDismissal.js';
+import { initDoodleTutorial } from './DoodleTutorialController.js';
 
 const sillyLoadingJokes = [
     "Spinning vinyl records real quick...",
@@ -22,6 +23,7 @@ const sillyLoadingJokes = [
 export async function runSplashBootstrapper() {
     const modalTutorials = document.getElementById('modal-tutorials');
     setupTutorialDismissal(modalTutorials);
+    initDoodleTutorial(modalTutorials);
 
     const splashLoader = document.getElementById('app-splash-loader');
     const splashBar = document.getElementById('splash-progress-bar');

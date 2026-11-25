@@ -1,132 +1,230 @@
-/* Welcome Tutorials Modal */
-.modal-content.tutorial-modal-content {
-    width: 680px;
-    max-width: 100%;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+/* On-Screen Monochrome Chalk Doodle Coach-Mark Tutorial */
+@font-face {
+    font-family: 'Shantell Sans';
+    src: url('../../assets/fonts/shantell-sans/ShantellSans-Regular.woff2') format('woff2');
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
 }
 
-.tutorial-scroll-content {
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior-y: contain;
-    -webkit-overflow-scrolling: touch;
-    padding: 36px 32px 10px;
+@font-face {
+    font-family: 'Shantell Sans';
+    src: url('../../assets/fonts/shantell-sans/ShantellSans-BoldItalic.woff2') format('woff2');
+    font-style: italic;
+    font-weight: 700;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Yomogi';
+    src: url('../../assets/fonts/yomogi/Yomogi-Regular.woff2') format('woff2');
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+}
+
+#modal-tutorials {
+    padding: 0;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+.modal-content.tutorial-modal-content {
+    width: 100vw;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    padding: 0;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: hidden;
+    position: relative;
+    color: #f2efe9;
+    font-family: 'Shantell Sans', 'Yomogi', cursive;
+}
+
+#modal-tutorials .modal-content.tutorial-modal-content {
+    background: transparent;
+}
+
+.doodle-tutorial-svg {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    pointer-events: none;
+    z-index: 1;
+    overflow: visible;
+}
+
+.doodle-chalk-stroke {
+    stroke: #f2efe9;
+    fill: none;
+    stroke-dasharray: 900;
+    stroke-dashoffset: 0;
+    animation: doodleChalkDraw 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes doodleChalkDraw {
+    from {
+        stroke-dashoffset: 900;
+    }
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+.doodle-tutorial-note {
+    position: fixed;
+    top: 96px;
+    left: 24px;
+    width: min(320px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    color: #f2efe9;
+    font-family: 'Shantell Sans', 'Yomogi', cursive;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.doodle-tutorial-note .doodle-note-title {
+    margin: 0 0 6px 0;
+    font-family: 'Shantell Sans', 'Yomogi', cursive;
+    font-size: clamp(1.18rem, 3.5vw, 1.42rem);
+    font-weight: 700;
+    font-style: italic;
+    line-height: 1.25;
+    color: #f2efe9;
+    letter-spacing: 0.2px;
+}
+
+.doodle-tutorial-note .doodle-note-body {
+    margin: 0;
+    font-family: 'Shantell Sans', 'Yomogi', cursive;
+    font-size: clamp(0.94rem, 2.8vw, 1.05rem);
+    font-weight: 400;
+    line-height: 1.48;
+    color: #f2efe9;
 }
 
 .tutorial-modal-content .tutorial-close-btn {
-    top: 10px;
-    right: 10px;
-    width: 44px;
-    height: 44px;
-    font-size: 26px;
-    z-index: 1;
+    position: fixed;
+    top: auto;
+    bottom: max(20px, env(safe-area-inset-bottom));
+    right: max(18px, env(safe-area-inset-right));
+    width: 40px;
+    height: 40px;
+    font-family: 'Shantell Sans', 'Yomogi', cursive;
+    font-size: 24px;
+    line-height: 1;
+    color: #f2efe9;
+    background: transparent;
+    border: 1.5px dashed #f2efe9;
+    border-radius: 50%;
+    z-index: 3;
 }
 
-.tutorial-actions {
+@media (max-width: 640px) {
+    .tutorial-modal-content .tutorial-close-btn {
+        display: none;
+    }
+}
+
+.tutorial-modal-content .tutorial-close-btn:hover {
+    color: #f2efe9;
+    background: rgba(242, 239, 233, 0.12);
+}
+
+.tutorial-actions.doodle-tutorial-nav {
+    position: fixed;
+    left: 50%;
+    bottom: max(20px, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
     display: flex;
-    justify-content: center;
-    flex-shrink: 0;
-    margin-top: 0;
-    padding: 18px 24px 24px;
-    border-top: 1px solid var(--glass-border);
-    background: rgba(10, 10, 14, 0.95);
-}
-
-.tutorial-header {
-    text-align: center;
-    padding: 0 28px;
-    margin-bottom: 28px;
-}
-
-.tutorial-logo {
-    width: 56px;
-    height: 56px;
-    margin-bottom: 12px;
-    filter: drop-shadow(0 0 12px rgba(0, 229, 255, 0.5));
-}
-
-.tutorial-header h2 {
-    font-size: 1.8rem;
-    margin-bottom: 6px;
-}
-
-.tutorial-cards-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-    margin-bottom: 10px;
-}
-
-@media (max-width: 600px) {
-    .tutorial-scroll-content {
-        padding: 24px 20px 10px;
-    }
-    .tutorial-header h2 {
-        font-size: 1.4rem;
-    }
-    .tutorial-actions {
-        padding: 14px 20px;
-    }
-    #btn-close-tutorials {
-        width: 100%;
-        min-height: 44px;
-    }
-    .tutorial-cards-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-.tutorial-card {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 14px;
-    padding: 18px;
-    transition: transform 0.2s, background 0.2s;
-}
-
-.tutorial-card:hover {
-    background: rgba(255, 255, 255, 0.06);
-    transform: translateY(-2px);
-    border-color: rgba(0, 229, 255, 0.3);
-}
-
-.tutorial-card-icon {
-    font-size: 1.6rem;
-    margin-bottom: 10px;
-}
-
-.tutorial-card h3 {
-    font-size: 1rem;
-    font-weight: 600;
-    color: #fff;
-    margin-bottom: 6px;
-}
-
-.tutorial-card p {
-    font-size: 0.82rem;
-    color: var(--text-secondary, #8e8e93);
-    line-height: 1.6;
-}
-
-.tutor-btn-badge {
-    display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 2px 7px;
-    background: rgba(0, 229, 255, 0.12);
-    border: 1px solid rgba(0, 229, 255, 0.3);
-    border-radius: 6px;
-    color: var(--accent-color, #00e5ff);
-    font-weight: 600;
-    font-size: 0.78rem;
-    vertical-align: middle;
-    margin: 0 2px;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    width: max-content;
+    max-width: calc(100vw - 24px);
+    margin: 0;
+    padding: 8px 14px;
+    background: transparent;
+    border: none;
+    z-index: 3;
 }
 
-.tutor-btn-badge svg {
-    vertical-align: middle;
-    flex-shrink: 0;
+.doodle-nav-btn {
+    min-height: 40px;
+    padding: 6px 14px;
+    font-family: 'Shantell Sans', 'Yomogi', cursive;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #f2efe9;
+    background: transparent;
+    border: 1.5px solid #f2efe9;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.doodle-nav-btn:hover:not(:disabled) {
+    background: rgba(242, 239, 233, 0.12);
+    transform: translateY(-1px);
+}
+
+.doodle-nav-btn:disabled {
+    opacity: 0.38;
+    cursor: default;
+}
+
+.doodle-skip-btn {
+    border-style: dashed;
+}
+
+.doodle-step-counter {
+    min-width: 48px;
+    text-align: center;
+    font-family: 'Shantell Sans', 'Yomogi', cursive;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #f2efe9;
+}
+
+.tutorial-modal-content button:focus-visible {
+    outline: 2px dashed #f2efe9;
+    outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+    .tutorial-actions.doodle-tutorial-nav {
+        gap: 6px;
+        padding: 6px 8px;
+    }
+
+    .doodle-nav-btn {
+        padding: 6px 11px;
+        font-size: 0.85rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .doodle-chalk-stroke {
+        animation: none !important;
+        stroke-dasharray: none !important;
+        stroke-dashoffset: 0 !important;
+    }
+
+    .doodle-nav-btn {
+        transition: none !important;
+    }
 }

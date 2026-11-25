@@ -316,3 +316,344 @@ test('CSS reduced-motion, touch targets, 32px seek bar, WCAG contrast, tokens, G
         /@import '\.\/toast-notifications\.css';\r?\n@import '\.\/features\/splash-loader\.css';\r?\n@import '\.\/features\/tutorials-modal\.css';\r?\n@import '\.\/features\/cloud-vault-modal\.css';/
     );
 });
+
+test('Mutual-exclusion mode switching, DOM node cleanup on mode exit, and offscreen target/compositor release', async (t) => {
+    const savedDoc = globalThis.document;
+    globalThis.document = {
+        body: { classList: { add() {}, remove() {}, contains: () => false } },
+        getElementById: () => null,
+        addEventListener() {},
+        removeEventListener() {}
+    };
+    t.after(() => { globalThis.document = savedDoc; });
+    const playerEventBindingsJs = read('js/features/player/PlayerEventBindings.js');
+    const visualizerControllerJs = read('js/features/visualizer/VisualizerController.js');
+    const threeRendererControllerJs = read('js/features/visualizer/ThreeRendererController.js');
+    const playerViewCss = read('css/player-view.css');
+    const angelicCss = read('css/angelic.css');
+    const cinematicCss = read('css/cinematic.css');
+    const variablesCss = read('css/variables.css');
+    const indexHtml = read('index.html');
+
+    // 1. Mutual-exclusion mode switching in PlayerEventBindings.js
+    assert.match(
+        playerEventBindingsJs,
+        /btnCinematic\.addEventListener\('click',\s*\(\)\s*=>\s*\{\s*if\s*\(VisualizerController\.getIsAngelicMode\(\)\)\s*\{\s*VisualizerController\.exitAngelicMode\(angelicView,\s*playerView,\s*angelicTextContainer,\s*angelicParticleContainer\);\s*\}/
+    );
+    assert.match(
+        playerEventBindingsJs,
+        /btnAngelic\.addEventListener\('click',\s*\(\)\s*=>\s*\{\s*if\s*\(VisualizerController\.getIsCinematicMode\(\)\)\s*\{\s*VisualizerController\.exitCinematicMode\(cinematicView,\s*playerView,\s*cinematicTextContainer\);\s*removeVignetteOverlay\(\);\s*\}/
+    );
+
+    // 2. Immediate DOM node cleanup in VisualizerController.js
+    assert.match(visualizerControllerJs, /cinematicTextContainer\.replaceChildren\(\)/);
+    assert.match(visualizerControllerJs, /angelicTextContainer\.replaceChildren\(\)/);
+    assert.match(visualizerControllerJs, /angelicParticleContainer\.replaceChildren\(\)/);
+
+    const { VisualizerController } = await import('../js/features/visualizer/VisualizerController.js');
+    const makeContainer = (count) => {
+        const nodes = Array.from({ length: count }, () => ({ remove() {} }));
+        return {
+            children: nodes,
+            classList: { add() {}, remove() {}, contains: () => false },
+            querySelectorAll: () => [],
+            replaceChildren(...next) { this.children = next; }
+        };
+    };
+    const playerView = makeContainer(0);
+    const cinematicView = makeContainer(0);
+    const angelicView = makeContainer(0);
+    const cineText = makeContainer(12);
+    const angelText = makeContainer(18);
+    const angelParticles = makeContainer(25);
+
+    VisualizerController.enterAngelicMode(playerView, angelicView, -1, [], () => {}, () => {});
+    assert.equal(VisualizerController.getIsAngelicMode(), true);
+    VisualizerController.exitAngelicMode(angelicView, playerView, angelText, angelParticles);
+    assert.equal(VisualizerController.getIsAngelicMode(), false);
+    assert.equal(angelText.children.length, 0);
+    assert.equal(angelParticles.children.length, 0);
+
+    VisualizerController.enterCinematicMode(playerView, cinematicView, -1, [], () => {});
+    assert.equal(VisualizerController.getIsCinematicMode(), true);
+    VisualizerController.exitCinematicMode(cinematicView, playerView, cineText);
+    assert.equal(VisualizerController.getIsCinematicMode(), false);
+    assert.equal(cineText.children.length, 0);
+
+    // 3. Offscreen target release in ThreeRendererController.syncMode & mobile warmup guard
+    assert.match(threeRendererControllerJs, /this\.atelier\.target\.setSize\(1,\s*1\)/);
+    assert.match(threeRendererControllerJs, /this\.viewport\.scenes\.delete\(this\.atelier\)/);
+    assert.match(threeRendererControllerJs, /this\.tear\.target\.setSize\(1,\s*1\)/);
+    assert.match(threeRendererControllerJs, /this\.viewport\.scenes\.delete\(this\.tear\)/);
+    assert.match(threeRendererControllerJs, /matchMedia\('\(pointer: coarse\) and \(max-width: 900px\)'\)\.matches/);
+
+    const { RendererViewport } = await import('../js/core/rendering/three/RendererViewport.js');
+    const viewport = new RendererViewport();
+    const renderer = { setDrawingBufferSize() {} };
+    const makeTargetModule = () => ({
+        resizes: 0,
+        target: {
+            width: 1,
+            height: 1,
+            setSize(w, h) { this.width = w; this.height = h; }
+        },
+        resize(w, h) {
+            this.resizes++;
+            this.target.setSize(w, h);
+        }
+    });
+    const atelier = makeTargetModule();
+    const tear = makeTargetModule();
+    const stage = makeTargetModule();
+
+    // Entering player mode sizes atelier and tear to full resolution
+    viewport.sync(renderer, 1280, 720, 1, [atelier, tear]);
+    assert.deepEqual([atelier.target.width, atelier.target.height], [1280, 720]);
+    assert.deepEqual([tear.target.width, tear.target.height], [1280, 720]);
+    assert.equal(atelier.resizes, 1);
+    assert.equal(tear.resizes, 1);
+
+    // Leaving player mode shrinks offscreen targets to 1x1 and evicts from viewport.scenes
+    atelier.target.setSize(1, 1);
+    viewport.scenes.delete(atelier);
+    tear.target.setSize(1, 1);
+    viewport.scenes.delete(tear);
+    viewport.sync(renderer, 1280, 720, 1, [stage]);
+    assert.deepEqual([atelier.target.width, atelier.target.height], [1, 1]);
+    assert.deepEqual([tear.target.width, tear.target.height], [1, 1]);
+
+    // Re-entering player mode restores full target resolution automatically
+    viewport.sync(renderer, 1280, 720, 1, [atelier, tear]);
+    assert.deepEqual([atelier.target.width, atelier.target.height], [1280, 720]);
+    assert.deepEqual([tear.target.width, tear.target.height], [1280, 720]);
+    assert.equal(atelier.resizes, 2);
+    assert.equal(tear.resizes, 2);
+
+    // 4. Hidden view compositor layers & heading hierarchy
+    assert.match(playerViewCss, /\.view-container\.hidden\s+#player-bg-glow\s*\{\s*display:\s*none\s*!important;\s*animation:\s*none\s*!important;\s*\}/);
+    assert.match(angelicCss, /\.view-container\.hidden\s+#angelic-bg\s*\{\s*display:\s*none\s*!important;\s*animation:\s*none\s*!important;\s*\}/);
+    assert.match(cinematicCss, /\.view-container\.hidden\s+\.crt-lines,[\s\S]*?\.view-container\.hidden\s+\.crt-noise\s*\{\s*display:\s*none\s*!important;\s*animation:\s*none\s*!important;\s*\}/);
+    assert.match(variablesCss, /h1\s*\{\s*font-size:\s*2rem;\s*\}\s*h2\s*\{\s*font-size:\s*1\.5rem;\s*\}\s*h3\s*\{\s*font-size:\s*1\.2rem;\s*\}/);
+    assert.match(indexHtml, /id="btn-cloud-vault-home"[^>]*background:\s*#07222b/);
+});
+
+test('initDoodleTutorial renders 4 English steps, single-color #f2efe9 chalk SVG loop/arrow via getBoundingClientRect(), mobile clamping, and step navigation with zero console.log', async () => {
+    const html = read('index.html');
+    const tutorialsCss = read('css/features/tutorials-modal.css');
+    const doodleJs = read('js/features/splash/DoodleTutorialController.js');
+    const bootstrapperJs = read('js/features/splash/AppBootstrapper.js');
+    const dismissalJs = read('js/features/splash/TutorialDismissal.js');
+
+    // Zero console.log in splash/tutorial modules
+    for (const [name, src] of [
+        ['DoodleTutorialController.js', doodleJs],
+        ['AppBootstrapper.js', bootstrapperJs],
+        ['TutorialDismissal.js', dismissalJs]
+    ]) {
+        assert.doesNotMatch(src, /\bconsole\.log\s*\(/, `${name} must not contain console.log`);
+    }
+
+    // Verify HTML markup in #modal-tutorials
+    assert.match(html, /id="modal-tutorials"\s+class="modal hidden"/);
+    assert.match(html, /class="modal-content tutorial-modal-content"\s+role="dialog"\s+aria-modal="true"\s+aria-labelledby="tutorial-title"/);
+    assert.match(html, /<svg[^>]*id="doodle-tutorial-svg"[^>]*class="doodle-tutorial-svg"[^>]*aria-hidden="true"/);
+    assert.match(html, /<div[^>]*id="doodle-tutorial-note"[^>]*class="doodle-tutorial-note"/);
+    assert.match(html, /<h2[^>]*id="tutorial-title"[^>]*class="doodle-note-title"/);
+    assert.match(html, /<p[^>]*id="doodle-note-body"[^>]*class="doodle-note-body modal-subtitle"/);
+    for (const btnId of ['doodle-prev-btn', 'doodle-next-btn', 'btn-finish-tutorials', 'btn-close-tutorials']) {
+        const match = html.match(new RegExp(`<button[^>]*\\bid="${btnId}"[^>]*>`));
+        assert.ok(match, `Expected button #${btnId} in #modal-tutorials`);
+        assert.match(match[0], /\btype="button"/);
+        assert.match(match[0], /\baria-label="[^"]+"/);
+    }
+
+    // Verify CSS overlay, monochrome #f2efe9 palette, self-hosted Shantell Sans / Yomogi font, and reduced-motion guard
+    assert.match(tutorialsCss, /width:\s*100vw/);
+    assert.match(tutorialsCss, /height:\s*100dvh/);
+    assert.match(tutorialsCss, /background:\s*transparent/);
+    assert.match(tutorialsCss, /'Shantell Sans',\s*'Yomogi',\s*cursive/);
+    assert.match(tutorialsCss, /#f2efe9/i);
+    assert.match(tutorialsCss, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+
+    const {
+        initDoodleTutorial,
+        DOODLE_TUTORIAL_STEPS,
+        DOODLE_CHALK_COLOR
+    } = await import('../js/features/splash/DoodleTutorialController.js');
+
+    assert.equal(DOODLE_CHALK_COLOR, '#f2efe9');
+    assert.equal(DOODLE_TUTORIAL_STEPS.length, 4);
+    assert.deepEqual(
+        DOODLE_TUTORIAL_STEPS.map((s) => ({ targetSelector: s.targetSelector, title: s.title })),
+        [
+            { targetSelector: '#btn-add-song', title: '1. Drop Your Tracks & Lyrics' },
+            { targetSelector: '#btn-edit-library', title: '2. Pack Your 3D Vinyl Crates' },
+            { targetSelector: '#btn-cloud-vault-home', title: '3. Personal Cloud Vault' },
+            { targetSelector: '#btn-settings', title: '4. Customize Grid & Visual Stages' }
+        ]
+    );
+
+    const makeButton = (id) => {
+        const listeners = new Map();
+        const attrs = new Map();
+        return {
+            id,
+            textContent: '',
+            disabled: false,
+            setAttribute(k, v) { attrs.set(k, String(v)); },
+            getAttribute(k) { return attrs.get(k) ?? null; },
+            addEventListener(type, fn) {
+                if (!listeners.has(type)) listeners.set(type, []);
+                listeners.get(type).push(fn);
+            },
+            click() {
+                for (const fn of listeners.get('click') || []) fn({ stopPropagation() {} });
+            }
+        };
+    };
+
+    const targetRects = {
+        '#btn-add-song': { left: 320, top: 20, width: 40, height: 40, bottom: 60, right: 360 },
+        '#btn-edit-library': { left: 268, top: 20, width: 40, height: 40, bottom: 60, right: 308 },
+        '#btn-cloud-vault-home': { left: 80, top: 20, width: 130, height: 40, bottom: 60, right: 210 },
+        '#btn-settings': { left: 216, top: 20, width: 40, height: 40, bottom: 60, right: 256 }
+    };
+
+    const svgAttrs = new Map();
+    const svgEl = {
+        id: 'doodle-tutorial-svg',
+        innerHTML: '',
+        setAttribute(k, v) { svgAttrs.set(k, String(v)); },
+        getAttribute(k) { return svgAttrs.get(k) ?? null; }
+    };
+    const noteEl = {
+        id: 'doodle-tutorial-note',
+        style: {},
+        getBoundingClientRect: () => ({ width: 300, height: 90 })
+    };
+    const titleEl = { id: 'tutorial-title', textContent: '' };
+    const bodyEl = { id: 'doodle-note-body', textContent: '' };
+    const counterEl = { id: 'doodle-step-counter', textContent: '' };
+    const prevBtn = makeButton('doodle-prev-btn');
+    const nextBtn = makeButton('doodle-next-btn');
+    const openBtn = makeButton('btn-open-tutorials');
+
+    const docListeners = new Map();
+    const winListeners = new Map();
+    const mockWin = {
+        innerWidth: 360,
+        innerHeight: 640,
+        addEventListener(type, fn) {
+            if (!winListeners.has(type)) winListeners.set(type, []);
+            winListeners.get(type).push(fn);
+        },
+        removeEventListener(type, fn) {
+            const arr = winListeners.get(type) || [];
+            winListeners.set(type, arr.filter((f) => f !== fn));
+        }
+    };
+
+    const elById = new Map([
+        ['doodle-tutorial-svg', svgEl],
+        ['doodle-tutorial-note', noteEl],
+        ['tutorial-title', titleEl],
+        ['doodle-note-body', bodyEl],
+        ['doodle-step-counter', counterEl],
+        ['doodle-prev-btn', prevBtn],
+        ['doodle-next-btn', nextBtn],
+        ['btn-open-tutorials', openBtn]
+    ]);
+
+    const mockDoc = {
+        defaultView: mockWin,
+        getElementById(id) {
+            return elById.get(id) || null;
+        },
+        querySelector(sel) {
+            if (targetRects[sel]) {
+                return { getBoundingClientRect: () => targetRects[sel] };
+            }
+            return elById.get(sel.replace(/^#/, '')) || null;
+        },
+        addEventListener(type, fn) {
+            if (!docListeners.has(type)) docListeners.set(type, []);
+            docListeners.get(type).push(fn);
+        },
+        removeEventListener(type, fn) {
+            const arr = docListeners.get(type) || [];
+            docListeners.set(type, arr.filter((f) => f !== fn));
+        },
+        dispatchKey(key) {
+            for (const fn of docListeners.get('keydown') || []) {
+                fn({ key, preventDefault() {}, stopPropagation() {} });
+            }
+        }
+    };
+
+    const classSet = new Set(['modal']);
+    const modalEl = {
+        id: 'modal-tutorials',
+        ownerDocument: mockDoc,
+        classList: {
+            contains: (c) => classSet.has(c),
+            add: (c) => classSet.add(c),
+            remove: (c) => classSet.delete(c)
+        },
+        querySelector(sel) {
+            return elById.get(sel.replace(/^#/, '')) || null;
+        }
+    };
+
+    const controller = initDoodleTutorial(modalEl);
+
+    // Step 1 alignment and mobile horizontal clamping (viewport 360px, noteWidth 300px => clamped to [16, 44])
+    assert.equal(controller.getCurrentStep(), 0);
+    assert.equal(titleEl.textContent, '1. Drop Your Tracks & Lyrics');
+    assert.equal(counterEl.textContent, '1 / 4');
+    assert.equal(prevBtn.disabled, true);
+    assert.equal(svgEl.getAttribute('viewBox'), '0 0 360 640');
+    assert.equal(noteEl.style.left, '44px');
+    assert.equal(noteEl.style.top, '104px');
+
+    // Verify SVG paths use only #f2efe9 strokes and point to (cx=340, tr.bottom+8=68)
+    const strokes = [...svgEl.innerHTML.matchAll(/stroke="([^"]+)"/g)].map((m) => m[1]);
+    assert.ok(strokes.length >= 3);
+    for (const color of strokes) {
+        assert.equal(color.toLowerCase(), '#f2efe9');
+    }
+    assert.match(svgEl.innerHTML, /340 68/);
+
+    // Advance through steps 2, 3, 4 via next button and ArrowRight/ArrowLeft
+    nextBtn.click();
+    assert.equal(controller.getCurrentStep(), 1);
+    assert.equal(titleEl.textContent, '2. Pack Your 3D Vinyl Crates');
+    assert.equal(counterEl.textContent, '2 / 4');
+    assert.equal(prevBtn.disabled, false);
+
+    mockDoc.dispatchKey('ArrowRight');
+    assert.equal(controller.getCurrentStep(), 2);
+    assert.equal(titleEl.textContent, '3. Personal Cloud Vault');
+    assert.equal(counterEl.textContent, '3 / 4');
+
+    mockDoc.dispatchKey('ArrowLeft');
+    assert.equal(controller.getCurrentStep(), 1);
+
+    mockDoc.dispatchKey('ArrowRight');
+    mockDoc.dispatchKey('ArrowRight');
+    assert.equal(controller.getCurrentStep(), 3);
+    assert.equal(titleEl.textContent, '4. Customize Grid & Visual Stages');
+    assert.equal(counterEl.textContent, '4 / 4');
+    assert.match(nextBtn.textContent, /Done/);
+
+    // Clicking next on last step closes #modal-tutorials
+    nextBtn.click();
+    assert.equal(modalEl.classList.contains('hidden'), true);
+
+    // Clicking #btn-open-tutorials resets to Step 1 and opens #modal-tutorials
+    openBtn.click();
+    assert.equal(modalEl.classList.contains('hidden'), false);
+    assert.equal(controller.getCurrentStep(), 0);
+    assert.equal(titleEl.textContent, '1. Drop Your Tracks & Lyrics');
+
+    controller.dispose();
+});

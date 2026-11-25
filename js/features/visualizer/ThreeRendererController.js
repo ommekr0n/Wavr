@@ -61,7 +61,8 @@ export class ThreeRendererController {
         for (const id of ['home-view', 'edit-library-view', 'player-view', 'cinematic-view', 'angelic-view', 'nostalgia-view']) this.viewObserver.observe(document.getElementById(id), { attributes: true, attributeFilter: ['class'] });
         attachThreeContextRecovery(this, signal);
         this.resize(); this.setEnabled(true);
-        this.warmup = new GraphicsWarmup([
+        const coarseMobile = typeof matchMedia === 'function' && matchMedia('(pointer: coarse) and (max-width: 900px)').matches;
+        this.warmup = new GraphicsWarmup(coarseMobile ? [] : [
             () => this.prepareArtistIntro(),
             () => this.warmScene(this.vinyl),
             () => this.warmScene(this.stage, this.stage.scene, THREE.ACESFilmicToneMapping)
@@ -126,7 +127,17 @@ export class ThreeRendererController {
         if (this.mode === 'cinematic') this.stage.fire.reset();
         if (this.mode === 'library' || this.mode === 'edit') this.surfaces.suspend();
         if (this.mode === 'angelic') this.butterflies.clear();
-        if (mode !== 'player') this.tear.cancel();
+        if (mode !== 'player') {
+            this.tear.cancel();
+            if (this.atelier?.target) {
+                this.atelier.target.setSize(1, 1);
+                this.viewport.scenes.delete(this.atelier);
+            }
+            if (!this.tear.active && this.tear?.target) {
+                this.tear.target.setSize(1, 1);
+                this.viewport.scenes.delete(this.tear);
+            }
+        }
         this.mode = mode;
         this.sleeve.setActive(mode === 'player');
         this.butterflies.active = mode === 'angelic';

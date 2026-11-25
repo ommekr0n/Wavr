@@ -106,7 +106,10 @@ export const VisualizerController = {
         document.body?.classList?.remove('user-idle');
         cinematicView.classList.add('hidden');
         playerView.classList.remove('hidden');
-        if (cinematicTextContainer) cinematicTextContainer.innerHTML = '';
+        if (cinematicTextContainer) {
+            if (typeof cinematicTextContainer.replaceChildren === 'function') cinematicTextContainer.replaceChildren();
+            else cinematicTextContainer.innerHTML = '';
+        }
         LyricEngine.setActiveLyricIndex(-1);
     },
 
@@ -163,8 +166,14 @@ export const VisualizerController = {
         angelicView.classList.add('hidden');
         angelicView.querySelectorAll?.('.giant-butterfly').forEach(el => el.remove());
         playerView.classList.remove('hidden');
-        if (angelicTextContainer) angelicTextContainer.innerHTML = '';
-        if (angelicParticleContainer) angelicParticleContainer.innerHTML = '';
+        if (angelicTextContainer) {
+            if (typeof angelicTextContainer.replaceChildren === 'function') angelicTextContainer.replaceChildren();
+            else angelicTextContainer.innerHTML = '';
+        }
+        if (angelicParticleContainer) {
+            if (typeof angelicParticleContainer.replaceChildren === 'function') angelicParticleContainer.replaceChildren();
+            else angelicParticleContainer.innerHTML = '';
+        }
         LyricEngine.setActiveLyricIndex(-1);
     },
 

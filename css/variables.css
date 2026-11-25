@@ -1,6 +1,6 @@
 /* Core Variables & Resets */
 :root {
-    --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-primary: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
     --bg-color: #000000;
     --surface-1: rgba(255, 255, 255, 0.03);
     --surface-2: rgba(255, 255, 255, 0.06);
@@ -13,7 +13,7 @@
     --glass-border: rgba(255, 255, 255, 0.08);
     --transition-speed: 0.3s;
     /* dynamic theme colors */
-    --blob-1-color: #ff2d55;
+    --blob-1-color: #6e7891;
     --blob-2-color: #5856d6;
     --blob-3-color: #ff9500;
     --blob-4-color: #ff2d55;
@@ -73,6 +73,10 @@ body {
     -ms-user-select: none;
     user-select: none;
 }
+
+h1 { font-size: 2rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.2rem; }
 
 /* View Containers */
 .view-container {
